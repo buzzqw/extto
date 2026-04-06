@@ -1,0 +1,1317 @@
+'(lascia vuoto = tutti i giorni)': '(leer lassen = jeden Tag)'
+(opz. separati da virgola): (opt. durch Komma getrennt)
+(opzionale): (optional)
+(ripristino limiti base): (Basis-Limits wiederherstellen)
+'(separati da |)': '(getrennt durch |)'
+(velocità programmata): (geplante Geschwindigkeit)
+'0 = illimitato': '0 = unbegrenzt'
+0 selezionati: 0 ausgewählt
+0 significa Nessun Limite (Usa tutta la banda): 0 bedeutet Kein Limit (Nutzt die gesamte Bandbreite)
+'0 significa Nessun Limite. Limitalo per non saturare l''upload di casa.': '0 bedeutet Kein Limit. Begrenzen Sie es, um Ihren heimischen Upload nicht zu sättigen.'
+'0% frammentato': '0% fragmentiert'
+'1 = Prima Stagione. 1-3 = Dalla prima alla terza. 2+ = Dalla seconda all''ultima uscita in circolazione.': '1 = Erste Staffel. 1-3 = Von der ersten bis zur dritten. 2+ = Von der zweiten bis zur aktuellsten Veröffentlichung.'
+'1 = Prima Stagione. 1-3 = Dalla prima alla terza. 2+ = Dalla seconda all''ultima.': '1 = Erste Staffel. 1-3 = Von der ersten bis zur dritten. 2+ = Von der zweiten bis zur letzten.'
+1080p+: 1080p+
+4K (2160p): 4K (2160p)
+720p: 720p
+720p+: 720p+
+720p-1080p: 720p-1080p
+'<480p': '<480p'
+'<720p': '<720p'
+'@libtorrent_enabled = yes': '@libtorrent_enabled = yes'
+'A fine download sposta automaticamente i file nel ''Percorso Archivio'' se lo hai configurato per quella serie. Funziona solo con il client libtorrent integrato.': 'Nach dem Download werden die Dateien automatisch in den ''Archivpfad'' verschoben, falls für diese Serie konfiguriert. Funktioniert nur mit dem integrierten libtorrent-Client.'
+A quanti utenti in contemporanea inviare i dati.: An wie viele Benutzer die Daten gleichzeitig gesendet werden sollen.
+Abilita: Aktivieren
+'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Archive Max Age'' mantenendo almeno ''Archive Keep Min'' voci.': 'Aktiviert die automatische Archivbereinigung am Ende jedes Zyklus. Entfernt Einträge, die älter sind als ''Archive Max Age'', behält aber mindestens ''Archive Keep Min'' Einträge.'
+Abilita Selezionate: Ausgewählte aktivieren
+Abilitata: Aktiviert
+Abilitata (preferita): Aktiviert (bevorzugt)
+Abilitato: Aktiviert
+'agganciato con successo!': 'erfolgreich verknüpft!'
+Aggiorna: Aktualisieren
+Aggiorna Blocklist Ora: Blocklist jetzt aktualisieren
+Aggiorna gli indici per velocizzare le ricerche.: 'Aktualisiert die Indizes, um Suchanfragen zu beschleunigen.'
+Aggiorna Info: Info aktualisieren
+Aggiorna lista.: Liste aktualisieren.
+Aggiorna Storico: Verlauf aktualisieren
+Aggiornamento automatico: Automatische Aktualisierung
+Aggiornamento lista...: Liste wird aktualisiert...
+Aggiunge ai log ogni torrent scartato perché già in archivio. Molto verboso su archivi grandi — usalo solo per diagnosticare problemi specifici.: 'Fügt jeden Torrent zu den Logs hinzu, der verworfen wurde, weil er bereits im Archiv ist. Sehr ausführlich bei großen Archiven — nur zur Diagnose spezifischer Probleme verwenden.'
+Aggiunge template ExtTo.: Fügt ExtTo-Vorlage hinzu.
+Aggiunge template Il Corsaro Nero.: Fügt Il Corsaro Nero-Vorlage hinzu.
+Aggiunge template Knaben RSS (feed generico italiano).: Fügt Knaben RSS-Vorlage hinzu (allgemeiner italienischer Feed).
+Aggiunge un feed RSS generico (qualsiasi URL RSS/Torznab compatibile).: Fügt einen allgemeinen RSS-Feed hinzu (jede kompatible RSS/Torznab-URL).
+Aggiungi: Hinzufügen
+Aggiungi Film: Film hinzufügen
+Aggiungi in pausa: Pausiert hinzufügen
+Aggiungi Magnet: Magnet hinzufügen
+Aggiungi magnet: Magnet hinzufügen
+Aggiungi magnet/torrent manualmente.: Magnet/Torrent manuell hinzufügen.
+Aggiungi rapidamente un Magnet Link o un file .torrent da qualsiasi pagina ti trovi.: Fügen Sie schnell einen Magnet-Link oder eine .torrent-Datei von einer beliebigen Seite hinzu.
+Aggiungi Serie: Serie hinzufügen
+Aggiungi Serie TV: TV-Serie hinzufügen
+'Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli.': 'Fügen Sie Jackett-Quellen/Torrent-Seiten, Blocklisten und Titelausschlüsse hinzu.'
+Aggiungi un nuovo Film alla lista dei desideri.: Fügen Sie einen neuen Film zur Wunschliste hinzu.
+Aggiungi una nuova Serie TV al monitoraggio.: Fügen Sie eine neue TV-Serie zur Überwachung hinzu.
+Aggiunta con successo: Erfolgreich hinzugefügt
+Aggiunti al Client: Zum Client hinzugefügt
+Aggiunto al client: Zum Client hinzugefügt
+Alias / Nomi Alternativi: Alias / Alternative Namen
+Altre sezioni: Weitere Bereiche
+Altro: Mehr
+Analisi avviata. Attendi la finestra di riepilogo...: Analyse gestartet. Bitte warten Sie auf das Zusammenfassungsfenster...
+Analizza Ora: Jetzt analysieren
+ANALYZE: ANALYZE
+Anno: Jahr
+Announce a tutti i tracker: An alle Tracker ankündigen
+Annulla: Abbrechen
+Anteprima Rinomina TMDB: TMDB-Umbenennungsvorschau
+Applica: Anwenden
+Applica limiti: Limits anwenden
+'Applica limiti di velocità diversi in fasce orarie programmabili. Esempio: velocità piena di notte (01:00-08:00), limitata di giorno per non intralciare lo streaming e lo smart working.': 'Wendet unterschiedliche Geschwindigkeitsbegrenzungen in programmierbaren Zeitfenstern an. Beispiel: volle Geschwindigkeit nachts (01:00-08:00), tagsüber begrenzt, um Streaming und Home-Office nicht zu stören.'
+Applica Qualità: Qualität anwenden
+Applicato immediatamente senza riavvio e salvato in: Sofort ohne Neustart angewendet und gespeichert in
+Applicato immediatamente senza riavvio e salvato in Database: Sofort ohne Neustart angewendet und in der Datenbank gespeichert
+Applicazione limiti in corso...: Limits werden angewendet...
+Apri pagina ufficiale su TMDB: Offizielle TMDB-Seite öffnen
+Archivio: Archiv
+aria2c: aria2c
+Assegna Categoria: Kategorie zuweisen
+'Assegna punti bonus o malus. Formato -> Parola:Punti (es. MIRCrew:500)': 'Vergeben Sie Bonus- oder Maluspunkte. Format -> Wort:Punkte (z. B. MIRCrew:500)'
+Assegna una Categoria/Tag comune a tutti i torrent selezionati.: Weist allen ausgewählten Torrents eine gemeinsame Kategorie/einen gemeinsamen Tag zu.
+'Attenzione: Selezionando questa opzione cancellerai fisicamente i file multimediali dal tuo hard disk. Non è possibile annullare l''operazione.': 'Achtung: Durch Auswahl dieser Option löschen Sie die Mediendateien physisch von Ihrer Festplatte. Dieser Vorgang kann nicht rückgängig gemacht werden.'
+Attesa (in ore) dopo il primo rilevamento per permettere alla rete torrent di popolarlo con sorgenti di qualità superiore prima di inviare al client.: 'Wartezeit (in Stunden) nach der ersten Erkennung, um dem Torrent-Netzwerk Zeit zu geben, Quellen mit höherer Qualität bereitzustellen, bevor er an den Client gesendet.'
+Attesa prima di scaricare per attendere qualità migliore.: 'Wartezeit vor dem Download, um auf eine bessere Qualität zu warten.'
+Attesa Terminata: Wartezeit beendet
+Attività: Aktivität
+Attivo: Aktiv
+Audio: Audio
+'Audio & Lingua': 'Audio & Sprache'
+'Aumenta esponenzialmente la privacy! URL di una blocklist in formato P2P (eMule dat), PeerGuardian (.p2p), o ZIP/GZ. Blocca la connessione con aziende anti-p2p, governi o peer malevoli.': 'Erhöht die Privatsphäre exponentiell! URL einer Blocklist im P2P- (eMule dat), PeerGuardian- (.p2p) oder ZIP/GZ-Format. Blockiert die Verbindung mit Anti-P2P-Unternehmen, Regierungen oder bösartigen Peers.'
+auto (lascia vuoto) oppure tun0/wg0: Auto (leer lassen) oder tun0/wg0
+Auto-scorri verso il basso quando arrivano nuove stringhe log.: 'Automatisch nach unten scrollen, wenn neue Log-Einträge eintreffen.'
+Auto-scroll: Auto-Scroll
+Avanzate: Erweitert
+Avvia o riprende i torrent selezionati.: Startet oder setzt die ausgewählten Torrents fort.
+Avvia una scansione per tutti gli episodi non ancora scaricati di questa serie: Startet einen Scan nach allen noch nicht heruntergeladenen Episoden dieser Serie
+Avviare il recheck su: Recheck starten für
+Avvio download diretto...: Starte direkten Download...
+Avvio download Mega...: Starte Mega-Download...
+Avvio forzato del pack: Erzwungener Start des Packs
+Azione applicata su: Aktion angewendet auf
+AZIONI: AKTIONEN
+'Backup completato!': 'Backup abgeschlossen!'
+Backup Completo: Vollständiges Backup
+backup conservati: Backups behalten
+Backup creato: Backup erstellt
+Backup in corso...: Backup läuft...
+'Backup inviato su Telegram con successo!': 'Backup erfolgreich an Telegram gesendet!'
+Blacklist: Blacklist
+'Bonus Extra & Gruppi': 'Extra-Bonus & Gruppen'
+Bonus Italiano (ITA): Italienisch-Bonus (ITA)
+Bonus Lingua: Sprach-Bonus
+Bonus Lingua (ITA): Sprach-Bonus (ITA)
+button: button
+Calcolatore e Punteggi di Qualità: 'Qualitätsrechner & Punktzahlen'
+Calcolatore Rapido di Verifica: Schneller Überprüfungsrechner
+Carica Editor: Editor laden
+Caricamento dischi...: Lade Festplatten...
+Caricamento...: Wird geladen...
+'Caricato (Seed) dall''avvio di libtorrent': Hochgeladen (Seed) seit Start von libtorrent
+Cartella Backup: Backup-Ordner
+Cartella destinazione: Zielordner
+Cartella di destinazione: Zielordner
+'Cartella principale per l''individuazione automatica delle serie. Se non specifichi un percorso per una serie, EXTTO la cercherà qui.': 'Hauptordner zur automatischen Erkennung von Serien. Wenn Sie keinen Pfad für eine Serie angeben, sucht EXTTO hier danach.'
+Cartella temporanea: Temporärer Ordner
+Cartella Trash: Papierkorb-Ordner
+Categoria: Kategorie
+Cerca: Suchen
+'Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà via Jackett. Richiede TMDB configurato.': 'Sucht automatisch nach fehlenden vorherigen Episoden, wenn eine neue Episode eintrifft. Beispiel: Wenn S03E05 ankommt, aber E01–E04 fehlen, werden diese über Jackett gesucht. Erfordert ein konfiguriertes TMDB.'
+Cerca film...: Filme suchen...
+Cerca il nome corretto su TMDB: Suche nach dem korrekten Namen auf TMDB
+Cerca il nome ufficiale su TMDB: Suche nach dem offiziellen Namen auf TMDB
+Cerca mancanti: Fehlende suchen
+'Cerca nell''archivio...': Im Archiv suchen...
+Cerca serie...: Serien suchen...
+Cerca stringa...: Zeichenfolge suchen...
+Cerca su TMDB: Auf TMDB suchen
+'Cerca su TMDB (completa anche l''anno!)': 'Auf TMDB suchen (füge auch das Jahr hinzu!)'
+Cerca Subito: Jetzt suchen
+Cerca subito i film presenti in lista che non sono ancora stati scaricati. Non tocca serie TV né fumetti.: 'Sucht sofort nach Filmen auf der Liste, die noch nicht heruntergeladen wurden. Betrifft keine TV-Serien oder Comics.'
+Cerca subito nuovi episodi per tutte le serie TV abilitate e tenta di riempire i gap mancanti. Non tocca film né fumetti.: 'Sucht sofort nach neuen Episoden für alle aktivierten TV-Serien und versucht, fehlende Lücken zu schließen. Betrifft keine Filme oder Comics.'
+Cerca titolo...: Titel suchen...
+'Cerca un fumetto su getcomics.org… es. Batman, Walking Dead, X-Men': 'Suche nach einem Comic auf getcomics.org… z. B. Batman, Walking Dead, X-Men'
+Cerca un titolo su TMDB…: Suche nach einem Titel auf TMDB…
+chiave: Schlüssel
+CHIAVE INTERNA: INTERNER SCHLÜSSEL
+Chiudi: Schließen
+cicli: Zyklen
+'ciclo avviato! Controlla i log tra qualche secondo.': 'Zyklus gestartet! Überprüfen Sie die Logs in wenigen Sekunden.'
+Ciclo completo: Vollständiger Zyklus
+Ciclo fumetti avviato in background: Comics-Zyklus im Hintergrund gestartet
+Ciclo fumetti avviato in background...: Comic-Zyklus im Hintergrund gestartet...
+Ciclo richiesto (trigger creato): Zyklus angefordert (Trigger erstellt)
+Client: Client
+Client Torrent Attivo: Aktiver Torrent-Client
+Cloud Backup: Cloud-Backup
+Coda Torrent Attivi: Aktive Torrent-Warteschlange
+Codec: Codec
+Codice non valido — usa 2-5 lettere: Ungültiger Code — verwenden Sie 2-5 Buchstaben
+'Collezione chiusa e pronta da guardare!': 'Sammlung vollständig und bereit zum Ansehen!'
+completamento download: Download-Abschluss
+Completato: Abgeschlossen
+Completo: Vollständig
+Conferma eliminazione torrent dalla lista del client.: Bestätigen Sie das Entfernen des Torrents aus der Client-Liste.
+Configura avvisi Email o bot Telegram alla fine di un download.: Konfigurieren Sie E-Mail- oder Telegram-Bot-Benachrichtigungen am Ende eines Downloads.
+Configurati: Konfiguriert
+Configurazione: Konfiguration
+Configurazione Globale: Globale Konfiguration
+Connessioni (Seed / Peer): Verbindungen (Seed / Peer)
+Connessioni max: Max. Verbindungen
+'Consumo:': 'Verbrauch:'
+Contenuto: Inhalt
+Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett).: Countdown für den nächsten automatischen Start der Suchmaschine (Scraping + Jackett).
+Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore.: Steuert die Ausführlichkeit von extto.log. DEBUG zeigt alles. INFO ist der Standard. WARNING/ERROR reduzieren das Rauschen.
+Controlla servizi...: Überprüfe Dienste...
+'Controlla subito getcomics.org per nuovi fumetti monitorati e weekly pack, ignorando il timer settimanale. Non tocca serie TV né film.': Überprüft sofort getcomics.org auf neue überwachte Comics und Weekly Packs und ignoriert den wöchentlichen Timer. Betrifft keine TV-Serien oder Filme.
+Controllo file avviato: Dateiprüfung gestartet
+Controllo indexer...: Überprüfe Indexer...
+Controllo servizi...: Überprüfe Dienste...
+Copia: Kopieren
+Copia i magnet link negli appunti: Magnet-Links in die Zwischenablage kopieren
+Copia non riuscita: Kopieren fehlgeschlagen
+Costringe EXTTO ad accettare solo release che includano questa lingua nei metadati.: 'Zwingt EXTTO, nur Releases zu akzeptieren, die diese Sprache in den Metadaten enthalten.'
+'Costringe libtorrent a comunicare SOLAMENTE su una specifica scheda di rete. Esempio vitale: inserisci ''tun0'' o ''wg0'' se usi OpenVPN/Wireguard. Se la VPN cade, libtorrent bloccherà tutto impedendo perdite IP reali (IP Leak).': 'Zwingt libtorrent, NUR über eine bestimmte Netzwerkschnittstelle zu kommunizieren. Wichtiges Beispiel: Geben Sie ''tun0'' oder ''wg0'' ein, wenn Sie OpenVPN/Wireguard verwenden. Fällt das VPN aus, blockiert libtorrent alles und verhindert reale IP-Lecks (IP Leak).'
+CPU: CPU
+CRASH DEL MOTORE: ENGINE-ABSTURZ
+Crea Nuova: Neu erstellen
+'Creazione ZIP in corso, attendere…': 'ZIP wird erstellt, bitte warten…'
+Credenziali Salvate: Anmeldeinformationen gespeichert
+Crittografia: Verschlüsselung
+Dashboard: Dashboard
+Data: Datum
+Debug Blacklist: Debug Blacklist
+Debug Dimensione: Debug Größe
+Debug Duplicati: Debug Duplikate
+Debug Qualità: Debug Qualität
+DEBUG — tutto (diagnosi dettagliata): DEBUG — alles (detaillierte Diagnose)
+Default: Standard
+'Default: 120 (2 ore). Non scendere sotto i 30.': 'Standard: 120 (2 Stunden). Gehen Sie nicht unter 30.'
+'Definisce se i file obsoleti devono essere spostati nel cestino (@trash_path) o eliminati fisicamente (Irreversibile).': 'Legt fest, ob veraltete Dateien in den Papierkorb verschoben (@trash_path) oder physisch gelöscht werden sollen (Irreversibel).'
+'Deframmenta e compatta i file, liberando i Megabyte fisici sul disco.': 'Defragmentiert und komprimiert die Dateien, wodurch physische Megabytes auf der Festplatte freigegeben werden.'
+Destinazione: Ziel
+Dettagli: Details
+Dettagli Film: Filmdetails
+Dettagli Serie: Seriendetails
+Dettagli Torrent: Torrent-Details
+DHT: DHT
+'Differenza minima di score tra il nuovo file e quello esistente per attivare la pulizia. 0 = qualsiasi upgrade. 500 = solo salti significativi (es. 720p→4K).': 'Minimaler Punktzahl-Unterschied zwischen der neuen und der vorhandenen Datei, um die Bereinigung auszulösen. 0 = jedes Upgrade. 500 = nur signifikante Sprünge (z. B. 720p→4K).'
+'Digita per filtrare i messaggi d''errore o cercare il nome di un file nei log.': 'Tippen Sie, um Fehlermeldungen zu filtern oder nach einem Dateinamen in den Logs zu suchen.'
+Dimensione: Größe
+Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente.: Tatsächlich belegter Speicherplatz durch Downloads in Ihrem Zielordner und verbleibender Speicherplatz.
+Dimentica e permetti un nuovo scaricamento: Vergessen und neuen Download zulassen
+Disabilita Selezionate: Ausgewählte deaktivieren
+Disabilitata: Deaktiviert
+Disabilitato: Deaktiviert
+Disco: Festplatte
+'Distributed Hash Table: indispensabile per trovare peer senza tracker (Magnet Link puri). Lascialo abilitato.': 'Distributed Hash Table: unerlässlich, um Peers ohne Tracker zu finden (reine Magnet-Links). Aktiviert lassen.'
+div: div
+DL: DL
+Dolby Vision (DV): Dolby Vision (DV)
+Dom: So
+'Dopo il download rinomina i file nel formato scelto sotto, usando i titoli ufficiali TMDB. Richiede tmdb_api_key configurata. Funziona solo con il client libtorrent integrato.': 'Benennt Dateien nach dem Download in dem unten gewählten Format mithilfe offizieller TMDB-Titel um. Erfordert konfigurierte tmdb_api_key. Funktioniert nur mit dem integrierten libtorrent-Client.'
+'Dopo ogni backup riuscito, il file ZIP viene inviato come documento al bot Telegram configurato nelle Notifiche. Richiede bot token e chat ID validi nelle impostazioni notifiche. Il file viene inviato solo se le dimensioni sono inferiori a 50 MB (limite Telegram).': 'Nach jedem erfolgreichen Backup wird die ZIP-Datei als Dokument an den in den Benachrichtigungen konfigurierten Telegram-Bot gesendet. Erfordert gültigen Bot-Token und Chat-ID in den Benachrichtigungseinstellungen. Die Datei wird nur gesendet, wenn sie kleiner als 50 MB ist (Telegram-Limit).'
+'Dov''è finito Esporta?': 'Wo ist Exportieren geblieben?'
+Download: Downloads
+download: Downloads
+Download attuale.: Aktueller Download.
+Download automatico: Automatischer Download
+Download avviato con successo.: Download erfolgreich gestartet.
+'Download avviato!': 'Download gestartet!'
+Download Completato: Download abgeschlossen
+Download Diretto: Direkter Download
+Download diretto HTTP: Direkter HTTP-Download
+Download durante scheduler (KB/s): Download während des Schedulers (KB/s)
+Download Film: Film-Download
+'Download Mega avviato!': 'Mega-Download gestartet!'
+Download Sequenziale: Sequenzieller Download
+'Download torrent avviato!': 'Torrent-Download gestartet!'
+e la serie risulta ufficialmente conclusa (Ended).: und die Serie ist offiziell abgeschlossen (Ended).
+Editor Lingue e Traduzioni: Sprach- und Übersetzungseditor
+elementi: Elemente
+Elemento eliminato: Element gelöscht
+Elimina: Löschen
+Elimina anche i file scaricati: Auch heruntergeladene Dateien löschen
+Elimina automaticamente i file nel cestino più vecchi di N giorni ad ogni ciclo. Lascia vuoto per non cancellare mai.: 'Löscht automatisch Dateien im Papierkorb, die älter als N Tage sind, in jedem Zyklus. Leer lassen, um niemals zu löschen.'
+'Elimina dall''archivio': Aus dem Archiv löschen
+Elimina i record più vecchi di N giorni: 'Einträge löschen, die älter als N Tage sind'
+'Elimina i selezionati dall''archivio': Ausgewählte aus dem Archiv löschen
+Eliminare: Löschen
+'Eliminare definitivamente i file nel cestino più vecchi del numero di giorni configurato?': 'Dateien im Papierkorb, die älter als die konfigurierte Anzahl von Tagen sind, dauerhaft löschen?'
+Eliminare la serie: Serie löschen
+'Eliminare questo elemento dall''archivio?': 'Dieses Element aus dem Archiv löschen?'
+'Eliminare?': 'Löschen?'
+eliminata: gelöscht
+Eliminati: Gelöscht
+Episodio forzato come mancante (rimosso dal DB): Episode als fehlend erzwungen (aus DB entfernt)
+Episodio ignorato: Episode ignoriert
+Episodio Mancante: Fehlende Episode
+'Episodio marcato per riscarica (score=0, hash azzerato)': 'Episode zum erneuten Download markiert (score=0, Hash gelöscht)'
+ERROR — solo errori critici: ERROR — nur kritische Fehler
+Errore: ': Fehler:'
+Errore aggiunta torrent: Fehler beim Hinzufügen des Torrents
+Errore applicazione limiti: Fehler beim Anwenden der Limits
+Errore avvio ciclo: Fehler beim Starten des Zyklus
+'Errore avvio ciclo:': 'Fehler beim Zyklusstart:'
+Errore backup: '": Backup-Fehler:'
+'Errore backup:': 'Backup-Fehler:'
+Errore batch download: Fehler beim Batch-Download
+Errore caricamento health: Fehler beim Laden des Status
+'Errore caricamento health:': 'Fehler beim Laden des Status:'
+Errore configurazione notifica: Fehler bei der Benachrichtigungskonfiguration
+Errore copia: Kopierfehler
+Errore di comunicazione col server: Kommunikationsfehler mit dem Server
+Errore di comunicazione con libtorrent: Kommunikationsfehler mit libtorrent
+Errore di connessione: Verbindungsfehler
+Errore di Lettura: Lesefehler
+Errore di rete: Netzwerkfehler
+Errore di Rete: Netzwerkfehler
+Errore di rete con il server: Netzwerkfehler mit dem Server
+Errore di rete durante il recheck: Netzwerkfehler beim erneuten Überprüfen
+Errore di rete durante l: Netzwerkfehler während des
+Errore download: Downloadfehler
+Errore download Mega: Fehler beim Mega-Download
+Errore durante il controllo completezza: Fehler bei der Vollständigkeitsprüfung
+Errore durante il download da URL: Fehler beim Herunterladen von der URL
+Errore durante il salvataggio: Fehler beim Speichern
+Errore durante il salvataggio.: Fehler beim Speichern.
+'Errore durante l''applicazione': Fehler beim Anwenden
+'Errore durante l''invio': Fehler beim Senden
+Errore durante la generazione dell: Fehler bei der Generierung des
+Errore durante la pulizia: Fehler bei der Bereinigung
+Errore eliminazione: '": Löschfehler:'
+'Errore eliminazione:': 'Löschfehler:'
+Errore invio torrent: Fehler beim Senden des Torrents
+Errore lettura dettagli: Fehler beim Lesen der Details
+Errore nel caricamento dei punteggi: Fehler beim Laden der Punktzahlen
+Errore ricerca: Suchfehler
+Errore riprocessamento: Fehler bei der Wiederaufbereitung
+Errore salvataggio: '": Speicherfehler:'
+Errore salvataggio impostazioni: Fehler beim Speichern der Einstellungen
+Errore salvataggio punteggi: Fehler beim Speichern der Punktzahlen
+Errore salvataggio tag: Fehler beim Speichern des Tags
+'Errore salvataggio:': 'Speicherfehler:'
+Errore scansione: Scanfehler
+'Errore:': 'Fehler:'
+errori: Fehler
+Es: 'ita,eng: Z. B.: ita,eng'
+es: '2024 (opzionale): z. B.: 2024 (optional)'
+Es. 1.0 significa che il torrent si fermerà quando avrai caricato (upload) la stessa quantità di dati che hai scaricato.: 'Z. B. 1.0 bedeutet, dass der Torrent gestoppt wird, wenn Sie die gleiche Datenmenge hochgeladen (Upload) haben, die Sie heruntergeladen haben.'
+'es. Serie TV, Film, Software...': 'z. B. TV-Serien, Filme, Software...'
+Esecuzione: Wird ausgeführt
+Esegue la query DELETE per i record inseriti prima della soglia impostata.: 'Führt die DELETE-Abfrage für Datensätze aus, die vor dem festgelegten Schwellenwert eingefügt wurden.'
+'Esegue un comando sul server per elencare le interfacce disponibili (eth0, wlan0, tun0...)': 'Führt einen Befehl auf dem Server aus, um verfügbare Schnittstellen (eth0, wlan0, tun0...) aufzulisten.'
+Esegui ANALYZE: ANALYZE ausführen
+'Esegui Analyze: Insegna a SQLite come cercare i record più velocemente negli archivi pesanti.': 'Analyze ausführen: Lehrt SQLite, wie Datensätze in großen Archiven schneller gesucht werden können.'
+Esegui Backup Ora: Backup jetzt ausführen
+Esegui Rinomina: Umbenennen ausführen
+Esegui VACUUM: VACUUM ausführen
+Esegui VACUUM Globale: Globales VACUUM ausführen
+'Esegui Vacuum: Se il file DB pesa 100MB ma è frammentato al 60%, tornerà a pesare 40MB snellendo il sistema.': 'Vacuum ausführen: Wenn die DB-Datei 100 MB wiegt, aber zu 60 % fragmentiert ist, wird sie wieder 40 MB wiegen und das System verschlanken.'
+Eseguo scansione archivio generale...: Allgemeiner Archiv-Scan wird ausgeführt...
+'Esempio: http://127.0.0.1:6800/jsonrpc': 'Beispiel: http://127.0.0.1:6800/jsonrpc'
+'Esempio: http://192.168.1.10:8080': 'Beispiel: http://192.168.1.10:8080'
+Esito del filtraggio automatico: Ergebnis der automatischen Filterung
+Esplora: Entdecken
+Esplora cartelle remote: Entfernte Ordner durchsuchen
+Esporta: Exportieren
+ETA: ETA
+Etichetta passata a qBittorrent per automatizzare spostamenti file.: An qBittorrent übergebenes Etikett zur Automatisierung von Dateiverschiebungen.
+'Età massima in giorni dei record nell''archivio prima di essere eliminati dalla pulizia automatica. Default: 365. Richiede ''Pulizia Archivio Auto = yes''.': 'Maximales Alter in Tagen der Datensätze im Archiv, bevor sie durch die automatische Bereinigung gelöscht werden. Standard: 365. Erfordert ''Automatische Archivbereinigung = yes''.'
+'Evita limitazioni (throttling) da parte dell''ISP. Forzata assicura privacy ma può ridurre il numero di fonti trovate.': 'Vermeidet Drosselung durch den ISP. Erzwungen gewährleistet Privatsphäre, kann jedoch die Anzahl der gefundenen Quellen reduzieren.'
+EXTTO: EXTTO
+EXTTO cercherà automaticamente nuovi numeri ad ogni ciclo.: EXTTO sucht automatisch nach neuen Ausgaben bei jedem Zyklus.
+'EXTTO Web Interface | Control Panel': 'EXTTO Weboberfläche | Bedienfeld'
+'Facoltativo. Sposta i file di questa serie in una cartella dedicata (Es: /tv/The_Last_of_Us).': 'Optional. Verschiebt die Dateien dieser Serie in einen eigenen Ordner (Z. B.: /tv/The_Last_of_Us).'
+False: Nein
+Fast RSS (Uscita Immediata): Fast RSS (Sofortiger Release)
+Fatto: Erledigt
+Feed: Feed
+'Feed: nessun risultato ancora trovato': 'Feed: noch keine Ergebnisse gefunden'
+'Feed: risultati trovati — clicca per vederli': 'Feed: Ergebnisse gefunden — Klicken Sie zum Anzeigen'
+File .torrent inviato a qBittorrent: Torrent-Datei an qBittorrent gesendet
+File .torrent inviato a Transmission: Torrent-Datei an Transmission gesendet
+File Archiviato: Datei archiviert
+File archiviato nel NAS: Datei im NAS archiviert
+'File Archiviato: Questo file è stato scaricato, spostato nel NAS e rinominato con successo.': 'Datei archiviert: Diese Datei wurde heruntergeladen, auf das NAS verschoben und erfolgreich umbenannt.'
+File lasciato nella cartella download (Nessuno spostamento configurato).: Datei im Download-Ordner belassen (Keine Verschiebung konfiguriert).
+File presente sul NAS: Datei auf dem NAS vorhanden
+File salvato nella cartella fumetti.: Datei im Comics-Ordner gespeichert.
+File scaricati: Heruntergeladene Dateien
+File Scaricato: Heruntergeladene Datei
+File torrent ricevuto (non inviato al client): Torrent-Datei empfangen (nicht an Client gesendet)
+Film: Filme
+'Film (Config / Scaricati):': 'Filme (Konfig. / Heruntergeladen):'
+Film Abilitato: Film aktiviert
+'Film aggiornato!': 'Film aktualisiert!'
+Film configurati: Konfigurierte Filme
+Film non trovato: Film nicht gefunden
+'Filtra i risultati (es. 1080p, ita, repack)...': 'Ergebnisse filtern (z. B. 1080p, ger, repack)...'
+Filtra le parole...: Wörter filtern...
+Filtra log...: Log filtern...
+Filtra per categoria.: Nach Kategorie filtern.
+'Filtra per risoluzione. Usa &lt;720p per accettare anche 480p. Usa ''any'' per nessun filtro.': 'Nach Auflösung filtern. Verwenden Sie &lt;720p, um auch 480p zu akzeptieren. Verwenden Sie ''any'' für keinen Filter.'
+'Filtra rapidamente l''elenco dei film visualizzati in tabella.': Filtert schnell die Liste der in der Tabelle angezeigten Filme.
+'Filtra rapidamente l''elenco delle serie TV visualizzate in tabella.': Filtert schnell die Liste der in der Tabelle angezeigten TV-Serien.
+Filtra stringhe...: Zeichenfolgen filtern...
+Fonti: Quellen
+Formato Rinomina: Umbenennungsformat
+'Forza il ricalcolo dell''hash dei file scaricati per verificare la presenza di file corrotti.': 'Erzwingt die Neuberechnung des Hashs der heruntergeladenen Dateien, um nach beschädigten Dateien zu suchen.'
+'Forza immediatamente un ciclo completo: cerca nuovi episodi, film e fumetti, riempie i gap e aggiorna i metadati TMDB. Equivale ad aspettare il prossimo ciclo programmato ma senza attendere.': 'Erzwingt sofort einen vollständigen Zyklus: sucht nach neuen Episoden, Filmen und Comics, schließt Lücken und aktualisiert TMDB-Metadaten. Entspricht dem Warten auf den nächsten geplanten Zyklus, aber ohne zu warten.'
+Forza Recheck: Erneute Überprüfung erzwingen
+Forza un nuovo download di questo pack: Einen neuen Download dieses Packs erzwingen
+Forza una ricerca manuale per questo film: Erzwingt eine manuelle Suche nach diesem Film
+'Forzare mancante?': 'Als fehlend erzwingen?'
+Forzata: Erzwungen
+Fumetti: Comics
+Fumetti monitorati: Überwachte Comics
+'Fumetti monitorati:': 'Überwachte Comics:'
+Fumetti scaricati (Totali): Heruntergeladene Comics (Gesamt)
+'Fumetti scaricati (Totali):': 'Heruntergeladene Comics (Gesamt):'
+FUMETTO: COMIC
+Fumetto aggiornato: Comic aktualisiert
+FUMETTO AGGIUNTO AI MONITORATI: COMIC ZU ÜBERWACHTEN HINZUGEFÜGT
+Fumetto Completato: Comic abgeschlossen
+Fumetto rimosso: Comic entfernt
+FUMETTO SCARICATO: COMIC HERUNTERGELADEN
+Gestione Dati: Datenverwaltung
+Gestione Lingue: Sprachverwaltung
+Gestione Servizio (systemd): Dienstverwaltung (systemd)
+Gio: Do
+Giorni attivi: Aktive Tage
+Giorni Retention Cestino: Tage Papierkorb-Aufbewahrung
+Già scaricato — ancora in lista di ricerca: Bereits heruntergeladen — noch in der Suchliste
+Gli ultimi 10 download avviati con successo: Die letzten 10 erfolgreich gestarteten Downloads
+Grafici: Diagramme
+Gruppi Custom: Benutzerdefinierte Gruppen
+Gruppo: Gruppe
+'Hai eliminato molti record. Vuoi eseguire un VACUUM ora per recuperare i Megabyte sul disco?': 'Sie haben viele Datensätze gelöscht. Möchten Sie jetzt ein VACUUM ausführen, um Megabytes auf der Festplatte freizugeben?'
+Hai scaricato tutti gli episodi previsti per: Sie haben alle geplanten Episoden heruntergeladen für
+Host: Host
+Host / Endpoint: Host / Endpunkt
+I formati estesi estraggono i dati tecnici usando mediainfo.: Die erweiterten Formate extrahieren die technischen Daten mithilfe von mediainfo.
+'I seguenti file presenti nella cartella verranno fisicamente rinominati. L''operazione è irreversibile.': Die folgenden im Ordner vorhandenen Dateien werden physisch umbenannt. Der Vorgang ist irreversibel.
+I weekly pack di getcomics escono tipicamente il giovedì e contengono tutti i fumetti Marvel/DC/Image della settimana.: Die Weekly Packs von getcomics erscheinen normalerweise donnerstags und enthalten alle Marvel/DC/Image-Comics der Woche.
+'Ignora i torrent più vecchi di N giorni. 0 = nessun filtro. Esempio: 365 = ignora torrent caricati oltre 1 anno fa.': 'Ignoriert Torrents, die älter als N Tage sind. 0 = kein Filter. Beispiel: 365 = ignoriert Torrents, die vor mehr als 1 Jahr hochgeladen wurden.'
+Ignora Stagione (Spegni Ricerca): Staffel ignorieren (Suche deaktivieren)
+Il download automatico avviene durante il ciclo programmato.: Der automatische Download erfolgt während des geplanten Zyklus.
+Il motore chiederà questo titolo ai Tracker configurati istantaneamente e stamperà i risultati a schermo.: Die Engine fragt diesen Titel sofort bei den konfigurierten Trackern ab und gibt die Ergebnisse auf dem Bildschirm aus.
+Il nome è obbligatorio: Der Name ist erforderlich
+Il titolo esatto della serie: Der genaue Serientitel
+Il token segreto impostato in aria2c per accedere alla porta RPC.: Das in aria2c festgelegte geheime Token für den Zugriff auf den RPC-Port.
+Importa: Importieren
+Importa / Esporta File YAML: YAML-Datei importieren / exportieren
+Importa YAML: YAML importieren
+Impossibile recuperare le informazioni del file.: Dateiinformationen konnten nicht abgerufen werden.
+'Imposta limiti globali (KB/s). 0 = Illimitato.': 'Globale Limits festlegen (KB/s). 0 = Unbegrenzt.'
+'Impostazioni backup salvate!': 'Backup-Einstellungen gespeichert!'
+Impostazioni Weekly Pack: Weekly Pack-Einstellungen
+'Impostazioni weekly pack salvate!': 'Weekly Pack-Einstellungen gespeichert!'
+Impostazioni → Giorni Retention Cestino: Einstellungen → Tage Papierkorb-Aufbewahrung
+'Impostazioni, Serie TV, Film (configurazione)': 'Einstellungen, TV-Serien, Filme (Konfiguration)'
+In Arrivo: Bald verfügbar
+In Attesa: Ausstehend
+In attesa: Ausstehend
+In Corso: Wird abgespielt
+In corso / Monitorata: Laufend / Überwacht
+In corso...: Wird ausgeführt...
+in corso...: läuft...
+IN DOWNLOAD: WIRD HERUNTERGELADEN
+In funzione: In Betrieb
+'Incolla qui la stringa che inizia per ''magnet:?xt='' o un link http diretto a un file .torrent': 'Fügen Sie hier die Zeichenfolge ein, die mit ''magnet:?xt='' beginnt, oder einen direkten HTTP-Link zu einer .torrent-Datei'
+Incolla tracker pubblici per aumentare la velocità in caso di torrent poco diffusi. Il sistema li applicherà a tutti i nuovi download.: 'Fügen Sie öffentliche Tracker ein, um die Geschwindigkeit bei seltenen Torrents zu erhöhen. Das System wendet sie auf alle neuen Downloads an.'
+Indirizzo IP o dominio del proxy: IP-Adresse oder Domäne des Proxys
+inizio: Start
+input: input
+Inserire un link o un file: Bitte geben Sie einen Link oder eine Datei an
+'Inserisci la lingua personalizzata (es. ita,eng)': 'Benutzerdefinierte Sprache eingeben (z.B. ita,eng)'
+'Inserisci la lingua personalizzata (es. ita,eng):': 'Geben Sie die benutzerdefinierte Sprache ein (z. B. ger,eng):'
+Inserisci manualmente un Magnet Link o carica un file .torrent locale per passarlo al client.: 'Geben Sie einen Magnet-Link manuell ein oder laden Sie eine lokale .torrent-Datei, um sie an den Client zu übergeben.'
+Inserisci ore di ritardo pre-scaricamento.: Geben Sie die Verzögerungsstunden vor dem Herunterladen ein.
+'Inserisci prima un pezzo di titolo da cercare!': 'Bitte geben Sie zuerst einen Teil des Titels ein, nach dem gesucht werden soll!'
+Inserisci qui un link fisico al file o la URI magnet. Verrà convertito e inviato al motore principale.: Fügen Sie hier einen physischen Link zur Datei oder die Magnet-URI ein. Er wird konvertiert und an die Haupt-Engine gesendet.
+Inserisci un link o URL: Geben Sie einen Link oder eine URL ein
+'Inserisci un numero di giorni valido (>= 0).': 'Geben Sie eine gültige Anzahl von Tagen ein (>= 0).'
+Inserisci un URL per la blocklist: Geben Sie eine URL für die Blocklist ein
+Installa megatools: megatools installieren
+'Installa megatools: apt install megatools': 'Installiere megatools: apt install megatools'
+Interfacce rilevate: Erkannte Schnittstellen
+interfacce rilevate: erkannte Schnittstellen
+Interfaccia di rete: Netzwerkschnittstelle
+Interrompi ricerca e rimuovi: Suche stoppen und entfernen
+Intervallo Refresh (minuti): Aktualisierungsintervall (Minuten)
+Invia backup su Telegram: Backup über Telegram senden
+'Invia i parametri aggiornati all''istanza libtorrent attualmente in corsa in background. Non salva su file config.ini.': Sendet die aktualisierten Parameter an die derzeit im Hintergrund laufende libtorrent-Instanz. Speichert nicht in der Datei config.ini.
+Invia i selezionati al client torrent: Ausgewählte an Torrent-Client senden
+Invia il file ZIP via Telegram al termine: Sendet die ZIP-Datei nach Abschluss über Telegram
+'Invia la tua presenza a TUTTI i tracker della lista invece che ad uno solo, massimizzando l''elenco di fonti trovate.': 'Sendet Ihre Präsenz an ALLE Tracker in der Liste anstatt nur an einen, um die Liste der gefundenen Quellen zu maximieren.'
+Invia questo backup su Telegram: Dieses Backup über Telegram senden
+Invia un messaggio di test a Telegram/Email per verificare le credenziali.: 'Sendet eine Testnachricht an Telegram/E-Mail, um die Anmeldeinformationen zu überprüfen.'
+Inviati: Gesendet
+Inviato a libtorrent: An libtorrent gesendet
+Inviato a qBittorrent: An qBittorrent gesendet
+Inviato a Transmission: An Transmission gesendet
+'Inviato al client!': 'An den Client gesendet!'
+Invio fallito: Senden fehlgeschlagen
+Invio in corso: Wird gesendet
+Invio test in corso...: Sende Testnachricht...
+IP Filter / Blocklist: IP-Filter / Blocklist
+it-IT: de-DE
+Italiano: Italienisch
+'L''archivio è stato aggiornato.': Das Archiv wurde aktualisiert.
+'L''endpoint deve terminare con /transmission/rpc': Der Endpunkt muss mit /transmission/rpc enden
+La pulizia avviene anche automaticamente ad ogni ciclo del motore se il parametro è configurato.: 'Die Bereinigung erfolgt auch automatisch bei jedem Motorzyklus, wenn der Parameter konfiguriert ist.'
+label: label
+Lascia vuoto e salva per rimuovere il tag attuale.: 'Leer lassen und speichern, um das aktuelle Tag zu entfernen.'
+Lascia vuoto per usare la directory di default. Altrimenti specifica il percorso assoluto (es. /mnt/plex/movies).: 'Leer lassen, um das Standardverzeichnis zu verwenden. Andernfalls den absoluten Pfad angeben (z. B. /mnt/plex/movies).'
+Lettura database in corso...: Datenbank wird gelesen...
+Lettura log...: Logs werden gelesen...
+liberi: frei
+libtorrent: libtorrent
+libtorrent non attivo.: libtorrent nicht aktiv.
+Limite Banda per questo Torrent: Bandbreitenlimit für diesen Torrent
+Limite Download (KB/s): Download-Limit (KB/s)
+Limite totale tra download + seeding attivi. Deve essere ≥ dei due valori sopra.: Gesamtlimit zwischen aktiven Downloads + Seeding. Muss ≥ den beiden obigen Werten sein.
+Limite Upload (KB/s): Upload-Limit (KB/s)
+Limiti applicati: Limits angewendet
+Limiti applicati a libtorrent e salvati: Limits auf libtorrent angewendet und gespeichert
+Limiti inviati a qBittorrent: Limits an qBittorrent gesendet
+Limiti inviati a Transmission: Limits an Transmission gesendet
+'Limiti salvati nel DB. Motore non raggiungibile, riavvia per applicarli.': 'Limits im DB gespeichert. Motor nicht erreichbar, neu starten zum Anwenden.'
+Lingua: Sprache
+Lingua aggiunta / Language added: Sprache hinzugefügt
+Lingua assente: Sprache fehlt
+Lingua Attiva (Interfaccia): Aktive Sprache (Oberfläche)
+Lingua attiva / Active: Aktive Sprache
+Lingua audio proposta automaticamente per nuove serie e film aggiunti senza specificarla. Usata anche come filtro di fallback nella ricerca manuale. Lascia vuoto per nessun filtro.: 'Audiosprache, die automatisch für neue, ohne Angabe hinzugefügte Serien und Filme vorgeschlagen wird. Wird auch als Fallback-Filter in der manuellen Suche verwendet. Leer lassen für keinen Filter.'
+Lingua Base (Sinistra): Basissprache (Links)
+Lingua da Tradurre (Destra): Zielsprache (Rechts)
+Lingua Default Contenuti: Standardsprache für Inhalte
+Lingua errata: Falsche Sprache
+Lingua interfaccia / UI language: Oberflächensprache / UI language
+Lingua TMDB: TMDB-Sprache
+'Lingua usata da TMDB per i titoli degli episodi e le descrizioni. it-IT = Italiano, en-US = Inglese. Scegli ''Personalizzata'' per un codice BCP-47 diverso.': 'Von TMDB für Episodentitel und Beschreibungen verwendete Sprache. it-IT = Italienisch, en-US = Englisch. Wählen Sie ''Benutzerdefiniert'' für einen anderen BCP-47-Code.'
+Link download non trovato: Download-Link nicht gefunden
+Link Mega non trovato: Mega-Link nicht gefunden
+'Lista preferenziale: I file che contengono queste parole guadagnano priorità assoluta di download (es: PROPER, REPACK, MIRCrew).': 'Bevorzugte Liste: Dateien, die diese Wörter enthalten, erhalten absolute Download-Priorität (z. B.: PROPER, REPACK, MIRCrew).'
+Lista URL interrogati in successione. Usa Jackett (/api/v2.0/indexers/all/results/torznab) o endpoint compatibili separati a capo.: 'Liste der nacheinander abgefragten URLs. Verwenden Sie Jackett (/api/v2.0/indexers/all/results/torznab) oder kompatible Endpunkte, durch Zeilenumbrüche getrennt.'
+Liste consigliate compatibili: Empfohlene kompatible Listen
+Livello di Logging: Protokollierungsstufe
+Log: Log
+Lun: Mo
+Magnet: Magnet
+magnet al client: Magnete an den Client
+magnet copiati (uno per riga): Magnete kopiert (einer pro Zeile)
+Magnet copiato negli appunti: Magnet in die Zwischenablage kopiert
+Magnet in Archivio: Magnet im Archiv
+Magnet Link o URL (.torrent): Magnet-Link oder URL (.torrent)
+Magnet non disponibile: Magnet nicht verfügbar
+Mancante: Fehlt
+Mantieni i file sul disco: Dateien auf der Festplatte behalten
+Manuale: Handbuch
+Manutenzione: Wartung
+Manutenzione DB: DB-Wartung
+Mar: Di
+Max download attivi: Max. aktive Downloads
+Max torrent attivi totali: Max. gesamte aktive Torrents
+Max upload attivi: Max. aktive Uploads
+Meglio Votati: Bestbewertet
+Mer: Mi
+Metodo: Methode
+'Mette in pausa tutti i torrent selezionati, interrompendo download e upload.': Pausiert alle ausgewählten Torrents und stoppt den Download und Upload.
+'MIRCrew:500&#10;QxR:400&#10;YIFY:-200': 'MIRCrew:500&#10;QxR:400&#10;YIFY:-200'
+Modifica Film: Film bearbeiten
+Modifica Impostazioni Film: Filmeinstellungen bearbeiten
+Modifica le impostazioni di questa serie: Bearbeiten Sie die Einstellungen für diese Serie
+Modifica le impostazioni di questo film: Bearbeiten Sie die Einstellungen für diesen Film
+Modifica percorso per: Pfad ändern für
+Modifica Serie: Serie bearbeiten
+Modifica Serie TV: TV-Serie bearbeiten
+Monitora Stagione (Accendi Ricerca): Staffel überwachen (Suche aktivieren)
+Monitoraggio: Überwachung
+'Monitoraggio in tempo reale di risorse, dischi e indexer.': 'Echtzeitüberwachung von Ressourcen, Festplatten und Indexern.'
+Monitorati: Überwacht
+Monitorato: Überwacht
+Mostra i film che il sistema sta attualmente cercando.: 'Zeigt die Filme an, nach denen das System derzeit sucht.'
+Mostra i film che sono già stati trovati e inviati al client.: 'Zeigt die Filme an, die bereits gefunden und an den Client gesendet wurden.'
+Mostra nei log i torrent scartati per dimensione anomala (troppo piccoli o grandi). Utile per diagnosticare falsi negativi su episodi con encoding insolito.: 'Zeigt in den Logs Torrents an, die aufgrund einer anomalen Größe (zu klein oder zu groß) verworfen wurden. Nützlich zur Diagnose von Falsch-Negativen bei Episoden mit ungewöhnlichem Encoding.'
+'Mostra nei log i torrent scartati perché il titolo contiene una parola della Blacklist (cam, ts...). Utile per verificare che le regole di esclusione funzionino.': 'Zeigt in den Logs Torrents an, die verworfen wurden, weil der Titel ein Wort aus der Blacklist enthält (cam, ts...). Nützlich, um zu überprüfen, ob die Ausschlussregeln funktionieren.'
+'Mostra nei log i torrent scartati perché la qualità non corrisponde a quella richiesta (es: cercavi 1080p, trovato solo 480p). Aiuta a capire perché una serie non viene scaricata.': 'Zeigt in den Logs Torrents an, die verworfen wurden, weil die Qualität nicht der angeforderten entspricht (z. B. Sie suchten nach 1080p, fanden aber nur 480p). Hilft zu verstehen, warum eine Serie nicht heruntergeladen wird.'
+Motivo: Grund
+Motore: Engine
+'Motore occupato, riprova tra poco': 'Engine beschäftigt, bitte versuchen Sie es in Kürze erneut'
+nel file di configurazione e riavvia EXTTO.: in der Konfigurationsdatei und starten Sie EXTTO neu.
+Nessun download completato da rimuovere.: Keine abgeschlossenen Downloads zum Entfernen.
+Nessun errore rilevato: Keine Fehler erkannt
+Nessun film caricato: Kein Film geladen
+nessun limite: kein Limit
+Nessun magnet disponibile: Kein Magnet verfügbar
+Nessun risultato: Kein Ergebnis
+Nessun servizio rilevato: Kein Dienst erkannt
+Nessun torrent attivo.: Kein aktiver Torrent.
+Nessun torrent selezionato: Kein Torrent ausgewählt
+Nessun torrent/magnet disponibile: Kein Torrent/Magnet verfügbar
+Nessuna modifica / Nothing to save: Keine Änderungen / Nichts zu speichern
+Nessuna selezione: Keine Auswahl
+Nessuna serie caricata: Keine Serie geladen
+Nessuna trama disponibile.: Keine Handlung verfügbar.
+Nessuno: Keiner
+Nessuno (Locale): Keiner (Lokal)
+NOME: NAME
+Nome e stagioni obbligatori: Name und Staffeln sind erforderlich
+'Nome Film *': 'Filmname *'
+'Nome Serie *': 'Serienname *'
+Non installato (Richiede: Nicht installiert (Erfordert
+Non puoi eliminare la lingua master (it): Sie können die Hauptsprache (it) nicht löschen
+Notifiche: Benachrichtigungen
+Numero di backup da conservare. I più vecchi vengono cancellati automaticamente.: Anzahl der aufzubewahrenden Backups. Die ältesten werden automatisch gelöscht.
+'Numero massimo di minuti per il quale un torrent rimarrà in seed, a prescindere dal ratio raggiunto.': 'Maximale Anzahl von Minuten, die ein Torrent im Seed verbleibt, unabhängig von der erreichten Ratio.'
+Numero massimo di torrent in download contemporaneamente. Gli altri restano in coda.: Maximale Anzahl gleichzeitiger Torrent-Downloads. Die anderen bleiben in der Warteschlange.
+Numero massimo di torrent in seeding contemporaneamente.: Maximale Anzahl gleichzeitiger Torrents im Seeding.
+Numero massimo globale di connessioni consentite. Abbassalo se il router va in crash (es. 100).: 'Maximale globale Anzahl zulässiger Verbindungen. Reduzieren Sie diese, wenn der Router abstürzt (z. B. 100).'
+'Numero minimo di record da mantenere anche dopo la pulizia. Evita di svuotare completamente l''archivio se tutti i record sono vecchi. Default: 10000.': 'Mindestanzahl an Datensätzen, die auch nach der Bereinigung aufbewahrt werden sollen. Verhindert das vollständige Leeren des Archivs, wenn alle Datensätze alt sind. Standard: 10000.'
+Numero totale di film inseriti per la ricerca.: Gesamtzahl der für die Suche hinzugefügten Filme.
+Numero totale di serie TV inserite per il monitoraggio.: Gesamtzahl der zur Überwachung hinzugefügten TV-Serien.
+NUOVO: NEUER
+NUOVO EPISODIO IN DOWNLOAD: NEUE EPISODE WIRD HERUNTERGELADEN
+Nuovo File Archiviato: Neue Datei archiviert
+NUOVO FILM IN DOWNLOAD: NEUER FILM WIRD HERUNTERGELADEN
+occupato: belegt
+Ogni 24h: Alle 24h
+Ogni Giorno: Jeden Tag
+'Ogni quanti minuti il motore deve ripartire (es: 120 = 2 ore, 60 = 1 ora).': 'Nach wie vielen Minuten die Engine neu starten soll (z. B. 120 = 2 Stunden, 60 = 1 Stunde).'
+Ogni Settimana: Jede Woche
+Opzionale: Optional
+'Opzionale ma Raccomandato. Filtra l''anno di uscita per evitare omonimi (±1 anno di tolleranza automatica). Lascia vuoto per disabilitare.': 'Optional, aber empfohlen. Filtern Sie das Erscheinungsjahr, um Namensvettern zu vermeiden (±1 Jahr automatische Toleranz). Zum Deaktivieren leer lassen.'
+Opzionale se il proxy richiede autenticazione: 'Optional, wenn der Proxy eine Authentifizierung erfordert'
+'Opzionale. Filtra l''anno di uscita per evitare omonimi.': 'Optional. Filtern Sie das Erscheinungsjahr, um Namensvettern zu vermeiden.'
+'Opzionale. Se specificato, filtra i torrent per anno (±1 anno di tolleranza per accettare rilasci ritardati in home video). Lascia vuoto per ignorare l''anno di uscita.': 'Optional. Wenn angegeben, werden Torrents nach Jahr gefiltert (±1 Jahr Toleranz, um verspätete Home-Video-Releases zu akzeptieren). Leer lassen, um das Erscheinungsjahr zu ignorieren.'
+Opzioni di sistema avanzate.: Erweiterte Systemoptionen.
+Orario fine: Endzeit
+Orario in cui entrano in vigore i limiti dello Scheduler.: 'Uhrzeit, zu der die Scheduler-Limits in Kraft treten.'
+Orario in cui terminano i limiti dello Scheduler e tornano attivi i limiti generici inseriti sopra.: 'Uhrzeit, zu der die Scheduler-Limits enden und die oben eingegebenen generischen Limits wieder aktiv werden.'
+Orario inizio: Startzeit
+Ordina per Anno: Nach Jahr sortieren
+Ordina per Nome: Nach Name sortieren
+Ottimizzazione (SQLite): Optimierung (SQLite)
+'Ottimizzazione: se una pagina ha più del X% di torrent già in archivio, smette di scorrere le pagine successive. Esempio: 0.8 = ferma all''80%. Range: 0.0–1.0.': 'Optimierung: Wenn eine Seite mehr als X% bereits archivierte Torrents aufweist, wird das Blättern auf den nächsten Seiten gestoppt. Beispiel: 0.8 = stoppt bei 80%. Bereich: 0.0–1.0.'
+Pannello di controllo: Systemsteuerung
+Passa il link a qBit ma non lo avvia.: 'Übermittelt den Link an qBit, startet ihn jedoch nicht.'
+Password: Passwort
+Password / Token: Passwort / Token
+Pausa: Pause
+PEERS: PEERS
+Percorsi e Porte: 'Pfade & Ports'
+Percorso aggiornato: Pfad aktualisiert
+Percorso aggiornato nel config: Pfad in der Konfiguration aktualisiert
+Percorso Archivio: Archivpfad
+'Percorso assoluto della cartella dove spostare i file obsoleti. Viene creata automaticamente se non esiste. Esempio: /mnt/nas/trash': 'Absoluter Pfad des Ordners, in den veraltete Dateien verschoben werden sollen. Wird automatisch erstellt, wenn nicht vorhanden. Beispiel: /mnt/nas/trash'
+'Percorso assoluto dove salvare gli ZIP. Esempio: /home/user/extto_backups': 'Absoluter Pfad zum Speichern der ZIP-Dateien. Beispiel: /home/user/extto_backups'
+'Percorso dell''eseguibile se vuoi che Extto gestisca il demone.': 'Pfad zur ausführbaren Datei, wenn Sie möchten, dass Extto den Daemon verwaltet.'
+Percorso di Salvataggio: Speicherpfad
+Percorso finale per i download completati (es. /home/user/plex/media): Endgültiger Pfad für abgeschlossene Downloads (z. B. /home/user/plex/media)
+Percorso locale del download. Deve esistere sulla macchina ospitante aria2.: Lokaler Download-Pfad. Muss auf dem aria2-Host-Rechner vorhanden sein.
+Percorso Remoto / Cartella ID: Remote-Pfad / Ordner-ID
+Permessi Cartelle: Ordnerberechtigungen
+'Permette di organizzare i file. Se usi client esterni per l''importazione automatica, le etichette sono fondamentali.': 'Ermöglicht die Organisation von Dateien. Wenn Sie externe Clients für den automatischen Import verwenden, sind Labels unerlässlich.'
+'Personalizza i punteggi assegnati a risoluzioni, sorgenti e codec.': 'Passen Sie die für Auflösungen, Quellen und Codecs vergebenen Punkte an.'
+Personalizzato: Benutzerdefiniert
+Pianificazione automatica.: Automatische Planung.
+Porta: Port
+Porta del proxy (es. 1080 per socks5): Proxy-Port (z. B. 1080 für Socks5)
+Porta massima.: Maximaler Port.
+Porta max: Max. Port
+Porta min: Min. Port
+Porta minima TCP/UDP per ricevere connessioni. Ricorda di aprire questa porta sul router (Port Forwarding).: 'Minimaler TCP/UDP-Port zum Empfangen von Verbindungen. Denken Sie daran, diesen Port am Router zu öffnen (Portweiterleitung).'
+Porta non aperta — controlla firewall o abilita UPnP: Port nicht offen — überprüfen Sie die Firewall oder aktivieren Sie UPnP
+Porte già in uso — salvataggio annullato: Ports bereits in Verwendung — Speichern abgebrochen
+Prealloca spazio su disco: Speicherplatz vorab zuweisen
+'Presente nell''archivio': Im Archiv vorhanden
+Primo Download: Erster Download
+'Programma EXTTO per ricaricare la blocklist in automatico. Consigliato: Ogni 24h.': 'Planen Sie EXTTO so, dass die Blocklist automatisch neu geladen wird. Empfohlen: Alle 24 Stunden.'
+PROGRESSO: FORTSCHRITT
+Proper (Corretto): Proper (Korrigiert)
+Prossima: Nächste
+'Protocollo alternativo a UPnP, tipico dei router Apple/pfSense.': 'Alternative Protokoll zu UPnP, typisch für Apple/pfSense-Router.'
+Pulisci: Bereinigen
+Pulisci Cestino Ora: Papierkorb jetzt leeren
+Pulisci Ora: Jetzt bereinigen
+Pulizia Archivio Auto: Automatische Archivbereinigung
+Pulizia Auto Upgrade: Autom. Upgrade-Bereinigung
+Pulizia Cestino: Papierkorb leeren
+Pulizia cestino in corso...: Papierkorb wird geleert...
+Pulizia in corso...: Bereinigung läuft...
+Pulizia Profonda (Pruning): Tiefenbereinigung (Pruning)
+PUNTEGGI: PUNKTE
+Punteggi: Punkte
+Punteggi Custom: Benutzerdefinierte Punkte
+'Punteggi salvati!': 'Punkte gespeichert!'
+Punti Risoluzione: Auflösungspunkte
+Qualità: Qualität
+Qualità bassa: Niedrige Qualität
+Qualità Minima: Mindestqualität
+'Qualità Minima *': 'Mindestqualität *'
+Qualità Superiore: Bessere Qualität
+Qualità Superiore Trovata: Bessere Qualität gefunden
+Qualità troppo alta: Qualität zu hoch
+Qualsiasi (any): Beliebig (any)
+Quante righe di terminale visualizzare dal file .log fisico.: Wie viele Terminalzeilen aus der physischen .log-Datei angezeigt werden sollen.
+Quelli attualmente in pausa verranno messi in controllo e poi ri-messi in pausa automaticamente: Die derzeit pausierten werden überprüft und danach automatisch wieder pausiert
+RAM: RAM
+Rapporto tra film presenti in lista e quelli già scaricati: Verhältnis zwischen Filmen in der Liste und den bereits heruntergeladenen
+RATIO: RATIO
+Ratio di Condivisione: Share-Ratio
+Re-invia al client torrent: Erneut an den Torrent-Client senden
+Real (Definitivo): Real (Definitiv)
+Recheck: Erneute Überprüfung
+Recheck avviato su: Erneute Überprüfung gestartet auf
+Recuperato: Wiederhergestellt
+Recupero file e invio al client...: Datei wird abgerufen und an den Client gesendet...
+Recupero Mancanti (Gap Filling): Fehlende Episoden auffüllen
+RECUPERO MANCANTI COMPLETATO: FEHLENDE EPISODEN WIEDERHERGESTELLT
+Recupero trama da TMDB in corso...: Handlung wird von TMDB abgerufen...
+Repack (Rifatto): Repack (Neu gepackt)
+'Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce  comunque nel feed': 'OBLIGATORISCHE Anforderung: EXTTO lädt nur Releases herunter, die diese Audiosprache im Titel enthalten. Releases ohne diese Sprache werden verworfen. Bei TV-Serien ist die Prüfung streng; bei Filmen landet ein Release ohne die gewünschte Sprache dennoch im Feed'
+'Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed': 'OBLIGATORISCHE Anforderung: EXTTO lädt nur Releases herunter, die diese Audiosprache im Titel enthalten. Releases ohne diese Sprache werden verworfen. Bei TV-Serien ist die Prüfung streng; bei Filmen landet ein Release ohne die gewünschte Sprache dennoch im Feed'
+'Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \': 'PFLICHTANFORDERUNG: EXTTO lädt nur Releases herunter, die diese Audiosprache im Titel enthalten. Releases ohne diese Sprache werden verworfen. Bei TV-Serien ist die Prüfung streng; bei Filmen landet ein Release ohne die gewünschte Sprache trotzdem im Feed \'
+'Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film.': 'BEVORZUGTE Anforderung (nicht zwingend): filtert oder verwirft nicht. Jede im Titel gefundene Untertitelsprache fügt dem Score +200 Punkte hinzu, was die Priorität dieses Torrents beim Vergleich der Kandidaten erhöht. Bei mehreren Sprachen (z. B. Deutsch + Englisch): +200, wenn nur eine gefunden wird, +400, wenn beide gefunden werden. Der Torrent mit mehr Untertitelsprachen gewinnt bei gleicher Qualität. Gilt für TV-Serien und Filme.'
+Rete (MB/s): Netzwerk (MB/s)
+Retention: Aufbewahrung
+Rialloca i file: Dateien neu zuweisen
+Riapplica Settings (senza salvare): Einstellungen erneut anwenden (ohne Speichern)
+Riattivato: Reaktiviert
+Riavvia Motore EXTTO: EXTTO Engine neu starten
+Riavvia Servizio: Dienst neu starten
+Riavvio del servizio in corso...: Dienst wird neu gestartet...
+Riavvio innescato con successo.: Neustart erfolgreich ausgelöst.
+Ricalcola il punteggio qualità di tutti gli episodi dal titolo salvato nel DB. Utile se la logica di scoring è cambiata o si sospettano punteggi errati.: 'Berechnet die Qualitätspunktzahl aller Episoden anhand des in der Datenbank gespeicherten Titels neu. Nützlich, wenn sich die Bewertungslogik geändert hat oder falsche Punktzahlen vermutet werden.'
+Ricalcola Score Episodi: Episoden-Punkte neu berechnen
+Ricalcolo score episodi in corso...: Episoden-Punkte werden neu berechnet...
+'Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici.': 'Sucht nach aktiven Clients im lokalen Netzwerk/LAN. Nutzlos, wenn Sie aus dem Internet herunterladen, nützlich auf dem Campus oder in Büros.'
+Ricerca Diretta: Direktsuche
+'Ricerca Manuale Globale: Cerca un titolo specifico in tempo reale interrogando direttamente Jackett e le fonti esterne (Scavalcando il database locale).': 'Globale Manuelle Suche: Suchen Sie einen bestimmten Titel in Echtzeit, indem Sie Jackett und externe Quellen direkt abfragen (unter Umgehung der lokalen Datenbank).'
+'Ricerca mirata avviata in background! Apri il tab Log per seguirla.': 'Gezielte Suche im Hintergrund gestartet! Öffne den Log-Tab um sie zu verfolgen.'
+Ricerca nel registro dei file inviati al client. Utile per verificare se un file è già stato scaricato in passato.: 'Durchsucht das Protokoll der an den Client gesendeten Dateien. Nützlich, um zu überprüfen, ob eine Datei in der Vergangenheit bereits heruntergeladen wurde.'
+Ricerca Standard: Standardsuche
+Ricerca weekly pack: Suche Weekly Pack
+Ricontrolla film: Filme erneut überprüfen
+Ricontrolla fumetti: Comics erneut überprüfen
+Ricontrolla serie: Serien erneut überprüfen
+Ricontrolla Tutto: Alles erneut überprüfen
+Ricontrolla tutto: Alles erneut überprüfen
+Riepilogo rapido dello stato dei file di configurazione: Schnelle Zusammenfassung des Status der Konfigurationsdateien
+RIFERIMENTO: REFERENZ
+Righe: '": Zeilen:'
+'Righe:': 'Zeilen:'
+'Rilegge l''occupazione e la frammentazione del DB attuale.': Liest die Belegung und Fragmentierung der aktuellen DB erneut ein.
+Rileva: Erkennen
+Rimetti in coda automatica (azzera score): Zurück in automatische Warteschlange (Punkte zurücksetzen)
+Rimossi: Entfernt
+'Rimosso dallo storico!': 'Aus dem Verlauf entfernt!'
+'Rimuove dall''archivio i magnet link trovati da Jackett o dai siti vecchi di un tot di giorni.': 'Entfernt Magnet-Links aus dem Archiv, die von Jackett oder von Websites stammen und älter als eine bestimmte Anzahl von Tagen sind.'
+'Rimuove dalla lista: torrent al 100% + download HTTP/Mega completati o in errore. NON cancella i file su disco.': 'Entfernt aus der Liste: 100%-Torrents + abgeschlossene oder fehlerhafte HTTP/Mega-Downloads. Löscht KEINE Dateien auf der Festplatte.'
+Rimuovi: Entfernen
+Rimuovi (mantiene i file): Entfernen (behält Dateien)
+Rimuovi i torrent selezionati (i file rimangono sul disco).: Ausgewählte Torrents entfernen (Dateien bleiben auf der Festplatte).
+Rimuovi Selezionate: Ausgewählte entfernen
+Rimuovi Torrent: Torrent entfernen
+Rinomina fisica dei file in corso...: Physische Umbenennung der Dateien im Gange...
+Rinomina puntate: Episoden umbenennen
+Rinomina tutti i file fisici usando i titoli ufficiali: Bennent alle physischen Dateien anhand der offiziellen Titel um
+Riprendi: Fortsetzen
+Ripristina Default: Standardeinstellungen wiederherstellen
+'Ripristinare tutti i punteggi ai valori predefiniti di fabbrica?': 'Alle Punkte auf Werkseinstellungen zurücksetzen?'
+Riprocesso tutti i file...: Verarbeite alle Dateien neu...
+'Riscaricare?': 'Erneut herunterladen?'
+Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito.: 'Reserviert sofort den gesamten erforderlichen Speicherplatz auf der Festplatte, bevor der Download gestartet wird. Reduziert die Fragmentierung, belegt aber sofort Speicherplatz.'
+Risoluzione: Auflösung
+'Risorse di sistema (%)': 'Systemressourcen (%)'
+Risorse di Sistema (Live): Systemressourcen (Live)
+Risultati Jackett/Scraping (: Jackett/Scraping-Ergebnisse (
+RISULTATO: ERGEBNIS
+RPC Secret: RPC Secret
+RPC URL: RPC URL
+RSS Generico: Allgemeiner RSS
+Sab: Sa
+Salute: Gesundheit
+Salute del Sistema: Systemzustand
+Salute di Sistema: Systemzustand
+Salva: Speichern
+Salva Impostazioni: Einstellungen speichern
+Salva Modifiche: Änderungen speichern
+Salva Notifiche: Benachrichtigungen speichern
+Salva permanentemente Token e Chat ID.: Speichert Token und Chat-ID dauerhaft.
+Salva Traduzioni: Übersetzungen speichern
+Salva Tutte le Impostazioni: Alle Einstellungen speichern
+Salvataggio di tutta la configurazione in corso...: Speicherung der gesamten Konfiguration läuft...
+'Scambio di peer: ottiene elenchi di contatti dagli altri utenti collegati, accelerando il download.': 'Peer-Austausch: Ruft Kontaktlisten von anderen verbundenen Benutzern ab und beschleunigt so den Download.'
+Scansionare la cartella di: Ordner scannen von
+Scansione avviata: Scan gestartet
+Scansione Cartella: Ordner scannen
+Scansione completata: Scan abgeschlossen
+Scarica: Herunterladen
+Scarica automaticamente da: Automatisch herunterladen von
+Scarica ed esamina la blocklist per applicare subito i divieti IP in libtorrent.: 'Lädt die Blocklist herunter und untersucht sie, um IP-Sperren sofort in libtorrent anzuwenden.'
+'Scarica i pezzi sequenzialmente dall''inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi.': 'Lädt die Teile sequenziell vom Anfang bis zum Ende der Datei herunter, sodass Sie die Wiedergabe in VLC/Plex starten können, während der Download noch nicht abgeschlossen ist. Achtung: Kann die Geschwindigkeit beeinträchtigen, wenn die Peers die Teile verstreut haben.'
+Scarica Pack: Pack herunterladen
+Scarica subito: Jetzt herunterladen
+Scarica via torrent/magnet: Über Torrent/Magnet herunterladen
+Scarica Weekly Pack Manuale: Weekly Pack manuell herunterladen
+Scaricamento del file .torrent in corso...: Herunterladen der .torrent-Datei läuft...
+Scaricamento file .torrent in corso...: Herunterladen der .torrent-Datei läuft...
+Scaricamento...: Wird heruntergeladen...
+Scaricati: Heruntergeladen
+'Scaricato dall''avvio di libtorrent': Heruntergeladen seit Start von libtorrent
+'Scarta le versioni di qualità inferiore. Usa &lt;720p per accettare anche risoluzioni basse (480p, ecc.). Usa ''any'' per nessun filtro.': 'Verwirft Versionen mit minderer Qualität. Verwenden Sie &lt;720p, um auch niedrige Auflösungen (480p usw.) zu akzeptieren. Verwenden Sie ''any'' für keinen Filter.'
+Scegli il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file.: 'Wählen Sie den Torrent-Client (intern oder extern) aus, der zum Herunterladen von Dateien verwendet wird.'
+Scegli il client. Libtorrent è raccomandato in quanto nativamente integrato nel demone EXTTO.: 'Wählen Sie den Client aus. Libtorrent wird empfohlen, da es nativ in den EXTTO-Daemon integriert ist.'
+Scegli lo stile del nome file. I formati estesi estraggono i dati tecnici usando mediainfo.: Wählen Sie den Stil des Dateinamens. Erweiterte Formate extrahieren technische Daten mithilfe von mediainfo.
+Scegli lo stile del nome file. Standard e Completo richiedono pymediainfo installato sul server.: 'Wählen Sie den Dateinamen-Stil. Standard und Vollständig erfordern pymediainfo, das auf dem Server installiert ist.'
+Scegli metodo di download: Downloadmethode wählen
+Scegli modalità di rimozione: Entfernungsmodus wählen
+Scegli o scrivi un Tag: Wähle oder schreibe einen Tag
+Scegli una data di partenza: Wählen Sie ein Startdatum
+Schedule: Zeitplan
+Scheduler abilitato: Scheduler aktiviert
+Scheduler Velocità: Geschwindigkeits-Scheduler
+SCORE: PUNKTE
+Score Qualità: Qualitätspunktzahl
+Scrive in modo permanente le modifiche nel file extto_settings.ini e applica istantaneamente le policy senza riavviare.: 'Schreibt die Änderungen dauerhaft in die Datei extto_settings.ini und wendet die Richtlinien sofort an, ohne neu zu starten.'
+Scrivibile: Beschreibbar
+'Se abilitato, quando arriva una versione di qualità superiore i file precedenti vengono spostati in trash. Se arriva una versione peggiore di una già esistente, viene scartata direttamente in trash.': 'Wenn aktiviert, werden vorherige Dateien in den Papierkorb verschoben, wenn eine qualitativ hochwertigere Version ankommt. Wenn eine schlechtere Version als eine bereits vorhandene ankommt, wird sie direkt in den Papierkorb verworfen.'
+'Se attivo, interrompe il torrent una volta raggiunto il target (vedi sotto). Evita il seed all''infinito.': 'Wenn aktiviert, wird der Torrent gestoppt, sobald das Ziel erreicht ist (siehe unten). Verhindert unendliches Seeden.'
+'Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale.': 'Wenn auf Ja gesetzt, bleiben die von Extto gesendeten neuen Magnets angehalten, bis Sie sie manuell starten.'
+'Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare.': 'Wenn angegeben, speichert unvollständige Dateien auf einer separaten Festplatte (z. B. NVMe) und verschiebt sie erst nach Abschluss, um mechanischen Verschleiß zu vermeiden. Leer lassen, um zu deaktivieren.'
+'Se nei torrent usano un nome diverso da quello ufficiale TMDB, scrivilo qui per forzare il riconoscimento.': 'Wenn sie in Torrents einen anderen Namen als den offiziellen TMDB-Namen verwenden, schreiben Sie ihn hier, um die Erkennung zu erzwingen.'
+'Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.': 'Wenn keiner ausgewählt ist, ist der Scheduler jeden Tag aktiv.'
+'Se specificato, filtra i torrent per anno (±1 anno di tolleranza per accettare rilasci ritardati in home video). Lascia vuoto per ignorare l''anno di uscita.': 'Optional. Wenn angegeben, filtert es Torrents nach Jahr (±1 Jahr Toleranz, um verspätete Heimvideo-Releases zu akzeptieren). Leer lassen, um das Veröffentlichungsjahr zu ignorieren.'
+'Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click.': 'Wenn deaktiviert, wird er in der Warteschlange/ausgesetzt gehalten, bis Sie klicken.'
+'Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato.': 'Wenn ein Titel eines dieser Wörter enthält (z. B. CAM, TS, HARDCORE), wird er verworfen und NICHT heruntergeladen.'
+se utilizzi il client integrato: wenn Sie den integrierten Client verwenden
+Seed ratio: Seed-Ratio
+Seed time massimo (minunti): Maximale Seed-Zeit (Minuten)
+Seeding: Seeden
+Seleziona cartella: Ordner auswählen
+Seleziona il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file.: 'Wählen Sie den Torrent-Client (intern oder extern) aus, der zum Herunterladen von Dateien verwendet wird.'
+Seleziona in quali giorni della settimana attivare lo scheduler orario.: 'Wählen Sie aus, an welchen Wochentagen der stündliche Planer aktiviert werden soll.'
+Seleziona o deseleziona tutti i torrent visibili.: Wählen Sie alle sichtbaren Torrents aus oder ab.
+Seleziona questa cartella: Diesen Ordner auswählen
+Seleziona SOCKS5 se disponi di un proxy dedicato per nascondere il traffico P2P (es. offerto dalla tua VPN).: 'Wählen Sie SOCKS5, wenn Sie einen dedizierten Proxy zum Verbergen des P2P-Verkehrs haben (z. B. von Ihrem VPN angeboten).'
+Seleziona una data: Wählen Sie ein Datum
+Semplice e pulito.: Einfach und sauber.
+Senza Tag: Ohne Tag
+Serie: Serien
+Serie Abilitata: Serie aktiviert
+Serie abilitate: '": Aktivierte Serien:'
+'Serie abilitate:': 'Aktivierte Serien:'
+'Serie aggiornata con successo!': 'Serie erfolgreich aktualisiert!'
+'Serie aggiornata!': 'Serie aktualisiert!'
+Serie Completata: Serie abgeschlossen
+SERIE COMPLETATA: SERIE ABGESCHLOSSEN
+'Serie Completata: terminata su TMDB e collezione al 100%!': 'Serie abgeschlossen: auf TMDB beendet und Sammlung zu 100% komplett!'
+Serie configurate: '": Konfigurierte Serien:'
+'Serie configurate:': 'Konfigurierte Serien:'
+Serie non trovata nel config: Serie nicht in der Konfiguration gefunden
+Serie TV: TV-Serien
+Serie TV configurate: Konfigurierte TV-Serien
+'serie TV?': 'TV-Serien?'
+'Serie, Film, Storico DL': 'Serien, Filme, DL-Historie'
+Servizi di Sistema (systemd): Systemdienste (systemd)
+Settings libtorrent salvati e applicati: libtorrent-Einstellungen gespeichert und angewendet
+Settings riapplicati alla sessione: Einstellungen auf Sitzung neu angewendet
+Sfoglia cartelle del server: Serverordner durchsuchen
+Sigla ISO 639-2 (es: 'fra, deu, jpn, por): ISO 639-2-Code (z. B.: fra, deu, jpn, por)'
+'Sigla ISO 639-2 (es: fra, deu, jpn, por)': 'ISO 639-2-Code (z. B.: fra, deu, jpn, por)'
+Sigla personalizzata (ISO 639-2/1)…: Benutzerdefinierter Code (ISO 639-2/1)…
+Sigla personalizzata…: Benutzerdefinierter Code…
+'Sintassi: ''3'' = Solo Terza. ''1-5'' = Dalla prima alla quinta. ''2+'' = Dalla seconda in poi.': 'Syntax: ''3'' = Nur dritte. ''1-5'' = Von erster bis fünfter. ''2+'' = Ab der zweiten.'
+'Sistema & DB': 'System & DB'
+SISTEMA AVVIATO: SYSTEM GESTARTET
+Slot upload: Upload-Slots
+SOCKS5: SOCKS5
+'Soglia di sicurezza disco. Se lo spazio libero scende sotto questo valore (GB), EXTTO blocca i nuovi download per evitare di riempire il disco. Consigliato: almeno 20-50 GB.': 'Datenträger-Sicherheitsschwelle. Wenn der freie Speicherplatz unter diesen Wert (GB) fällt, blockiert EXTTO neue Downloads, um zu verhindern, dass die Festplatte voll wird. Empfohlen: mindestens 20-50 GB.'
+Soglia download lento: Schwellenwert für langsamen Download
+Soglia upload lento: Schwellenwert für langsamen Upload
+Sola Lettura: Schreibgeschützt
+Solo Manuale: Nur Manuell
+Solo un client può essere attivo contemporaneamente.: Nur ein Client kann gleichzeitig aktiv sein.
+Solo un client può essere attivo contemporaneamente. Il client abilitato ha priorità: Nur ein Client kann aktiv sein. Der aktivierte Client hat Priorität.
+'Solo un client può essere attivo contemporaneamente. Il client abilitato ha priorità:': 'Nur ein Client kann gleichzeitig aktiv sein. Der aktivierte Client hat Priorität:'
+sono supportate e funzionano: werden unterstützt und funktionieren
+Sorgente: Quelle
+'Sorgente & Codec': 'Quelle & Codec'
+SORGENTE (TRACKER): QUELLE (TRACKER)
+Sospeso: Ausgesetzt
+'Sotto questa velocità di download, il torrent è considerato ''lento'' e non occupa uno slot attivo.': 'Unterhalb dieser Download-Geschwindigkeit wird der Torrent als ''langsam'' betrachtet und belegt keinen aktiven Slot.'
+'Sotto questa velocità di upload, il torrent è considerato ''lento''.': 'Unterhalb dieser Upload-Geschwindigkeit wird der Torrent als ''langsam'' betrachtet.'
+Sottotitoli: Untertitel
+Spazio Disco: Speicherplatz
+Spazio libero: Freier Speicher
+'Spazio libero:': 'Freier Speicher:'
+Sposta Episodi (NAS): Episoden verschieben (NAS)
+'Sposta i file in una cartella dedicata (Es: /tv/The_Last_of_Us).': 'Verschiebt die Dateien in einen eigenen Ordner (Z. B.: /tv/The_Last_of_Us).'
+Stagione: Staffel
+Stagioni: Staffeln
+Stagioni (es: '1+) *: Staffeln (z. B.: 1+) *'
+'Stagioni (es: 1+) *': 'Staffeln (z. B.: 1+) *'
+Statistiche Attive: Aktive Statistiken
+Statistiche Consumo: Verbrauchsstatistiken
+'Statistiche del database aggiornate!': 'Datenbank-Statistiken aktualisiert!'
+STATO: STATUS
+Stato: Status
+Stato / Progresso: Status / Fortschritt
+Stato Attuale: Aktueller Status
+'Stato del demone in background. Se è ''Offline'', assicurati che il servizio extto.service sia in esecuzione.': 'Status des Hintergrund-Daemons. Wenn er ''Offline'' ist, stellen Sie sicher, dass der extto.service ausgeführt wird.'
+Stato e Salute Fonti: Status und Gesundheit der Quellen
+Stato porta DHT/PEX.: Status DHT/PEX-Port.
+Stop automatico al ratio: Autom. Stopp bei Ratio
+'Stop Scraping (%)': 'Scraping stoppen (%)'
+Storico: Verlauf
+'Sub-folder opzionale per l''organizzazione post-download': Optionaler Unterordner für die Organisation nach dem Download
+Svuota Archivio Jackett/Scraping: Jackett/Scraping-Archiv leeren
+Svuota il file extto.log: Leert die Datei extto.log
+Sì: Ja
+Tag: Tag
+Tag aggiornati con successo: Tags erfolgreich aktualisiert
+Telemetria e Storico: Telemetrie und Verlauf
+Tempi (Attivo / Seeding): Zeiten (Aktiv / Seeding)
+Tempistiche Motore: Engine-Timings
+Tempo: Zeit
+Tempo impiegato: Benötigte Zeit
+'Tempo massimo di attesa per le risposte da Jackett/Prowlarr. Alzalo a 45 o 60 se hai tracker lenti (Read timed out). Default: 30.': 'Maximale Wartezeit für Antworten von Jackett/Prowlarr. Erhöhen Sie den Wert auf 45 oder 60, wenn Sie langsame Tracker haben (Read timed out). Standard: 30.'
+Tendenze: Trends
+'Tenta di aprire la porta configurata sul router automaticamente. Se fallisce, devi faro manualmente nel pannello router.': 'Versucht, den konfigurierten Port am Router automatisch zu öffnen. Wenn dies fehlschlägt, müssen Sie dies manuell im Router-Panel tun.'
+'Termina il servizio Extto e lo riavvia dopo circa 10 secondi... non temere! Utile per forzare lo svuotamento della memoria cache o ricaricare in modo ''pulito'' i file di configurazione se modificati a mano.': 'Beendet den Extto-Dienst und startet ihn nach etwa 10 Sekunden neu... keine Sorge! Nützlich, um das Leeren des Cache zu erzwingen oder Konfigurationsdateien ''sauber'' neu zu laden, wenn sie manuell geändert wurden.'
+Testa Notifica: Benachrichtigung testen
+Timeframe (h): Zeitfenster (h)
+Timeframe (ore): Zeitfenster (Stunden)
+Timeframe Scaduto (Miglior Qualità): Zeitfenster abgelaufen (Beste Qualität)
+Tipo Cloud: Cloud-Typ
+Tipo proxy: Proxy-Typ
+Titolo: Titel
+Togli la spunta per sospendere temporaneamente il download di nuovi episodi.: 'Häkchen entfernen, um das Herunterladen neuer Episoden vorübergehend auszusetzen.'
+Torna ai Film: Zurück zu Filmen
+Torna alla Lista: Zurück zur Liste
+Torrent: Torrent
+'Torrent aggiunto con successo!': 'Torrent erfolgreich hinzugefügt!'
+'Torrent aggiunto da URL!': 'Torrent über URL hinzugefügt!'
+'Torrent aggiunto!': 'Torrent hinzugefügt!'
+Torrent attivi.: Aktive Torrents.
+'Torrent caricato!': 'Torrent geladen!'
+Torrent e file eliminati: Torrent und Dateien gelöscht
+Torrent inviato a libtorrent: Torrent an libtorrent gesendet
+'Torrent inviato al client, download in corso': 'Torrent an Client gesendet, Download läuft'
+Torrent Lenti: Langsame Torrents
+torrent messi in pausa: Torrents pausiert
+Torrent rimosso: Torrent entfernt
+torrent ripresi: Torrents fortgesetzt
+'torrent?': 'Torrents?'
+Totale: '": Gesamt:'
+Totale complessivo dei file multimediali trovati e scaricati con successo.: Gesamtsumme der erfolgreich gefundenen und heruntergeladenen Mediendateien.
+Totale Storico: Gesamter Verlauf
+'Totale:': 'Gesamt:'
+Tracker: Tracker
+Tracker aggiuntivi: Zusätzliche Tracker
+Tracker extra: Zusätzliche Tracker
+TRADUZIONE: ÜBERSETZUNG
+Traduzioni: Übersetzungen
+Traffico Totale (Sessione): Gesamtverkehr (Sitzung)
+Traftico Totale (Sessione): Gesamtverkehr (Sitzung)
+Trascina o cerca un piccolo file .torrent locale.: Ziehen Sie eine kleine lokale .torrent-Datei hierher oder suchen Sie sie.
+Trovato: Gefunden
+'Trovato e inviato l''episodio mancante': Fehlende Episode gefunden und gesendet
+Trovato nel feed ma non ancora scaricato (qualità o lingua non soddisfatte): 'Im Feed gefunden, aber noch nicht heruntergeladen (Qualität oder Sprache nicht erfüllt)'
+'Tutta la configurazione è stata salvata con successo!': 'Die gesamte Konfiguration wurde erfolgreich gespeichert!'
+Tutte le info tecniche.: Alle technischen Infos.
+'Tutti gli episodi delle stagioni monitorate sono già stati scaricati!': 'Alle Episoden der überwachten Staffeln wurden bereits heruntergeladen!'
+'Tutti i file sono già nel formato corretto!': 'Alle Dateien haben bereits das richtige Format!'
+Tutti i file sono già rinominati correttamente.: Alle Dateien wurden bereits korrekt umbenannt.
+'Tutti i file sono già rinominati in modo perfetto!': 'Alle Dateien wurden bereits perfekt umbenannt!'
+Tutto: Alles
+UL: UL
+Ultima attività: Letzte Aktivität
+'Ultima attività:': 'Letzte Aktivität:'
+Ultimi 30 Giorni: Letzte 30 Tage
+Ultimi 7 Giorni: Letzte 7 Tage
+Ultimi 7 giorni: Letzte 7 Tage
+Ultimi Download: Letzte Downloads
+Ultimi Errori Log: Letzte Protokollfehler
+Ultimi eventi: Letzte Ereignisse
+Ultimi rilevamenti (Archivio): Letzte Erkennungen (Archiv)
+Ultimi trovati nel feed: Zuletzt im Feed gefunden
+Ultimo: Zuletzt
+'Un torrent ''lento'' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri.': 'Ein ''langsamer'' Torrent zählt nicht zu den Warteschlangen-Limits. Nützlich, wenn Sie seltene Torrents haben, die langsam heruntergeladen werden: sie blockieren nicht den Platz für andere.'
+Upload attuale.: Aktueller Upload.
+Upload durante scheduler (KB/s): Upload während des Schedulers (KB/s)
+Upload su Telegram in corso... (potrebbe volerci qualche decina di secondi): Upload zu Telegram läuft... (kann einige Sekunden dauern)
+UPnP (apertura porte): UPnP (Port-Weiterleitung)
+Uptime: Betriebszeit
+Uptime Motore: Engine-Betriebszeit
+URL: URL
+URL blocklist: Blocklist-URL
+URL RPC: RPC-URL
+URL Scraping: Scraping-URLs
+Username: Benutzername
+Utente / Client ID: Benutzer / Client ID
+'Utente dell''interfaccia web di qBit': Benutzer der qBit-Weboberfläche
+'Utile se l''archivio ha superato le decine di migliaia di righe rallentando il sistema.': 'Nützlich, wenn das Archiv Zehntausende von Zeilen überschritten hat und das System verlangsamt.'
+Utilizzo reale di CPU e RAM della macchina Linux host in questo esatto momento.: Tatsächliche CPU- und RAM-Auslastung der Linux-Hostmaschine in genau diesem Moment.
+VACUUM: VACUUM
+Vai: Los
+Velocità download nel periodo programmato.: Download-Geschwindigkeit im geplanten Zeitraum.
+Velocità e Connessioni: 'Geschwindigkeit & Verbindungen'
+Velocità in Tempo Reale: Echtzeit-Geschwindigkeit
+Velocità media: Durchschnittsgeschwindigkeit
+Velocità upload nel periodo programmato.: Upload-Geschwindigkeit im geplanten Zeitraum.
+Ven: Fr
+Verifica permessi...: Überprüfe Berechtigungen...
+Verifica...: Überprüfung...
+Verranno rimossi dal DB anche gli episodi e i feed correlati.: Episoden und zugehörige Feeds werden ebenfalls aus der DB entfernt.
+'vincola traffico a interfaccia specifica (es. tun0, wg0)': 'Datenverkehr an bestimmte Schnittstelle binden (z. B. tun0, wg0)'
+Vuoi davvero eliminare: Möchten Sie wirklich löschen
+Vuoi davvero riavviare: Möchten Sie wirklich neu starten
+'Vuoi davvero riavviare l''EXTTO Engine?': 'Möchten Sie die EXTTO Engine wirklich neu starten?'
+'Vuoi inviare questo backup di EXTTO al gruppo Telegram configurato?': 'Möchten Sie dieses EXTTO-Backup an die konfigurierte Telegram-Gruppe senden?'
+Vuoi rimuovere: Möchten Sie entfernen
+'vuoto = tutti': 'leer = alle'
+Wantedlist: Wunschliste
+WARNING — solo avvisi e errori: WARNING — nur Warnungen und Fehler
+Web Interface v3.8: Weboberfläche v3.8
+Weekly Pack: Weekly Pack
+WEEKLY PACK: WÖCHENTLICHES PAKET
+year: Jahr
+— nessuna preferenza —: — keine Präferenz —
+'⬆ Upload (KB/s) — 0 = nessun limite': '⬆ Upload (KB/s) — 0 = kein Limit'
+'⬇ Download (KB/s) — 0 = nessun limite': '⬇ Download (KB/s) — 0 = kein Limit'
+Nome Attuale (Vecchio): Aktueller Name (Alt)
+Nuovo Nome (TMDB): Neuer Name (TMDB)
+I seguenti file presenti nella cartella verranno fisicamente rinominati.: Die folgenden in dem Ordner vorhandenen Dateien werden physisch umbenannt.
+L'operazione è irreversibile.: Dieser Vorgang ist irreversibel.
+'Archive Max Age (giorni)': 'Max. Archiv-Alter (Tage)'
+'Automazione & Ricerca': 'Automatisierung & Suche'
+Azione Pulizia: Bereinigungsaktion
+'Database & Archivio': 'Datenbank & Archiv'
+'Diff. Minima Score': 'Min. Score-Diff.'
+'Francese (fr-FR)': 'Französisch (fr-FR)'
+'Inglese (en-US)': 'Englisch (en-US)'
+'Italiano (it-IT)': 'Italienisch (it-IT)'
+'Logging & Debug': 'Protokollierung & Debugging'
+'Max Age (giorni)': 'Max. Alter (Tage)'
+'Nessun download recente.': 'Keine aktuellen Downloads.'
+'Nessun evento recente.': 'Keine aktuellen Ereignisse.'
+Nessuna interfaccia rilevata: Keine Schnittstelle erkannt
+'Nessuna release trovata di recente.': 'Kein Release kürzlich gefunden.'
+Nessuna sottocartella: Keine Unterordner
+'Personalizzata...': 'Benutzerdefiniert...'
+'Pulizia & Eliminazione': 'Bereinigung & Löschung'
+'Radice Archivio (NAS)': 'Archiv-Stammverzeichnis (NAS)'
+Rimuovi ed Elimina: Entfernen und Löschen
+Rinomina Episodi: Episoden umbenennen
+'Spagnolo (es-ES)': 'Spanisch (es-ES)'
+'Spazio Minimo (GB)': 'Min. Speicherplatz (GB)'
+'Tedesco (de-DE)': 'Deutsch (de-DE)'
+'Timeout Indexer (sec)': 'Indexer-Timeout (Sek)'
+attivi: aktiv
+in pausa: pausiert
+selezionata: ausgewählt
+selezionate: ausgewählte
+# --- Nuove chiavi ---
+'Dopo aver salvato': 'Nach dem Speichern'
+'Poi riavvia:': 'Dann neu starten:'
+'Porte di Rete EXTTO (Richiede Riavvio Globale)': 'EXTTO-Netzwerkports (Erfordert globalen Neustart)'
+'Ripristina i default direttamente sul server con questi comandi SQL:': 'Stellen Sie die Standardwerte direkt auf dem Server mit diesen SQL-Befehlen wieder her:'
+'Se le porte non funzionano': 'Wenn die Ports nicht funktionieren'
+solo libtorrent integrato: nur integrierter libtorrent-Client
+'Avvio...': 'Starten...'
+Data Pack: Pack-Datum
+'Errore caricamento dati.': 'Fehler beim Laden der Daten.'
+Errore di connessione al server: Verbindungsfehler zum Server
+'Errore di rete durante l''invio': 'Netzwerkfehler beim Senden'
+'Errore di rete. Server non raggiungibile.': 'Netzwerkfehler. Server nicht erreichbar.'
+I dettagli e gli episodi appariranno dopo il: Details und Episoden erscheinen nach dem
+'Il torrent usa la rete DHT decentralizzata.': 'Der Torrent nutzt das dezentrale DHT-Netzwerk.'
+Modifica Impostazioni Serie: Serieneinstellungen bearbeiten
+'Nessun backup trovato.': 'Keine Backups gefunden.'
+'Nessun download ancora.': 'Noch keine Downloads.'
+'Nessun episodio in uscita nei prossimi giorni.': 'Keine kommenden Episoden in den nächsten Tagen.'
+'Nessun fumetto monitorato.': 'Keine überwachten Comics.'
+'Nessun peer connesso.': 'Keine Peers verbunden.'
+Nessun risultato trovato: Kein Ergebnis gefunden
+'Nessun risultato trovato.': 'Kein Ergebnis gefunden.'
+'Nessun tracker inserito.': 'Keine Tracker hinzugefügt.'
+'Nessun weekly pack nello storico.': 'Kein Weekly Pack im Verlauf.'
+Nome File nel Torrent: Dateiname im Torrent
+Salva risultati Jackett: Jackett-Ergebnisse speichern
+Salva risultati Prowlarr: Prowlarr-Ergebnisse speichern
+Scarica a partire dal: Download beginnend ab
+Serie aggiunta correttamente in: Serie erfolgreich hinzugefügt in
+Titolo Download: Download-Titel
+Trovato il: Gefunden am
+Usa il pannello: Verwenden Sie das Panel
+Usa la tab: Verwenden Sie den Tab
+'per aggiungerne.': 'um welche hinzuzufügen.'
+'per aggiustare le impostazioni nel frattempo.': 'um in der Zwischenzeit die Einstellungen anzupassen.'
+primo ciclo del motore: ersten Engine-Zyklus
+'LSD (Local Discovery)': 'LSD (Local Discovery)'
+NAT-PMP: NAT-PMP
+Nota sulle Notifiche: 'Hinweis zu Benachrichtigungen'
+'PEX (Peer Exchange)': 'PEX (Peer Exchange)'
+Protocolli: Protokolle
+'Se stai usando client esterni (qBittorrent, Transmission, aria2), EXTTO invierà solo gli avvisi di': 'Wenn Sie externe Clients (qBittorrent, Transmission, aria2) verwenden, sendet EXTTO nur die Warnungen für'
+'VPN Killswitch / Interface Binding': 'VPN Killswitch / Interface Binding'
+'download. Per gli avvisi di fine download, usa le impostazioni interne di quei programmi.': 'den Download. Verwenden Sie für Benachrichtigungen zum Download-Ende die internen Einstellungen dieser Programme.'
+esclusivamente: ausschließlich
+' Download (KB/s) - 0 = nessun limite': ' Download (KB/s) - 0 = kein Limit'
+' Upload (KB/s) - 0 = nessun limite': ' Upload (KB/s) - 0 = kein Limit'
+'- nessuna preferenza -': '- keine Präferenz -'
+'Codice non valido - usa 2-5 lettere': 'Ungültiger Code - verwenden Sie 2-5 Buchstaben'
+'DEBUG - tutto (diagnosi dettagliata)': 'DEBUG - alles (detaillierte Diagnose)'
+'ERROR - solo errori critici': 'ERROR - nur kritische Fehler'
+'Feed: risultati trovati - clicca per vederli': 'Feed: Ergebnisse gefunden - Klicken Sie zum Anzeigen'
+'Porta non aperta - controlla firewall o abilita UPnP': 'Port nicht offen - überprüfen Sie die Firewall oder aktivieren Sie UPnP'
+'Porte già in uso - salvataggio annullato': 'Ports bereits in Verwendung - Speichern abgebrochen'
+'WARNING - solo avvisi e errori': 'WARNING - nur Warnungen und Fehler'
+sconosciuto: unbekannt
+
+
+# --- Chiavi aggiunte (Trakt / aMule / eD2k / UI) ---
+'(0 = illimitato — richiede riavvio amuled)': '(0 = unbegrenzt — erfordert amuled-Neustart)'
+(cerca su eD2k se Jackett non trova nulla): '(auf eD2k suchen, wenn Jackett nichts findet)'
+(download completati): (abgeschlossene Downloads)
+(download in corso): (laufende Downloads)
+(lette da amule.conf — modificabili da qui): (aus amule.conf gelesen — hier bearbeitbar)
+(path del file di configurazione di amuled — EXTTO lo legge e aggiorna): '(Pfad der amuled-Konfigurationsdatei — EXTTO liest und aktualisiert sie)'
+Abilita Gap Fill eD2k: eD2k Gap Fill aktivieren
+Abilita aMule: aMule aktivieren
+Abilita fallback eD2k nel Gap Filling: 'eD2k-Fallback im Gap Filling aktivieren'
+Action applied to: Aktion angewendet auf
+Aggiungi Cartella: Ordner hinzufügen
+Aggiungi Server: Server hinzufügen
+Alloc...: Zuweisen...
+Allocazione Spazio: Speicher zuweisen
+Anteprima: Vorschau
+Archiviato in: Archiviert in
+Attesa Metadati: Warte auf Metadaten
+Avvia il collegamento con Trakt tramite Device Flow: 'Trakt-Verbindung über Device Flow starten'
+Base: Basis
+CARTELLE CONDIVISE: FREIGEGEBENE ORDNER
+Campione: Stichprobe
+Caricamento storico...: Verlauf wird geladen...
+Cartella Incoming: Eingehender Ordner
+Cartella Temp: 'Temp-Ordner'
+Cartella rimossa dalla condivisione: Ordner aus der Freigabe entfernt
+Cartelle (lette da amule.conf — modificabili da qui): Ordner (aus amule.conf gelesen — hier bearbeitbar)
+'Cerca nell''archivio per titolo ed elimina tutti i record corrispondenti. Più parole separate da virgola o spazio applicano un OR (basta una corrispondenza).': Archiv nach Titel durchsuchen und alle übereinstimmenden Einträge löschen. Mehrere durch Komma oder Leerzeichen getrennte Wörter wenden ein OR an (eine Übereinstimmung genügt).
+Check...: Prüfen...
+Clicca Aggiorna per caricare il calendar.: 'Klicken Sie auf "Aktualisieren", um den Kalender zu laden.'
+Clicca Aggiorna per caricare la watchlist.: 'Klicken Sie auf "Aktualisieren", um die Watchlist zu laden.'
+Codice scaduto. Riprova.: Code abgelaufen. Erneut versuchen.
+Collega Trakt: Trakt verbinden
+Collega ad amuled: Mit amuled verbinden
+Condivisi: Geteilt
+Connessione EC: 'EC-Verbindung'
+Connessione fallita: Verbindung fehlgeschlagen
+Connesso: Verbunden
+Connesso a Trakt: Mit Trakt verbunden
+Conta quanti record verrebbero eliminati senza cancellare nulla: 'Zählt, wie viele Einträge gelöscht würden, ohne tatsächlich etwas zu löschen'
+'Controllo (100%)': 'Prüfung (100%)'
+Controllo Dati: Daten prüfen
+Controllo File: Dateien prüfen
+'Crea un''app su': App erstellen auf
+Credenziali Trakt salvate: 'Trakt-Anmeldedaten gespeichert'
+Data sconosciuta: Unbekanntes Datum
+Deseleziona tutti: Alle abwählen
+Disconnesso da Trakt: Von Trakt getrennt
+'Disconnettere EXTTO da Trakt?': 'EXTTO von Trakt trennen?'
+Disconnetti: Trennen
+'Dopo aver salvato, l''interfaccia smetterà di funzionare. Riavvia extto manualmente.': Nach dem Speichern funktioniert die Oberfläche nicht mehr. Starten Sie extto manuell neu.
+'Dopo il download rinomina i file nel formato scelto sotto, usando i titoli ufficiali TMDB. Richiede tmdb_api_key configurata.': 'Benennt Dateien nach dem Download im gewählten Format mit offiziellen TMDB-Titeln um. Erfordert konfigurierte tmdb_api_key.'
+Download cancellato: Download abgebrochen
+Elimina manualmente i file nel cestino (: Papierkorbdateien manuell löschen (
+Elimina selezionati: Ausgewählte löschen
+Eliminare definitivamente: Endgültig löschen
+Eliminazione in corso...: Löschen läuft...
+Episodi: Episoden
+Error during bulk update: Fehler beim Massenupdate
+Errore cancellazione: Löschfehler
+Errore generazione .service: 'Fehler beim Generieren der .service-Datei'
+Errore import: Importfehler
+Errore installazione handler: 'Fehler bei der Handler-Installation'
+Errore pausa: Pausenfehler
+Errore ripresa: Fehler beim Fortsetzen
+Errore riscansione: Fehler beim erneuten Scannen
+Ferma seed: Seed stoppen
+File: Datei
+File .torrent: '.torrent-Datei'
+Filtra per Parola Chiave: Nach Stichwort filtern
+Fumetto: Comic
+Gap Filling — Fallback eD2k (cerca su eD2k se Jackett non trova nulla): 'Gap Filling — eD2k-Fallback (auf eD2k suchen, wenn Jackett nichts findet)'
+Genera .service: .service generieren
+Giorni Calendar: Kalendertage
+'Già scaricato - ancora in lista di ricerca': 'Bereits heruntergeladen - noch in der Suchliste'
+Host aMule: 'aMule-Host'
+Il download automatico avviene durante il ciclo programmato. La data minima filtra i pack più vecchi di quella data.: Der automatische Download erfolgt während des geplanten Zyklus. Das Mindestdatum filtert ältere Packs heraus.
+Importa Selezionate: Ausgewählte importieren
+Importa Tutte le Nuove: Alle neuen importieren
+Importa le serie selezionate dalla watchlist Trakt in EXTTO: 'Ausgewählte Serien aus der Trakt-Watchlist in EXTTO importieren'
+Importa tutte le serie della watchlist non ancora monitorate: 'Alle noch nicht überwachten Watchlist-Serien importieren'
+Importazione in corso...: Import läuft...
+Importazione server...: Server wird importiert...
+In Coda (DL): In Warteschlange (DL)
+In Coda (Seeding): In Warteschlange (Seeding)
+In EXTTO: In EXTTO
+In Pausa: Pausiert
+In Scarico: Wird heruntergeladen
+In Scarico (Fermo): Wird heruntergeladen (Inaktiv)
+In Seeding: Seeding
+In attesa di autorizzazione...: Warte auf Autorisierung...
+In lista: In der Liste
+Incolla il Client ID: Client ID einfügen
+Incolla il Client Secret: Client Secret einfügen
+Inserisci almeno una parola chiave: Mindestens ein Stichwort eingeben
+Inserisci il Client ID: Client ID eingeben
+Inserisci un URL .met: 'Eine .met-URL eingeben'
+Inserisci un termine di ricerca: Suchbegriff eingeben
+Installa handler ed2k: 'eD2k-Handler installieren'
+Inviato: Gesendet
+Kad: Kad
+'L''operazione non è reversibile.': Dieser Vorgang ist nicht umkehrbar.
+LATEST EVENTS: NEUESTE EREIGNISSE
+'La porta a cui ti connetti dal browser (http://tuo-ip:PORTA). Default: 5000': 'Der Port, über den Sie sich vom Browser verbinden (http://ihre-ip:PORT). Standard: 5000'
+'La porta nascosta usata dal motore in background per comunicare con l''interfaccia. Default: 8889': 'Der versteckte Port, den der Hintergrundmotor zur Kommunikation mit der Oberfläche verwendet. Standard: 8889'
+Last 7 days: Letzte 7 Tage
+Le notifiche di: Benachrichtigungen für
+Le notifiche di completamento download sono supportate e funzionano esclusivamente se utilizzi il client integrato libtorrent.: 'Download-Abschlussbenachrichtigungen werden unterstützt und funktionieren <strong>ausschließlich</strong> mit dem integrierten Client <strong>libtorrent</strong>.'
+Le serie con: Serien mit
+Le serie con sono gia monitorate in EXTTO.: Mit ● markierte Serien werden bereits in EXTTO überwacht. Wählen Sie neue aus und klicken Sie auf Ausgewählte importieren.
+Limite Download aMule (KB/s): 'aMule Download-Limit (KB/s)'
+Limite Upload aMule (KB/s): 'aMule Upload-Limit (KB/s)'
+'Limiti di banda (0 = illimitato — richiede riavvio amuled)': 'Bandbreitenlimits (0 = unbegrenzt — erfordert amuled-Neustart)'
+Lingua audio richiesta per le serie importate dalla watchlist Trakt: 'Erforderliche Audiosprache für aus der Trakt-Watchlist importierte Serien'
+Lingua default import: 'Standard-Importsprache'
+Log di Sistema: Systemprotokoll
+Log eventi di amuled: 'amuled-Ereignisprotokoll'
+Metadati...: Meta...
+Modificare queste porte cambia il modo in cui il sistema comunica.: Das Ändern dieser Ports beeinflusst die Kommunikation des Systems.
+Motore Interno: Interner Motor
+Movie not found: Film nicht gefunden
+Name and seasons are required: Name und Staffeln sind erforderlich
+Name is required: Name ist erforderlich
+Nessun episodio in uscita nel periodo selezionato.: Keine Episoden im ausgewählten Zeitraum.
+Nessun record trovato: Keine Einträge gefunden
+No: Nein
+No movies loaded: Kein Film geladen
+No series loaded: Keine Serie geladen
+Non autenticato su Trakt.: Nicht bei Trakt authentifiziert.
+Non connesso: Nicht verbunden
+Non monitorato: Nicht überwacht
+Opzioni Import Trakt: 'Trakt-Importoptionen'
+Opzioni Trakt salvate: 'Trakt-Optionen gespeichert'
+Pag: Seite
+Pagina: Seite
+Password EC: 'EC-Passwort'
+Path updated in config: Pfad in der Konfiguration aktualisiert
+Personalizzato…: Benutzerdefiniert…
+Porta EC: 'EC-Port'
+Porta TCP: 'TCP-Port'
+Porta UDP: 'UDP-Port'
+Porte ed2k (lette da amule.conf — modificabili da qui): 'eD2k-Ports (aus amule.conf gelesen — hier bearbeitbar)'
+Prossimi Episodi (Calendar): Kommende Episoden (Kalender)
+'Pulisce dalla vista i download già arrivati al 100%': 'Entfernt abgeschlossene Downloads (100%) aus der Ansicht'
+Qualita assegnata alle serie importate dalla watchlist Trakt: 'Qualität für aus der Trakt-Watchlist importierte Serien'
+Qualita default import: 'Standard-Importqualität'
+Qualità assegnata alle serie importate dalla watchlist Trakt: 'Qualität für aus der Trakt-Watchlist importierte Serien'
+Qualità default import: 'Standard-Importqualität'
+Quanti giorni avanti mostrare nel calendar Trakt (max 31): 'Wie viele Tage im Trakt-Kalender anzeigen (max. 31)'
+Recupera .part: .part wiederherstellen
+Ricarica il calendar da Trakt: Kalender von Trakt neu laden
+Ricarica la watchlist da Trakt: Watchlist von Trakt neu laden
+Ricerca in corso...: Suche läuft...
+Rimozione in corso...: Entfernung läuft...
+Rimuove il token e disconnette EXTTO da Trakt: Entfernt das Token und trennt EXTTO von Trakt
+Rimuovi Server: Server entfernen
+Rimuovi dalla lista: Aus der Liste entfernen
+Riprendi download: Download fortsetzen
+Riscansione avviata: Erneuter Scan gestartet
+Risultato non trovato: Ergebnis nicht gefunden
+Running general archive scan...: 'Allgemeiner Archiv-Scan läuft...'
+Salva Banda: Bandbreite speichern
+Salva Credenziali: Anmeldedaten speichern
+Salva Opzioni: Optionen speichern
+Salvato: Gespeichert
+Save error: Speicherfehler
+Saving all configuration...: Gesamte Konfiguration wird gespeichert...
+Scan completed: Scan abgeschlossen
+Scan error: Scanfehler
+Scansione TempDir in corso...: TempDir wird gescannt...
+Scansione in corso: Scan läuft...
+Scaricato: Heruntergeladen
+Scarichi: Downloads
+Scrobbling: Scrobbling
+'Se abilitato, permette di segnare episodi come visti su Trakt': 'Wenn aktiviert, können Episoden über /api/trakt/scrobble als gesehen auf Trakt markiert werden'
+'Se abilitato, permette di segnare episodi come visti su Trakt tramite l''endpoint /api/trakt/scrobble': 'Wenn aktiviert, können Episoden über den Endpunkt /api/trakt/scrobble als gesehen auf Trakt markiert werden'
+Season Pack: Season Pack
+Season Pack Archiviato: Season Pack archiviert
+Seeding (Fermo): Seeding (Inaktiv)
+Seleziona almeno una serie: Mindestens eine Serie auswählen
+Seleziona tutti: Alle auswählen
+Series not found in config: Serie nicht in der Konfiguration gefunden
+'Series updated!': 'Serie aktualisiert!'
+Servizio systemd: 'systemd-Dienst'
+Statistiche: Statistiken
+Statistiche aMule: 'aMule-Statistiken'
+Stato Connessione Trakt: 'Trakt-Verbindungsstatus'
+'Termina il servizio Extto e lo riavvia dopo circa 10 secondi... non temere! Utile per forzare lo svuotamento della memoria cache o ricaricare in modo pulito i file di configurazione se modificati a mano.': 'Beendet den Extto-Dienst und startet ihn nach ca. 10 Sekunden neu... keine Sorge! Nützlich zum Leeren des Cache oder zum sauberen Neuladen manuell geänderter Konfigurationsdateien.'
+Terminato: Beendet
+Token Bot: 'Bot-Token'
+Token valido per: Token gültig für
+'Trakt collegato!': 'Trakt verbunden!'
+Tutti i Tag: Alle Tags
+Vai su: Gehe zu
+Watchlist Trakt: 'Trakt-Watchlist'
+Watchlist vuota.: Watchlist ist leer.
+aMule / ed2k: aMule / eD2k
+aMule non ha accettato il download: aMule hat den Download nicht akzeptiert
+amule.conf (path del file di configurazione di amuled — EXTTO lo legge e aggiorna): 'amule.conf (Pfad der amuled-Konfigurationsdatei — EXTTO liest und aktualisiert sie)'
+ciclo: Zyklus
+di: von
+doppioni inferiori/cadaveri: minderwertige Duplikate/Waisen
+e altri: und
+'e inserisci questo codice:': 'und gib diesen Code ein:'
+ed2k: eD2k
+file rinominati: Dateien umbenannt
+file rinominati con successo: Dateien erfolgreich umbenannt
+gia presenti: bereits vorhanden
+giorni: Tage
+già presenti: bereits vorhanden
+importate: importiert
+inferiori scartati: minderwertige verworfen
+mostrati: angezeigt
+nessun download: keine Downloads
+nuovi: neue
+pack totali: Packs gesamt
+per: für
+più vecchi del numero di giorni configurato in: älter als die in konfigurierte Anzahl von Tagen
+record: Einträge
+'record dall''archivio?': 'Einträge aus dem Archiv?'
+'record selezionati dall''archivio?': 'ausgewählte Einträge aus dem Archiv?'
+record trovati: Einträge gefunden
+salvato nel Database: in der Datenbank gespeichert
+scaricati: heruntergeladen
+selezionati: ausgewählt
+sono già monitorate in EXTTO. Seleziona quelle nuove e clicca: werden bereits in EXTTO überwacht. Wählen Sie neue aus und klicken Sie auf
+totali: gesamt
+trovati: gefunden
+upgrade: Upgrades
+'usando come Redirect URI, poi incolla le credenziali.': 'als Redirect URI verwenden, dann die Anmeldedaten einfügen.'
+'No': 'Nein'

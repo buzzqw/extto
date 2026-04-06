@@ -1,0 +1,71 @@
+# ============================================================================
+# EXTTO v29+ Requirements
+# ============================================================================
+
+# === CORE DEPENDENCIES ===
+requests>=2.31.0        # HTTP requests (scraping, Jackett, TMDB, notifier)
+beautifulsoup4>=4.12.0  # HTML parsing (ExtTo, Corsaro scraper)
+flask>=3.0.0            # Web UI (extto_web.py)
+flask-cors>=4.0.0       # CORS headers (extto_web.py)
+waitress>=2.1.2         # Production WSGI server (sostituisce flask dev server)
+psutil>=5.9.0           # System stats: CPU/RAM/disk (extto_web.py /api/system/stats)
+pyyaml>=6.0.0           # Import/export traduzioni UI (languages/*.yaml)
+
+
+# === RINOMINA AVANZATA — TAG TECNICI (opzionale ma consigliato) ===
+pymediainfo>=6.0.0      # Estrae risoluzione, codec, HDR, lingue audio dai file video.
+                        # Usato da core/mediainfo_helper.py per i formati di rinomina
+                        # 'standard' e 'completo' (@rename_format).
+                        # Richiede anche la libreria C libmediainfo installata nel sistema:
+                        #
+                        #   sudo apt install libmediainfo0v5    # Ubuntu/Debian
+                        #   sudo dnf install libmediainfo        # Fedora/RHEL
+                        #   sudo pacman -S libmediainfo          # Arch
+                        #   pkg install libmediainfo             # FreeBSD
+                        #
+                        # Senza pymediainfo EXTTO funziona normalmente: il formato
+                        # 'completo' degrada silenziosamente a 'base'.
+
+
+# === FUMETTI — DOWNLOAD DA MEGA (opzionale) ===
+mega.py>=1.0.8          # Client Mega per download fumetti da link mega.nz pubblici.
+                        # Usato da core/comics.py download_comic_mega_bg().
+                        # Login anonimo — non richiede account Mega.
+                        # Dipendenze installate automaticamente: pycryptodome, tenacity.
+                        #
+                        # Nota: richiede tenacity>=8.0 (incompatibile con tenacity<6
+                        # dichiarata da mega.py 1.0.8 — pip la aggiorna automaticamente):
+                        #   pip install "mega.py" "tenacity>=8.0"
+
+
+# === TUI (extto_tui.py) ===
+textual>=0.80.0         # Framework TUI per extto_tui.py (interfaccia testuale a schermo intero).
+                        # Installato automaticamente nel venv da setup.sh / start.sh.
+                        # Avvio TUI: ./start.sh --tui  oppure  python3 extto_tui.py --port 8888
+                        
+pexpect                        
+
+# === TORRENT CLIENT EMBEDDED (opzionale) ===
+# libtorrent è ora disponibile su PyPI e viene installato direttamente nel venv.
+# Il venv ha priorità sul pacchetto di sistema (python3-libtorrent di apt).
+# Per aggiornare alla versione più recente: ./setup.sh --upgrade
+#
+# Se non disponibile su PyPI per la tua architettura/versione Python,
+# setup.sh ricade automaticamente sul pacchetto di sistema (apt/dnf/pacman).
+# In quel caso EXTTO funziona ugualmente con --system-site-packages.
+libtorrent>=2.0.11      # Client torrent embedded. Installato nel venv da PyPI.
+
+# === STANDARD LIBRARY (no install needed) ===
+# base64, dataclasses, datetime, email, http.server, json, logging,
+# os, queue, re, shutil, smtplib, socketserver, sqlite3, ssl,
+# subprocess, sys, textwrap, threading, time, typing,
+# unicodedata, urllib, warnings, webbrowser, xml.etree
+
+# === PACCHETTI RIMOSSI (erano nel requirements ma non usati nel codice) ===
+# flask-socketio  — non importato in nessun file sorgente
+# netifaces       — non importato; il rilevamento IP usa 'ip addr' via subprocess
+
+# === INSTALLATION ===
+# Non usare pip install -r requirements.txt direttamente.
+# Usare lo script: ./start_extto.sh
+# (gestisce il venv, --system-site-packages per libtorrent, e l'avvio)

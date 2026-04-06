@@ -1,0 +1,1351 @@
+' Download (KB/s) - 0 = nessun limite': ' Download (KB/s) - 0 = no limit'
+' Upload (KB/s) - 0 = nessun limite': ' Upload (KB/s) - 0 = no limit'
+'(lascia vuoto = tutti i giorni)': '(leave empty = every day)'
+(opz. separati da virgola): (opt. separated by comma)
+(opzionale): (optional)
+(ripristino limiti base): (restore base limits)
+'(separati da |)': '(separated by |)'
+(velocità programmata): (scheduled speed)
+'- nessuna preferenza -': '- no preference -'
+'0 = illimitato': '0 = unlimited'
+0 selezionati: 0 selected
+0 significa Nessun Limite (Usa tutta la banda): 0 means No Limit (Uses all bandwidth)
+'0 significa Nessun Limite. Limitalo per non saturare l''upload di casa.': 0 means No Limit. Limit it to avoid saturating your home upload.
+'0% frammentato': '0% fragmented'
+'1 = Prima Stagione. 1-3 = Dalla prima alla terza. 2+ = Dalla seconda all''ultima uscita in circolazione.': '1 = First Season. 1-3 = From first to third. 2+ = From second to the latest release available.'
+'1 = Prima Stagione. 1-3 = Dalla prima alla terza. 2+ = Dalla seconda all''ultima.': '1 = First Season. 1-3 = From first to third. 2+ = From second to the last.'
+1080p+: 1080p+
+4K (2160p): 4K (2160p)
+720p: 720p
+720p+: 720p+
+720p-1080p: 720p-1080p
+'<480p': '<480p'
+'<720p': '<720p'
+'@libtorrent_enabled = yes': '@libtorrent_enabled = yes'
+'A fine download sposta automaticamente i file nel ''Percorso Archivio'' se lo hai configurato per quella serie. Funziona solo con il client libtorrent integrato.': 'At the end of the download, automatically move the files to the ''Archive Path'' if you configured it for that series. Works only with the built-in libtorrent client.'
+A quanti utenti in contemporanea inviare i dati.: How many simultaneous users to send data to.
+Abilita: Enable
+'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Archive Max Age'' mantenendo almeno ''Archive Keep Min'' voci.': 'Enables automatic archive cleanup at the end of each cycle. Removes records older than ''Archive Max Age'' while keeping at least ''Archive Keep Min'' entries.'
+Abilita Selezionate: Enable Selected
+Abilitata: Enabled
+Abilitata (preferita): Enabled (preferred)
+Abilitato: Enabled
+'agganciato con successo!': 'linked successfully!'
+Aggiorna: Refresh
+Aggiorna Blocklist Ora: Update Blocklist Now
+Aggiorna gli indici per velocizzare le ricerche.: Update the indexes to speed up searches.
+Aggiorna Info: Refresh Info
+Aggiorna lista.: Refresh list.
+Aggiorna Storico: Refresh History
+Aggiornamento automatico: Auto-update
+Aggiornamento lista...: Updating list...
+Aggiunge ai log ogni torrent scartato perché già in archivio. Molto verboso su archivi grandi — usalo solo per diagnosticare problemi specifici.: Logs every torrent discarded because it is already in the archive. Very verbose on large archives — use only to diagnose specific problems.
+Aggiunge template ExtTo.: Add ExtTo template.
+Aggiunge template Il Corsaro Nero.: Add Il Corsaro Nero template.
+Aggiunge template Knaben RSS (feed generico italiano).: Adds Knaben RSS template (generic Italian feed).
+Aggiunge un feed RSS generico (qualsiasi URL RSS/Torznab compatibile).: Add a generic RSS feed (any compatible RSS Torznab URL).
+Aggiungi: Add
+Aggiungi Film: Add Movie
+Aggiungi in pausa: Add paused
+Aggiungi Magnet: Add Magnet
+Aggiungi magnet: Add magnet
+Aggiungi magnet/torrent manualmente.: Add magnet-torrent manually.
+Aggiungi rapidamente un Magnet Link o un file .torrent da qualsiasi pagina ti trovi.: Quickly add a Magnet Link or a .torrent file from wherever you are.
+Aggiungi Serie: Add Series
+Aggiungi Serie TV: Add TV Series
+'Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli.': 'Add Jackett sources-Torrent sites, blocklists, and title exclusions.'
+Aggiungi un nuovo Film alla lista dei desideri.: Add a new Movie to the wishlist.
+Aggiungi una nuova Serie TV al monitoraggio.: Add a new TV Series to monitor.
+Aggiunta con successo: Added successfully
+Aggiunti al Client: Added to Client
+Aggiunto al client: Added to client
+Alias / Nomi Alternativi: Alias - Alternative Names
+Altre sezioni: Other sections
+Altro: More
+Analisi avviata. Attendi la finestra di riepilogo...: Analysis started. Wait for the summary window...
+Analizza Ora: Analyze Now
+ANALYZE: ANALYZE
+Anno: Year
+Announce a tutti i tracker: Announce to all trackers
+Annulla: Cancel
+Anteprima Rinomina TMDB: TMDB Rename Preview
+Applica: Apply
+Applica limiti: Apply limits
+'Applica limiti di velocità diversi in fasce orarie programmabili. Esempio: velocità piena di notte (01:00-08:00), limitata di giorno per non intralciare lo streaming e lo smart working.': 'Applies different speed limits in programmable time slots. Example: full speed at night (01:00-08:00), limited during the day to avoid interfering with streaming and remote work.'
+Applica Qualità: Apply Quality
+Applicato immediatamente senza riavvio e salvato in: Applied immediately without restart and saved in
+Applicato immediatamente senza riavvio e salvato in Database: Applied immediately without restart and saved in Database
+Applicazione limiti in corso...: Applying limits...
+Apri pagina ufficiale su TMDB: Open official TMDB page
+Archivio: Archive
+aria2c: aria2c
+Assegna Categoria: Assign Category
+'Assegna punti bonus o malus. Formato -> Parola:Punti (es. MIRCrew:500)': 'Assign bonus or malus points. Format -> Word:Points (e.g. MIRCrew:500)'
+Assegna una Categoria/Tag comune a tutti i torrent selezionati.: Assign a common Category/Tag to all selected torrents.
+'Attenzione: Selezionando questa opzione cancellerai fisicamente i file multimediali dal tuo hard disk. Non è possibile annullare l''operazione.': 'Warning: Selecting this option will physically delete the media files from your hard disk. This operation cannot be undone.'
+Attesa (in ore) dopo il primo rilevamento per permettere alla rete torrent di popolarlo con sorgenti di qualità superiore prima di inviare al client.: Wait time (in hours) after first detection to allow the torrent network to populate it with higher quality sources before sending to the client.
+Attesa prima di scaricare per attendere qualità migliore.: Wait before downloading to allow better quality to appear.
+Attesa Terminata: Wait Ended
+Attività: Activity
+Attivo: Active
+Audio: Audio
+'Audio & Lingua': 'Audio & Language'
+'Aumenta esponenzialmente la privacy! URL di una blocklist in formato P2P (eMule dat), PeerGuardian (.p2p), o ZIP/GZ. Blocca la connessione con aziende anti-p2p, governi o peer malevoli.': 'Exponentially increases privacy! URL of a blocklist in P2P format (eMule dat), PeerGuardian (.p2p), or ZIP/GZ. Blocks connections with anti-p2p companies, governments or malicious peers.'
+auto (lascia vuoto) oppure tun0/wg0: auto (leave empty) or tun0/wg0
+Auto-scorri verso il basso quando arrivano nuove stringhe log.: Auto-scroll down when new log lines arrive.
+Auto-scroll: Auto-scroll
+Avanzate: Advanced
+Avvia o riprende i torrent selezionati.: Start or resume selected torrents.
+Avvia una scansione per tutti gli episodi non ancora scaricati di questa serie: Start a scan for all not-yet-downloaded episodes of this series
+Avviare il recheck su: Start recheck on
+Avvio download diretto...: Starting direct download...
+Avvio download Mega...: Starting Mega download...
+Avvio forzato del pack: Forcing pack download for
+Azione applicata su: Action applied to
+AZIONI: ACTIONS
+'Backup completato!': 'Backup completed!'
+Backup Completo: Full Backup
+backup conservati: backups kept
+Backup creato: Backup created
+Backup in corso...: Backup in progress...
+'Backup inviato su Telegram con successo!': 'Backup sent to Telegram successfully!'
+Blacklist: Blacklist
+'Bonus Extra & Gruppi': 'Extra Bonus & Groups'
+Bonus Italiano (ITA): Language Bonus (ITA)
+Bonus Lingua: Language Bonus
+Bonus Lingua (ITA): Language Bonus (ITA)
+button: button
+Calcolatore e Punteggi di Qualità: 'Quality Calculator & Scores'
+Calcolatore Rapido di Verifica: Quick Verification Calculator
+Carica Editor: Load Editor
+Caricamento dischi...: Loading disks...
+Caricamento...: Loading...
+'Caricato (Seed) dall''avvio di libtorrent': Uploaded (Seed) since libtorrent started
+Cartella Backup: Backup Folder
+Cartella destinazione: Destination folder
+Cartella di destinazione: Destination folder
+'Cartella principale per l''individuazione automatica delle serie. Se non specifichi un percorso per una serie, EXTTO la cercherà qui.': 'Main folder for automatic series detection. If you do not specify a path for a series, EXTTO will look here.'
+Cartella temporanea: Temporary folder
+Cartella Trash: Trash folder
+Categoria: Category
+Cerca: Search
+'Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà via Jackett. Richiede TMDB configurato.': 'Automatically searches for missing previous episodes when a new episode arrives. Example: if S03E05 arrives but E01–E04 are missing, it will search for them via Jackett. Requires TMDB configured.'
+Cerca film...: Search movies...
+Cerca il nome corretto su TMDB: Search correct name on TMDB
+Cerca il nome ufficiale su TMDB: Search official name on TMDB
+Cerca mancanti: Search missing
+'Cerca nell''archivio...': Search in archive...
+Cerca serie...: Search series...
+Cerca stringa...: Search string...
+Cerca su TMDB: Search on TMDB
+'Cerca su TMDB (completa anche l''anno!)': 'Search on TMDB (complete the year!)'
+Cerca Subito: Search Now
+Cerca subito i film presenti in lista che non sono ancora stati scaricati. Non tocca serie TV né fumetti.: 'Immediately search for movies on the list that haven''t been downloaded yet. Does not affect TV series or comics.'
+Cerca subito nuovi episodi per tutte le serie TV abilitate e tenta di riempire i gap mancanti. Non tocca film né fumetti.: Immediately search for new episodes for all enabled TV series and try to fill missing gaps. Does not affect movies or comics.
+Cerca titolo...: Search title...
+'Cerca un fumetto su getcomics.org… es. Batman, Walking Dead, X-Men': 'Search for a comic on getcomics.org… e.g. Batman, Walking Dead, X-Men'
+Cerca un titolo su TMDB…: Search for a title on TMDB…
+chiave: key
+CHIAVE INTERNA: INTERNAL KEY
+Chiudi: Close
+cicli: cycles
+'ciclo avviato! Controlla i log tra qualche secondo.': 'cycle started! Check logs in a few seconds.'
+Ciclo completo: Full cycle
+Ciclo fumetti avviato in background: Comics cycle started in background
+Ciclo fumetti avviato in background...: Comics cycle started in background...
+Ciclo richiesto (trigger creato): Cycle requested (trigger created)
+Client: Client
+Client Torrent Attivo: Active Torrent Client
+Cloud Backup: Cloud Backup
+Coda Torrent Attivi: Active Torrent Queue
+Codec: Codec
+Codice non valido - usa 2-5 lettere: Invalid code - use 2-5 letters
+Codice non valido — usa 2-5 lettere: Invalid code — use 2-5 letters
+'Collezione chiusa e pronta da guardare!': 'Collection complete and ready to watch!'
+completamento download: download completion
+Completato: Completed
+Completo: Complete
+Conferma eliminazione torrent dalla lista del client.: Confirm torrent removal from client list.
+Configura avvisi Email o bot Telegram alla fine di un download.: Configure Email or Telegram bot alerts at the end of a download.
+Configurati: Configured
+Configurazione: Configuration
+Configurazione Globale: Global Configuration
+Connessioni (Seed / Peer): Connections (Seed / Peer)
+Connessioni max: Max connections
+'Consumo:': 'Consumption:'
+Contenuto: Content
+Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett).: Countdown to the next automatic start of the search engine (Scraping + Jackett).
+Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore.: Controls extto.log verbosity. DEBUG shows everything. INFO is default. WARNING/ERROR reduce noise.
+Controlla servizi...: Checking services...
+'Controlla subito getcomics.org per nuovi fumetti monitorati e weekly pack, ignorando il timer settimanale. Non tocca serie TV né film.': 'Immediately checks getcomics.org for new monitored comics and weekly packs, ignoring the weekly timer. Does not affect TV series or movies.'
+Controllo file avviato: File check started
+Controllo indexer...: Checking indexers...
+Controllo servizi...: Checking services...
+Copia: Copy
+Copia i magnet link negli appunti: Copy magnet links to clipboard
+Copia non riuscita: Copy failed
+Costringe EXTTO ad accettare solo release che includano questa lingua nei metadati.: Forces EXTTO to only accept releases that include this language in the metadata.
+'Costringe libtorrent a comunicare SOLAMENTE su una specifica scheda di rete. Esempio vitale: inserisci ''tun0'' o ''wg0'' se usi OpenVPN/Wireguard. Se la VPN cade, libtorrent bloccherà tutto impedendo perdite IP reali (IP Leak).': 'Forces libtorrent to communicate ONLY on a specific network interface. Vital example: enter ''tun0'' or ''wg0'' if you use OpenVPN/Wireguard. If the VPN drops, libtorrent will block everything preventing real IP leaks.'
+CPU: CPU
+CRASH DEL MOTORE: ENGINE CRASH
+Crea Nuova: Create New
+'Creazione ZIP in corso, attendere…': 'Creating ZIP, please wait…'
+Credenziali Salvate: Credentials Saved
+Crittografia: Encryption
+Dashboard: Dashboard
+Data: Date
+DEBUG - tutto (diagnosi dettagliata): DEBUG - everything (detailed diagnosis)
+Debug Blacklist: Debug Blacklist
+Debug Dimensione: Debug Size
+Debug Duplicati: Duplicate Debug
+Debug Qualità: Quality Debug
+DEBUG — tutto (diagnosi dettagliata): DEBUG — everything (detailed diagnosis)
+Default: Default
+'Default: 120 (2 ore). Non scendere sotto i 30.': 'Default: 120 (2 hours). Do not go below 30.'
+'Definisce se i file obsoleti devono essere spostati nel cestino (@trash_path) o eliminati fisicamente (Irreversibile).': 'Defines whether obsolete files should be moved to the trash (@trash_path) or physically deleted (Irreversible).'
+'Deframmenta e compatta i file, liberando i Megabyte fisici sul disco.': 'Defragments and compacts files, freeing up physical Megabytes on the disk.'
+Destinazione: Destination
+Dettagli: Details
+Dettagli Film: Movie Details
+Dettagli Serie: Series Details
+Dettagli Torrent: Torrent Details
+DHT: DHT
+'Differenza minima di score tra il nuovo file e quello esistente per attivare la pulizia. 0 = qualsiasi upgrade. 500 = solo salti significativi (es. 720p→4K).': 'Minimum score difference between the new file and the existing one to trigger cleanup. 0 = any upgrade. 500 = only significant jumps (e.g. 720p→4K).'
+'Digita per filtrare i messaggi d''errore o cercare il nome di un file nei log.': Type to filter error messages or search for a file name in the logs.
+Dimensione: Size
+Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente.: Real size occupied by downloads in your destination folder and remaining space.
+Dimentica e permetti un nuovo scaricamento: Forget and allow re-download
+Disabilita Selezionate: Disable Selected
+Disabilitata: Disabled
+Disabilitato: Disabled
+Disco: Disk
+'Distributed Hash Table: indispensabile per trovare peer senza tracker (Magnet Link puri). Lascialo abilitato.': 'Distributed Hash Table: essential to find peers without trackers (pure Magnet Links). Leave it enabled.'
+div: div
+DL: DL
+Dolby Vision (DV): Dolby Vision (DV)
+Dom: Sun
+'Dopo il download rinomina i file nel formato scelto sotto, usando i titoli ufficiali TMDB. Richiede tmdb_api_key configurata.': 'After download, renames files in the chosen format below, using official TMDB titles. Requires tmdb_api_key configured.'
+'Dopo ogni backup riuscito, il file ZIP viene inviato come documento al bot Telegram configurato nelle Notifiche. Richiede bot token e chat ID validi nelle impostazioni notifiche. Il file viene inviato solo se le dimensioni sono inferiori a 50 MB (limite Telegram).': 'After each successful backup, the ZIP file is sent as a document to the Telegram bot configured in Notifications. Requires valid bot token and chat ID in notification settings. The file is only sent if its size is less than 50 MB (Telegram limit).'
+'Dov''è finito Esporta?': 'Where did Export go?'
+Download: downloads
+download: downloads
+Download attuale.: Current download.
+Download automatico: Auto-download
+Download avviato con successo.: Download started successfully.
+'Download avviato!': 'Download started!'
+Download Completato: Download Completed
+Download Diretto: Direct Download
+Download diretto HTTP: HTTP direct download
+Download durante scheduler (KB/s): Download during scheduler (KB/s)
+Download Film: Movie Download
+'Download Mega avviato!': 'Mega download started!'
+Download Sequenziale: Sequential Download
+'Download torrent avviato!': 'Torrent download started!'
+e la serie risulta ufficialmente conclusa (Ended).: and the series is officially concluded (Ended).
+Editor Lingue e Traduzioni: Language and Translation Editor
+elementi: items
+Elemento eliminato: Item deleted
+Elimina: Delete
+Elimina anche i file scaricati: Also delete downloaded files
+Elimina automaticamente i file nel cestino più vecchi di N giorni ad ogni ciclo. Lascia vuoto per non cancellare mai.: Automatically delete files in the trash older than N days at each cycle. Leave empty to never delete.
+'Elimina dall''archivio': Delete from archive
+Elimina i record più vecchi di N giorni: Delete records older than N days
+'Elimina i selezionati dall''archivio': Delete selected from archive
+Eliminare: Delete
+'Eliminare definitivamente i file nel cestino più vecchi del numero di giorni configurato?': 'Permanently delete trash files older than the configured number of days?'
+Eliminare la serie: Delete series
+'Eliminare questo elemento dall''archivio?': 'Delete this item from the archive?'
+'Eliminare?': 'Delete?'
+eliminata: deleted
+Eliminati: Deleted
+Episodio forzato come mancante (rimosso dal DB): Episode forced as missing (removed from DB)
+Episodio ignorato: Episode ignored
+Episodio Mancante: Missing Episode
+'Episodio marcato per riscarica (score=0, hash azzerato)': 'Episode marked for re-download (score=0, hash cleared)'
+ERROR - solo errori critici: ERROR - critical errors only
+ERROR — solo errori critici: ERROR — critical errors only
+Errore: ': Error:'
+Errore aggiunta torrent: Error adding torrent
+Errore applicazione limiti: Error applying limits
+Errore avvio ciclo: Error starting cycle
+'Errore avvio ciclo:': 'Cycle start error:'
+Errore backup: '": Backup error:'
+'Errore backup:': 'Backup error:'
+Errore batch download: Batch download error
+Errore caricamento health: Error loading health
+'Errore caricamento health:': 'Health load error:'
+Errore configurazione notifica: Notification configuration error
+Errore copia: Copy error
+Errore di comunicazione col server: Communication error with server
+Errore di comunicazione con libtorrent: Communication error with libtorrent
+Errore di connessione: Connection error
+Errore di Lettura: Read Error
+Errore di rete: Network error
+Errore di Rete: Network Error
+Errore di rete con il server: Network error with server
+Errore di rete durante il recheck: Network error during recheck
+Errore di rete durante l: Network error during
+Errore download: Download error
+Errore download Mega: Mega download error
+Errore durante il controllo completezza: Error during completeness check
+Errore durante il download da URL: Error during URL download
+Errore durante il salvataggio: Error while saving
+Errore durante il salvataggio.: Error while saving.
+'Errore durante l''applicazione': Application error
+'Errore durante l''invio': Error during sending
+Errore durante la generazione dell: Error generating
+Errore durante la pulizia: Error during cleanup
+Errore eliminazione: '": Deletion error:'
+'Errore eliminazione:': 'Deletion error:'
+Errore invio torrent: Error sending torrent
+Errore lettura dettagli: Error reading details
+Errore nel caricamento dei punteggi: Error loading scores
+Errore ricerca: Search error
+Errore riprocessamento: Reprocessing error
+Errore salvataggio: '": Save error:'
+Errore salvataggio impostazioni: Error saving settings
+Errore salvataggio punteggi: Error saving scores
+Errore salvataggio tag: Error saving tag
+'Errore salvataggio:': 'Save error:'
+Errore scansione: Scan error
+'Errore:': 'Error:'
+errori: errors
+Es: 'ita,eng: E.g.: ita,eng'
+es: '2024 (opzionale): e.g.: 2024 (optional)'
+Es. 1.0 significa che il torrent si fermerà quando avrai caricato (upload) la stessa quantità di dati che hai scaricato.: E.g. 1.0 means the torrent will stop when you have uploaded the same amount of data you have downloaded.
+'es. Serie TV, Film, Software...': 'e.g. TV Series, Movies, Software...'
+Esecuzione: Running
+Esegue la query DELETE per i record inseriti prima della soglia impostata.: Executes the DELETE query for records inserted before the set threshold.
+'Esegue un comando sul server per elencare le interfacce disponibili (eth0, wlan0, tun0...)': 'Executes a command on the server to list available interfaces (eth0, wlan0, tun0...).'
+Esegui ANALYZE: Run ANALYZE
+'Esegui Analyze: Insegna a SQLite come cercare i record più velocemente negli archivi pesanti.': 'Run Analyze: Teaches SQLite how to search records faster in heavy archives.'
+Esegui Backup Ora: Run Backup Now
+Esegui Rinomina: Run Rename
+Esegui VACUUM: Run VACUUM
+Esegui VACUUM Globale: Run Global VACUUM
+'Esegui Vacuum: Se il file DB pesa 100MB ma è frammentato al 60%, tornerà a pesare 40MB snellendo il sistema.': 'Run Vacuum: If the DB file weighs 100MB but is 60% fragmented, it will shrink to 40MB streamlining the system.'
+Eseguo scansione archivio generale...: Running general archive scan...
+'Esempio: http://127.0.0.1:6800/jsonrpc': 'Example: http://127.0.0.1:6800/jsonrpc'
+'Esempio: http://192.168.1.10:8080': 'Example: http://192.168.1.10:8080'
+Esito del filtraggio automatico: Result of automatic filtering
+Esplora: Discover
+Esplora cartelle remote: Browse remote folders
+Esporta: Export
+ETA: ETA
+Etichetta passata a qBittorrent per automatizzare spostamenti file.: Label passed to qBittorrent to automate file movements.
+'Età massima in giorni dei record nell''archivio prima di essere eliminati dalla pulizia automatica. Default: 365. Richiede ''Pulizia Archivio Auto = yes''.': 'Maximum age in days of archive records before being removed by automatic cleanup. Default: 365. Requires ''Auto Archive Cleanup = yes''.'
+'Evita limitazioni (throttling) da parte dell''ISP. Forzata assicura privacy ma può ridurre il numero di fonti trovate.': Avoids ISP throttling. Forced ensures privacy but may reduce the number of sources found.
+EXTTO: EXTTO
+EXTTO cercherà automaticamente nuovi numeri ad ogni ciclo.: EXTTO will automatically search for new issues each cycle.
+'EXTTO Web Interface | Control Panel': 'EXTTO Web Interface | Control Panel'
+'Facoltativo. Sposta i file di questa serie in una cartella dedicata (Es: /tv/The_Last_of_Us).': Optional. Move this series files to a dedicated folder (e.g. /tv/The_Last_of_Us).
+False: False
+Fast RSS (Uscita Immediata): Fast RSS (Immediate Release)
+Fatto: Done
+Feed: Feed
+'Feed: nessun risultato ancora trovato': 'Feed: no results found yet'
+'Feed: risultati trovati - clicca per vederli': 'Feed: results found - click to view'
+'Feed: risultati trovati — clicca per vederli': 'Feed: results found — click to view'
+File .torrent inviato a qBittorrent: Torrent file sent to qBittorrent
+File .torrent inviato a Transmission: Torrent file sent to Transmission
+File Archiviato: File Archived
+File archiviato nel NAS: File archived in NAS
+'File Archiviato: Questo file è stato scaricato, spostato nel NAS e rinominato con successo.': 'File Archived: This file was downloaded, moved to NAS and renamed successfully.'
+File lasciato nella cartella download (Nessuno spostamento configurato).: File left in download folder (No move configured).
+File presente sul NAS: File present on NAS
+File salvato nella cartella fumetti.: File saved in comics folder.
+File scaricati: Files downloaded
+File Scaricato: Downloaded File
+File torrent ricevuto (non inviato al client): Torrent file received (not sent to client)
+Film: Movies
+'Film (Config / Scaricati):': 'Movies (Config / Downloaded):'
+Film Abilitato: Movie Enabled
+'Film aggiornato!': 'Movie updated!'
+Film configurati: Configured movies
+Film non trovato: Movie not found
+'Filtra i risultati (es. 1080p, ita, repack)...': 'Filter results (e.g. 1080p, eng, repack)...'
+Filtra le parole...: Filter words...
+Filtra log...: Filter log...
+Filtra per categoria.: Filter by category.
+'Filtra per risoluzione. Usa &lt;720p per accettare anche 480p. Usa ''any'' per nessun filtro.': 'Filter by resolution. Use &lt;720p to also accept low resolutions (480p, etc.). Use ''any'' for no filter.'
+'Filtra rapidamente l''elenco dei film visualizzati in tabella.': Quickly filter the list of movies displayed in the table.
+'Filtra rapidamente l''elenco delle serie TV visualizzate in tabella.': Quickly filter the list of TV series displayed in the table.
+Filtra stringhe...: Filter strings...
+Fonti: Sources
+Formato Rinomina: Rename Format
+'Forza il ricalcolo dell''hash dei file scaricati per verificare la presenza di file corrotti.': Force hash recalculation of downloaded files to check for corruption.
+'Forza immediatamente un ciclo completo: cerca nuovi episodi, film e fumetti, riempie i gap e aggiorna i metadati TMDB. Equivale ad aspettare il prossimo ciclo programmato ma senza attendere.': 'Immediately forces a full cycle: searches for new episodes, movies and comics, fills gaps and updates TMDB metadata. Equivalent to waiting for the next scheduled cycle but without waiting.'
+Forza Recheck: Force Recheck
+Forza un nuovo download di questo pack: Force a new download of this pack
+Forza una ricerca manuale per questo film: Force a manual search for this movie
+'Forzare mancante?': 'Force as missing?'
+Forzata: Forced
+Fumetti: Comics
+Fumetti monitorati: Comics monitorated
+'Fumetti monitorati:': 'Monitored comics:'
+Fumetti scaricati (Totali): Comics downloaded (Totals)
+'Fumetti scaricati (Totali):': 'Comics downloaded (Total):'
+FUMETTO: COMIC
+Fumetto aggiornato: Comic updated
+FUMETTO AGGIUNTO AI MONITORATI: COMIC ADDED TO MONITORED
+Fumetto Completato: Comic Completed
+Fumetto rimosso: Comic removed
+FUMETTO SCARICATO: COMIC DOWNLOADED
+Gestione Dati: Data Management
+Gestione Lingue: Language Management
+Gestione Servizio (systemd): Service Management (systemd)
+Gio: Thu
+Giorni attivi: Active days
+Giorni Retention Cestino: Trash Retention Days
+Già scaricato - ancora in lista di ricerca: Already downloaded - still in search list
+Già scaricato — ancora in lista di ricerca: Already downloaded — still in search list
+Gli ultimi 10 download avviati con successo: The last 10 successfully started downloads
+Grafici: Charts
+Gruppi Custom: Custom Groups
+Gruppo: Group
+'Hai eliminato molti record. Vuoi eseguire un VACUUM ora per recuperare i Megabyte sul disco?': 'You have deleted many records. Do you want to run a VACUUM now to free up disk space?'
+Hai scaricato tutti gli episodi previsti per: You have downloaded all planned episodes for
+Host: Host
+Host / Endpoint: Host / Endpoint
+I formati estesi estraggono i dati tecnici usando mediainfo.: Extended formats extract technical data using mediainfo.
+'I seguenti file presenti nella cartella verranno fisicamente rinominati. L''operazione è irreversibile.': The following files in the folder will be physically renamed. The operation is irreversible.
+I weekly pack di getcomics escono tipicamente il giovedì e contengono tutti i fumetti Marvel/DC/Image della settimana.: getcomics weekly packs typically come out on Thursdays and contain all Marvel/DC/Image comics of the week.
+'Ignora i torrent più vecchi di N giorni. 0 = nessun filtro. Esempio: 365 = ignora torrent caricati oltre 1 anno fa.': 'Ignore torrents older than N days. 0 = no filter. Example: 365 = ignore torrents uploaded over 1 year ago.'
+Ignora Stagione (Spegni Ricerca): Ignore Season (Disable Search)
+Il download automatico avviene durante il ciclo programmato.: Automatic download occurs during the scheduled cycle.
+Il motore chiederà questo titolo ai Tracker configurati istantaneamente e stamperà i risultati a schermo.: The engine will ask configured Trackers for this title instantly and print the results on screen.
+Il nome è obbligatorio: Name is required
+Il titolo esatto della serie: The exact series title
+Il token segreto impostato in aria2c per accedere alla porta RPC.: The secret token set in aria2c to access the RPC port.
+Importa: Import
+Importa / Esporta File YAML: Import / Export YAML File
+Importa YAML: Import YAML
+Impossibile recuperare le informazioni del file.: Unable to retrieve file information.
+'Imposta limiti globali (KB/s). 0 = Illimitato.': 'Set global limits (KB/s). 0 = Unlimited.'
+'Impostazioni backup salvate!': 'Backup settings saved!'
+Impostazioni Weekly Pack: Weekly Pack Settings
+'Impostazioni weekly pack salvate!': 'Weekly pack settings saved!'
+Impostazioni → Giorni Retention Cestino: Settings → Trash Retention Days
+'Impostazioni, Serie TV, Film (configurazione)': 'Settings, TV Series, Movies (configuration)'
+In Arrivo: Upcoming
+In Attesa: Waiting
+In attesa: Pending
+In Corso: Now Playing
+In corso / Monitorata: In progress / Monitored
+In corso...: In progress...
+in corso...: in progress...
+IN DOWNLOAD: DOWNLOADING
+In funzione: Running
+'Incolla qui la stringa che inizia per ''magnet:?xt='' o un link http diretto a un file .torrent': 'Paste here the string starting with ''magnet:?xt='' or a direct http link to a .torrent file'
+Incolla tracker pubblici per aumentare la velocità in caso di torrent poco diffusi. Il sistema li applicherà a tutti i nuovi download.: Paste public trackers to increase speed for poorly seeded torrents. The system will apply them to all new downloads.
+Indirizzo IP o dominio del proxy: Proxy IP address or domain
+inizio: start
+input: input
+Inserire un link o un file: Please provide a link or a file
+'Inserisci la lingua personalizzata (es. ita,eng)': 'Enter the custom language (e.g. ita,eng)'
+'Inserisci la lingua personalizzata (es. ita,eng):': 'Enter the custom language (e.g. ita,eng):'
+Inserisci manualmente un Magnet Link o carica un file .torrent locale per passarlo al client.: Manually insert a Magnet Link or load a local .torrent file to pass it to the client.
+Inserisci ore di ritardo pre-scaricamento.: Enter hours of pre-download delay.
+'Inserisci prima un pezzo di titolo da cercare!': 'Please enter part of a title to search first!'
+Inserisci qui un link fisico al file o la URI magnet. Verrà convertito e inviato al motore principale.: Insert a physical link to the file or the magnet URI here. It will be converted and sent to the main engine.
+Inserisci un link o URL: Enter a link or URL
+'Inserisci un numero di giorni valido (>= 0).': 'Enter a valid number of days (>= 0).'
+Inserisci un URL per la blocklist: Enter a URL for the blocklist
+Installa megatools: Install megatools
+'Installa megatools: apt install megatools': 'Install megatools: apt install megatools'
+Interfacce rilevate: Detected interfaces
+interfacce rilevate: interfaces detected
+Interfaccia di rete: Network interface
+Interrompi ricerca e rimuovi: Stop search and remove
+Intervallo Refresh (minuti): Refresh Interval (minutes)
+Invia backup su Telegram: Send backup via Telegram
+'Invia i parametri aggiornati all''istanza libtorrent attualmente in corsa in background. Non salva su file config.ini.': Send updated parameters to the libtorrent instance currently running in the background. Does not save to config.ini file.
+Invia i selezionati al client torrent: Send selected to torrent client
+Invia il file ZIP via Telegram al termine: Send ZIP file via Telegram when done
+'Invia la tua presenza a TUTTI i tracker della lista invece che ad uno solo, massimizzando l''elenco di fonti trovate.': 'Send your presence to ALL trackers in the list instead of just one, maximizing the list of found sources.'
+Invia questo backup su Telegram: Send this backup via Telegram
+Invia un messaggio di test a Telegram/Email per verificare le credenziali.: Send a test message to Telegram/Email to verify credentials.
+Inviati: Sent
+Inviato a libtorrent: Sent to libtorrent
+Inviato a qBittorrent: Sent to qBittorrent
+Inviato a Transmission: Sent to Transmission
+'Inviato al client!': 'Sent to client!'
+Invio fallito: Send failed
+Invio in corso: Sending
+Invio test in corso...: Sending test notification...
+IP Filter / Blocklist: IP Filter / Blocklist
+it-IT: it-IT
+Italiano: Italian
+'L''archivio è stato aggiornato.': The archive has been updated.
+'L''endpoint deve terminare con /transmission/rpc': The endpoint must end with /transmission/rpc
+La pulizia avviene anche automaticamente ad ogni ciclo del motore se il parametro è configurato.: Cleanup also occurs automatically at each engine cycle if the parameter is configured.
+label: label
+Lascia vuoto e salva per rimuovere il tag attuale.: Leave empty and save to remove the current tag.
+Lascia vuoto per usare la directory di default. Altrimenti specifica il percorso assoluto (es. /mnt/plex/movies).: 'Leave empty to use the default directory. Otherwise, specify the absolute path (e.g. /mnt/plex/movies).'
+Lettura database in corso...: Reading database...
+Lettura log...: Reading logs...
+liberi: free
+libtorrent: libtorrent
+libtorrent non attivo.: libtorrent not active.
+Limite Banda per questo Torrent: Bandwidth Limit for this Torrent
+Limite Download (KB/s): Download Limit (KB/s)
+Limite totale tra download + seeding attivi. Deve essere ≥ dei due valori sopra.: Total limit between active downloads + seeding. Must be ≥ the two values above.
+Limite Upload (KB/s): Upload Limit (KB/s)
+Limiti applicati: Limits applied
+Limiti applicati a libtorrent e salvati: Limits applied to libtorrent and saved
+Limiti inviati a qBittorrent: Limits sent to qBittorrent
+Limiti inviati a Transmission: Limits sent to Transmission
+'Limiti salvati nel DB. Motore non raggiungibile, riavvia per applicarli.': 'Limits saved to DB. Engine unreachable, restart to apply.'
+Lingua: Language
+Lingua aggiunta / Language added: Language added
+Lingua assente: Language missing
+Lingua Attiva (Interfaccia): Active Language (Interface)
+Lingua attiva / Active: Active language
+Lingua audio proposta automaticamente per nuove serie e film aggiunti senza specificarla. Usata anche come filtro di fallback nella ricerca manuale. Lascia vuoto per nessun filtro.: Audio language automatically suggested for new series and movies added without specifying it. Also used as a fallback filter in manual search. Leave empty for no filter.
+Lingua Base (Sinistra): Base Language (Left)
+Lingua da Tradurre (Destra): Target Language (Right)
+Lingua Default Contenuti: Default Content Language
+Lingua errata: Wrong language
+Lingua interfaccia / UI language: Interface language / UI language
+Lingua TMDB: TMDB Language
+Link download non trovato: Download link not found
+Link Mega non trovato: Mega link not found
+'Lista preferenziale: I file che contengono queste parole guadagnano priorità assoluta di download (es: PROPER, REPACK, MIRCrew).': 'Priority list: Files containing these words gain absolute download priority (e.g.: PROPER, REPACK, MIRCrew).'
+Lista URL interrogati in successione. Usa Jackett (/api/v2.0/indexers/all/results/torznab) o endpoint compatibili separati a capo.: List of URLs queried in succession. Use Jackett (/api/v2.0/indexers/all/results/torznab) or compatible endpoints separated by newline.
+Liste consigliate compatibili: Recommended compatible lists
+Livello di Logging: Logging Level
+Log: Log
+Lun: Mon
+Magnet: Magnet
+magnet al client: magnets to client
+magnet copiati (uno per riga): magnets copied (one per line)
+Magnet copiato negli appunti: Magnet copied to clipboard
+Magnet in Archivio: Magnets in archive
+Magnet Link o URL (.torrent): Magnet Link or URL (.torrent)
+Magnet non disponibile: Magnet not available
+Mancante: Missing
+Mantieni i file sul disco: Keep files on disk
+Manuale: Manual
+Manutenzione: Maintenance
+Manutenzione DB: DB Maintenance
+Mar: Tue
+Max download attivi: Max active downloads
+Max torrent attivi totali: Max total active torrents
+Max upload attivi: Max active uploads
+Meglio Votati: Top Rated
+Mer: Wed
+Metodo: Method
+'Mette in pausa tutti i torrent selezionati, interrompendo download e upload.': 'Pauses all selected torrents, stopping download and upload.'
+'MIRCrew:500&#10;QxR:400&#10;YIFY:-200': 'MIRCrew:500&#10;QxR:400&#10;YIFY:-200'
+Modifica Film: Edit Movie
+Modifica Impostazioni Film: Edit Movie Settings
+Modifica le impostazioni di questa serie: Edit this series settings
+Modifica le impostazioni di questo film: Edit this movie settings
+Modifica percorso per: Change path for
+Modifica Serie: Edit Series
+Modifica Serie TV: Edit TV Series
+Monitora Stagione (Accendi Ricerca): Monitor Season (Enable Search)
+Monitoraggio: Monitoring
+'Monitoraggio in tempo reale di risorse, dischi e indexer.': 'Real-time monitoring of resources, disks and indexers.'
+Monitorati: Monitored
+Monitorato: Monitored
+Mostra i film che il sistema sta attualmente cercando.: Show movies the system is currently searching for.
+Mostra i film che sono già stati trovati e inviati al client.: Show movies that have already been found and sent to the client.
+Mostra nei log i torrent scartati per dimensione anomala (troppo piccoli o grandi). Utile per diagnosticare falsi negativi su episodi con encoding insolito.: Logs torrents discarded for abnormal size (too small or large). Useful for diagnosing false negatives on episodes with unusual encoding.
+'Mostra nei log i torrent scartati perché il titolo contiene una parola della Blacklist (cam, ts...). Utile per verificare che le regole di esclusione funzionino.': 'Logs torrents discarded because the title contains a Blacklist word (cam, ts...). Useful for verifying that exclusion rules work.'
+'Mostra nei log i torrent scartati perché la qualità non corrisponde a quella richiesta (es: cercavi 1080p, trovato solo 480p). Aiuta a capire perché una serie non viene scaricata.': 'Logs torrents discarded because the quality does not match the requested one (e.g.: you searched for 1080p, only 480p found). Helps understand why a series is not being downloaded.'
+Motivo: Reason
+Motore: Engine
+'Motore occupato, riprova tra poco': 'Engine busy, please try again shortly'
+nel file di configurazione e riavvia EXTTO.: in the configuration file and restart EXTTO.
+Nessun download completato da rimuovere.: No completed downloads to remove.
+Nessun errore rilevato: No errors detected
+Nessun film caricato: No movies loaded
+nessun limite: no limit
+Nessun magnet disponibile: No magnet available
+Nessun risultato: No results
+Nessun servizio rilevato: No service detected
+Nessun torrent attivo.: No active torrents.
+Nessun torrent selezionato: No torrent selected
+Nessun torrent/magnet disponibile: No torrent/magnet available
+Nessuna modifica / Nothing to save: No changes / Nothing to save
+Nessuna selezione: No selection
+Nessuna serie caricata: No series loaded
+Nessuna trama disponibile.: No plot available.
+Nessuno: None
+Nessuno (Locale): None (Local)
+NOME: NAME
+Nome e stagioni obbligatori: Name and seasons are required
+'Nome Film *': 'Movie Name *'
+'Nome Serie *': 'Series Name *'
+Non installato (Richiede: Not installed (Require
+Non puoi eliminare la lingua master (it): Cannot delete the master language (it)
+Notifiche: Notifications
+Numero di backup da conservare. I più vecchi vengono cancellati automaticamente.: Number of backups to keep. The oldest are automatically deleted.
+'Numero massimo di minuti per il quale un torrent rimarrà in seed, a prescindere dal ratio raggiunto.': 'Maximum number of minutes a torrent will remain in seed, regardless of the ratio achieved.'
+Numero massimo di torrent in download contemporaneamente. Gli altri restano in coda.: Maximum number of concurrent torrent downloads. The others remain in the queue.
+Numero massimo di torrent in seeding contemporaneamente.: Maximum number of concurrent seeding torrents.
+Numero massimo globale di connessioni consentite. Abbassalo se il router va in crash (es. 100).: Maximum global number of allowed connections. Lower it if the router crashes (e.g. 100).
+'Numero minimo di record da mantenere anche dopo la pulizia. Evita di svuotare completamente l''archivio se tutti i record sono vecchi. Default: 10000.': 'Minimum number of records to keep even after cleanup. Avoids completely emptying the archive if all records are old. Default: 10000.'
+Numero totale di film inseriti per la ricerca.: Total number of movies added for search.
+Numero totale di serie TV inserite per il monitoraggio.: Total number of TV series added for monitoring.
+NUOVO: NEW
+NUOVO EPISODIO IN DOWNLOAD: NEW EPISODE DOWNLOADING
+Nuovo File Archiviato: New File Archived
+NUOVO FILM IN DOWNLOAD: NEW MOVIE DOWNLOADING
+occupato: used
+Ogni 24h: Every 24h
+Ogni Giorno: Every Day
+'Ogni quanti minuti il motore deve ripartire (es: 120 = 2 ore, 60 = 1 ora).': 'How many minutes before the engine restarts (e.g. 120 = 2 hours, 60 = 1 hour).'
+Ogni Settimana: Every Week
+Opzionale: Optional
+'Opzionale ma Raccomandato. Filtra l''anno di uscita per evitare omonimi (±1 anno di tolleranza automatica). Lascia vuoto per disabilitare.': Optional but Recommended. Filters the release year to avoid homonyms (±1 year automatic tolerance). Leave empty to disable.
+Opzionale se il proxy richiede autenticazione: Optional if the proxy requires authentication
+'Opzionale. Filtra l''anno di uscita per evitare omonimi.': Optional. Filter the release year to avoid homonyms.
+'Opzionale. Se specificato, filtra i torrent per anno (±1 anno di tolleranza per accettare rilasci ritardati in home video). Lascia vuoto per ignorare l''anno di uscita.': 'Optional. If specified, filters torrents by year (±1 year tolerance to accept delayed home video releases). Leave empty to ignore the release year.'
+Opzioni di sistema avanzate.: Advanced system options.
+Orario fine: End time
+Orario in cui entrano in vigore i limiti dello Scheduler.: Time when the Scheduler limits come into effect.
+Orario in cui terminano i limiti dello Scheduler e tornano attivi i limiti generici inseriti sopra.: Time when the Scheduler limits end and the generic limits entered above become active again.
+Orario inizio: Start time
+Ordina per Anno: Sort by Year
+Ordina per Nome: Sort by Name
+Ottimizzazione (SQLite): Optimization (SQLite)
+'Ottimizzazione: se una pagina ha più del X% di torrent già in archivio, smette di scorrere le pagine successive. Esempio: 0.8 = ferma all''80%. Range: 0.0–1.0.': 'Optimization: if a page has more than X% of torrents already in archive, stops scrolling through subsequent pages. Example: 0.8 = stops at 80%. Range: 0.0–1.0.'
+Pannello di controllo: Control panel
+Passa il link a qBit ma non lo avvia.: 'Send link to qBit but don''t start it.'
+Password: Password
+Password / Token: Password / Token
+Pausa: Pause
+PEERS: PEERS
+Percorsi e Porte: 'Paths & Ports'
+Percorso aggiornato: Path updated
+Percorso aggiornato nel config: Path updated in config
+Percorso Archivio: Archive Path
+'Percorso assoluto della cartella dove spostare i file obsoleti. Viene creata automaticamente se non esiste. Esempio: /mnt/nas/trash': 'Absolute path of the folder where obsolete files will be moved. Created automatically if it does not exist. Example: /mnt/nas/trash'
+'Percorso assoluto dove salvare gli ZIP. Esempio: /home/user/extto_backups': 'Absolute path where to save ZIPs. Example: /home/user/extto_backups'
+'Percorso dell''eseguibile se vuoi che Extto gestisca il demone.': Path to the executable if you want Extto to manage the daemon.
+Percorso di Salvataggio: Save Path
+Percorso finale per i download completati (es. /home/user/plex/media): Final path for completed downloads (e.g. /home/user/plex/media)
+Percorso locale del download. Deve esistere sulla macchina ospitante aria2.: Local download path. Must exist on the machine hosting aria2.
+Percorso Remoto / Cartella ID: Remote Path / Folder ID
+Permessi Cartelle: Folder Permissions
+'Permette di organizzare i file. Se usi client esterni per l''importazione automatica, le etichette sono fondamentali.': 'Allows organizing files. If you use external clients for automatic import, labels are fundamental.'
+'Personalizza i punteggi assegnati a risoluzioni, sorgenti e codec.': 'Customize the scores assigned to resolutions, sources, and codecs.'
+Personalizzato: Custom
+Pianificazione automatica.: Automatic scheduling.
+Porta: Port
+Porta del proxy (es. 1080 per socks5): Proxy port (e.g. 1080 for socks5)
+Porta massima.: Maximum port.
+Porta max: Max port
+Porta min: Min port
+Porta minima TCP/UDP per ricevere connessioni. Ricorda di aprire questa porta sul router (Port Forwarding).: Minimum TCP/UDP port to receive connections. Remember to open this port on the router (Port Forwarding).
+Porta non aperta - controlla firewall o abilita UPnP: Port not open - check firewall or enable UPnP
+Porta non aperta — controlla firewall o abilita UPnP: Port not open — check firewall or enable UPnP
+Porte già in uso - salvataggio annullato: Ports already in use - save cancelled
+Porte già in uso — salvataggio annullato: Ports already in use — save cancelled
+'Porte di Rete EXTTO (Richiede Riavvio Globale)': 'EXTTO Network Ports (Requires Global Restart)'
+'Dopo aver salvato': 'After saving'
+'Se le porte non funzionano': 'If ports don''t work'
+'Ripristina i default direttamente sul server con questi comandi SQL:': 'Restore defaults directly on the server with these SQL commands:'
+'Poi riavvia:': 'Then restart:'
+Prealloca spazio su disco: Pre-allocate disk space
+'Presente nell''archivio': Present in archive
+Primo Download: First Download
+'Programma EXTTO per ricaricare la blocklist in automatico. Consigliato: Ogni 24h.': 'Schedule EXTTO to automatically reload the blocklist. Recommended: Every 24h.'
+PROGRESSO: PROGRESS
+Proper (Corretto): Proper (Fixed)
+Prossima: Next
+'Protocollo alternativo a UPnP, tipico dei router Apple/pfSense.': 'Alternative protocol to UPnP, typical of Apple/pfSense routers.'
+Pulisci: Clean
+Pulisci Cestino Ora: Clean Trash Now
+Pulisci Ora: Clean Now
+Pulizia Archivio Auto: Auto Archive Cleanup
+Pulizia Auto Upgrade: Auto Upgrade Cleanup
+Pulizia Cestino: Trash Cleanup
+Pulizia cestino in corso...: Cleaning trash...
+Pulizia in corso...: Cleaning in progress...
+Pulizia Profonda (Pruning): Deep Cleanup (Pruning)
+PUNTEGGI: SCORES
+Punteggi: Scores
+Punteggi Custom: Custom Scores
+'Punteggi salvati!': 'Scores saved!'
+Punti Risoluzione: Resolution Points
+Qualità: Quality
+Qualità bassa: Low quality
+Qualità Minima: Minimum Quality
+'Qualità Minima *': 'Minimum Quality *'
+Qualità Superiore: Higher Quality
+Qualità Superiore Trovata: Higher Quality Found
+Qualità troppo alta: Quality too high
+Qualsiasi (any): Any
+Quante righe di terminale visualizzare dal file .log fisico.: How many terminal lines to display from the .log file.
+Quelli attualmente in pausa verranno messi in controllo e poi ri-messi in pausa automaticamente: Those currently paused will be checked and then automatically paused again
+RAM: RAM
+Rapporto tra film presenti in lista e quelli già scaricati: Ratio between movies on the list and those already downloaded
+RATIO: RATIO
+Ratio di Condivisione: Share Ratio
+Re-invia al client torrent: Re-send to torrent client
+Real (Definitivo): Real (Definitive)
+Recheck: Recheck
+Recheck avviato su: Recheck started on
+Recuperato: Recovered
+Recupero file e invio al client...: Retrieving file and sending to client...
+Recupero Mancanti (Gap Filling): Missing Recovery (Gap Filling)
+RECUPERO MANCANTI COMPLETATO: MISSING RECOVERY COMPLETED
+Recupero trama da TMDB in corso...: Fetching plot from TMDB...
+Repack (Rifatto): Repack (Redone)
+'Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \': 'MANDATORY requirement: EXTTO only downloads releases that contain this audio language in the title. Releases without this language are discarded. For TV series the check is strict; for movies, a release without the required language still ends up in the feed \'
+'Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film.': 'PREFERENTIAL requirement (not mandatory): does not filter or discard. Each subtitle language found in the title adds +200 points to the score, raising the priority of that torrent in candidate comparison. With multiple languages (e.g. Italian + English): +200 if only one found, +400 if both found. The torrent with more subtitle languages wins when quality is equal. Valid for both TV series and movies.'
+Rete (MB/s): Network (MB/s)
+Retention: Retention
+Rialloca i file: Reallocate files
+Riapplica Settings (senza salvare): Re-apply Settings (without saving)
+Riattivato: Reactivated
+Riavvia Motore EXTTO: Restart EXTTO Engine
+Riavvia Servizio: Restart Service
+Riavvio del servizio in corso...: Restarting service...
+Riavvio innescato con successo.: Restart triggered successfully.
+Ricalcola il punteggio qualità di tutti gli episodi dal titolo salvato nel DB. Utile se la logica di scoring è cambiata o si sospettano punteggi errati.: Recalculates the quality score of all episodes from the title saved in the DB. Useful if the scoring logic has changed or incorrect scores are suspected.
+Ricalcola Score Episodi: Recalculate Episode Scores
+Ricalcolo score episodi in corso...: Recalculating episode scores...
+'Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici.': 'Search for active clients on the local network/LAN. Useless if you download on the internet, useful in campuses or offices.'
+Ricerca Diretta: Direct Search
+'Ricerca Manuale Globale: Cerca un titolo specifico in tempo reale interrogando direttamente Jackett e le fonti esterne (Scavalcando il database locale).': 'Global Manual Search: Searches for a specific title in real time by directly querying Jackett and external sources (bypassing the local database).'
+'Ricerca mirata avviata in background! Apri il tab Log per seguirla.': 'Targeted search started in background! Open the Log tab to follow it.'
+Ricerca nel registro dei file inviati al client. Utile per verificare se un file è già stato scaricato in passato.: Search the log of files sent to the client. Useful to check if a file has already been downloaded in the past.
+Ricerca Standard: Standard Search
+Ricerca weekly pack: Searching weekly pack
+Ricontrolla film: Recheck movies
+Ricontrolla fumetti: Recheck comics
+Ricontrolla serie: Recheck series
+Ricontrolla Tutto: Recheck All
+Ricontrolla tutto: Recheck all
+Riepilogo rapido dello stato dei file di configurazione: Quick summary of configuration files status
+RIFERIMENTO: REFERENCE
+'Righe:': 'Rows:'
+'Rilegge l''occupazione e la frammentazione del DB attuale.': Re-reads current DB usage and fragmentation.
+Rileva: Detect
+Rimetti in coda automatica (azzera score): Put back in auto queue (reset score)
+Rimossi: Removed
+'Rimosso dallo storico!': 'Removed from history!'
+'Rimuove dall''archivio i magnet link trovati da Jackett o dai siti vecchi di un tot di giorni.': Removes from the archive magnet links found by Jackett or sites older than a number of days.
+'Rimuove dalla lista: torrent al 100% + download HTTP/Mega completati o in errore. NON cancella i file su disco.': 'Removes from the list: 100% torrents + completed or errored HTTP/Mega downloads. DOES NOT delete files on disk.'
+Rimuovi: Remove
+Rimuovi (mantiene i file): Remove (keep files)
+Rimuovi i torrent selezionati (i file rimangono sul disco).: Remove selected torrents (files remain on disk).
+Rimuovi Selezionate: Remove Selected
+Rimuovi Torrent: Remove Torrent
+Rinomina fisica dei file in corso...: Physically renaming files...
+Rinomina puntate: Rename episodes
+Rinomina tutti i file fisici usando i titoli ufficiali: Physically rename all files using official titles
+Riprendi: Resume
+Ripristina Default: Restore Defaults
+'Ripristinare tutti i punteggi ai valori predefiniti di fabbrica?': 'Restore all scores to factory default values?'
+Riprocesso tutti i file...: Reprocessing all files...
+'Riscaricare?': 'Re-download?'
+Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito.: Immediately reserves all necessary disk space before starting the download. Reduces fragmentation but occupies space immediately.
+Risoluzione: Resolution
+'Risorse di sistema (%)': 'System resources (%)'
+Risorse di Sistema (Live): System Resources (Live)
+Risultati Jackett/Scraping (: Jackett/Scraping Results (
+RISULTATO: RESULT
+RPC Secret: RPC Secret
+RPC URL: RPC URL
+RSS Generico: Generic RSS
+Sab: Sat
+Salute: Health
+Salute del Sistema: System Health
+Salute di Sistema: System Health
+Salva: Save
+Salva Impostazioni: Save Settings
+Salva Modifiche: Save Changes
+Salva Notifiche: Save Notifications
+Salva permanentemente Token e Chat ID.: Permanently save Token and Chat ID.
+Salva Traduzioni: Save Translations
+Salva Tutte le Impostazioni: Save All Settings
+Salvataggio di tutta la configurazione in corso...: Saving all configuration...
+'Scambio di peer: ottiene elenchi di contatti dagli altri utenti collegati, accelerando il download.': 'Peer exchange: gets contact lists from other connected users, speeding up the download.'
+Scansionare la cartella di: Scan folder of
+Scansione avviata: Scan started
+Scansione Cartella: Folder Scan
+Scansione completata: Scan completed
+Scarica: Download
+Scarica automaticamente da: Auto-download from
+Scarica ed esamina la blocklist per applicare subito i divieti IP in libtorrent.: Download and examine the blocklist to immediately apply IP bans in libtorrent.
+'Scarica i pezzi sequenzialmente dall''inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi.': 'Downloads pieces sequentially from start to end of the file, so you can start playback on VLC/Plex while the download is not yet complete. Warning: may penalize speed if peers have scattered pieces.'
+Scarica Pack: Download Pack
+Scarica subito: Download now
+Scarica via torrent/magnet: Download via torrent/magnet
+Scarica Weekly Pack Manuale: Download Weekly Pack Manually
+Scaricamento del file .torrent in corso...: Downloading .torrent file...
+Scaricamento file .torrent in corso...: Downloading .torrent file...
+Scaricamento...: Downloading...
+Scaricati: Downloaded
+'Scaricato dall''avvio di libtorrent': Downloaded since libtorrent started
+'Scarta le versioni di qualità inferiore. Usa &lt;720p per accettare anche risoluzioni basse (480p, ecc.). Usa ''any'' per nessun filtro.': 'Discards lower quality versions. Use &lt;720p to also accept low resolutions (480p, etc.). Use ''any'' for no filter.'
+Scegli il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file.: Select the Torrent Client (internal or external) that will be used to download files.
+Scegli il client. Libtorrent è raccomandato in quanto nativamente integrato nel demone EXTTO.: Choose the client. Libtorrent is recommended as it is natively integrated into the EXTTO daemon.
+Scegli lo stile del nome file. I formati estesi estraggono i dati tecnici usando mediainfo.: Choose the file name style. Extended formats extract technical data using mediainfo.
+Scegli lo stile del nome file. Standard e Completo richiedono pymediainfo installato sul server.: Choose the file name style. Standard and Complete require pymediainfo installed on the server.
+Scegli metodo di download: Choose download method
+Scegli modalità di rimozione: Choose removal mode
+Scegli o scrivi un Tag: Choose or type a Tag
+Scegli una data di partenza: Choose a start date
+Schedule: Schedule
+Scheduler abilitato: Scheduler enabled
+Scheduler Velocità: Speed Scheduler
+SCORE: SCORE
+Score Qualità: Quality Score
+Scrive in modo permanente le modifiche nel file extto_settings.ini e applica istantaneamente le policy senza riavviare.: Permanently write changes to the extto_settings.ini file and instantly apply policies without restarting.
+Scrivibile: Writable
+'Se abilitato, quando arriva una versione di qualità superiore i file precedenti vengono spostati in trash. Se arriva una versione peggiore di una già esistente, viene scartata direttamente in trash.': 'When enabled, if a higher quality version arrives the previous files are moved to trash. If a worse version than an existing one arrives, it is discarded directly to trash.'
+'Se attivo, interrompe il torrent una volta raggiunto il target (vedi sotto). Evita il seed all''infinito.': 'If enabled, stops the torrent once the target is reached (see below). Avoids infinite seeding.'
+'Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale.': 'If set to Yes, new magnets sent by Extto will remain paused waiting for your manual start.'
+'Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare.': 'If specified, saves partial files on a separate disk (e.g. NVMe) moving them only upon completion to avoid mechanical wear. Leave empty to disable.'
+'Se nei torrent usano un nome diverso da quello ufficiale TMDB, scrivilo qui per forzare il riconoscimento.': 'If they use a different name in torrents from the official TMDB one, write it here to force recognition.'
+'Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.': 'If none selected, the scheduler is active every day.'
+'Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click.': 'If unchecked, it will be queued/suspended until manually started.'
+'Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato.': 'If a title contains one of these words (e.g. CAM, TS, HARDCORE), it will be discarded and NOT downloaded.'
+se utilizzi il client integrato: if you use the built-in client
+Seed ratio: Seed ratio
+Seed time massimo (minunti): Maximum seed time (minutes)
+Seeding: Seeding
+Seleziona cartella: Select folder
+Seleziona il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file.: Select the Torrent Client (internal or external) that will be used to download files.
+Seleziona in quali giorni della settimana attivare lo scheduler orario.: Select which days of the week to activate the hourly scheduler.
+Seleziona o deseleziona tutti i torrent visibili.: Select or deselect all visible torrents.
+Seleziona questa cartella: Select this folder
+Seleziona SOCKS5 se disponi di un proxy dedicato per nascondere il traffico P2P (es. offerto dalla tua VPN).: Select SOCKS5 if you have a dedicated proxy to hide P2P traffic (e.g. offered by your VPN).
+Seleziona una data: Select a date
+Semplice e pulito.: Simple and clean.
+Senza Tag: No Tag
+Serie: Series
+Serie Abilitata: Series Enabled
+Serie abilitate: '": Enabled series:'
+'Serie abilitate:': 'Enabled series:'
+'Serie aggiornata con successo!': 'Series updated successfully!'
+'Serie aggiornata!': 'Series updated!'
+Serie Completata: Series Completed
+SERIE COMPLETATA: SERIES COMPLETED
+'Serie Completata: terminata su TMDB e collezione al 100%!': 'Series Completed! Finished on TMDB and 100% complete collection!'
+Serie configurate: '": Configured series:'
+'Serie configurate:': 'Configured series:'
+Serie non trovata nel config: Series not found in config
+Serie TV: TV Series
+Serie TV configurate: Configured TV Series
+'serie TV?': 'TV series?'
+'Serie, Film, Storico DL': 'Series, Movies, History DL'
+Servizi di Sistema (systemd): System Services (systemd)
+Settings libtorrent salvati e applicati: libtorrent settings saved and applied
+Settings riapplicati alla sessione: Settings re-applied to session
+Sfoglia cartelle del server: Browse server folders
+Sigla ISO 639-2 (es: 'fra, deu, jpn, por): ISO 639-2 code (e.g.: fra, deu, jpn, por)'
+'Sigla ISO 639-2 (es: fra, deu, jpn, por)': 'ISO 639-2 code (e.g.: fra, deu, jpn, por)'
+Sigla personalizzata (ISO 639-2/1)…: Custom code (ISO 639-2/1)…
+Sigla personalizzata…: Custom code…
+'Sintassi: ''3'' = Solo Terza. ''1-5'' = Dalla prima alla quinta. ''2+'' = Dalla seconda in poi.': 'Syntax: ''3'' = Third only. ''1-5'' = From first to fifth. ''2+'' = From second onwards.'
+'Sistema & DB': 'System & DB'
+SISTEMA AVVIATO: SYSTEM STARTED
+Slot upload: Upload slots
+SOCKS5: SOCKS5
+'Soglia di sicurezza disco. Se lo spazio libero scende sotto questo valore (GB), EXTTO blocca i nuovi download per evitare di riempire il disco. Consigliato: almeno 20-50 GB.': 'Disk safety threshold. If free space drops below this value (GB), EXTTO blocks new downloads to avoid filling the disk. Recommended: at least 20-50 GB.'
+Soglia download lento: Slow download threshold
+Soglia upload lento: Slow upload threshold
+Sola Lettura: Read Only
+solo libtorrent integrato: libtorrent client only
+'Dopo il download rinomina i file nel formato scelto sotto, usando i titoli ufficiali TMDB. Richiede tmdb_api_key configurata. Funziona solo con il client libtorrent integrato.': 'After download, renames files in the chosen format below, using official TMDB titles. Requires tmdb_api_key configured. Works only with the built-in libtorrent client.'
+Solo Manuale: Manual Only
+Solo un client può essere attivo contemporaneamente.: Only one client can be active at a time.
+Solo un client può essere attivo contemporaneamente. Il client abilitato ha priorità: Only one client can be active. Active client has priority.
+'Solo un client può essere attivo contemporaneamente. Il client abilitato ha priorità:': 'Only one client can be active at a time. The enabled client has priority:'
+sono supportate e funzionano: are supported and working
+Sorgente: Source
+'Sorgente & Codec': 'Source & Codec'
+SORGENTE (TRACKER): SOURCE (TRACKER)
+Sospeso: Suspended
+'Sotto questa velocità di download, il torrent è considerato ''lento'' e non occupa uno slot attivo.': 'Below this download speed, the torrent is considered ''slow'' and does not occupy an active slot.'
+'Sotto questa velocità di upload, il torrent è considerato ''lento''.': 'Below this upload speed, the torrent is considered ''slow''.'
+Sottotitoli: Subtitles
+Spazio Disco: Disk Space
+Spazio libero: Free space
+'Spazio libero:': 'Free space:'
+Sposta Episodi (NAS): Move Episodes (NAS)
+'Sposta i file in una cartella dedicata (Es: /tv/The_Last_of_Us).': Move files to a dedicated folder (e.g. /tv/The_Last_of_Us).
+Stagione: Season
+Stagioni: Seasons
+Stagioni (es: '1+) *: Seasons (e.g.: 1+) *'
+'Stagioni (es: 1+) *': 'Seasons (e.g.: 1+) *'
+Statistiche Attive: Active Statistics
+Statistiche Consumo: Consumption Statistics
+'Statistiche del database aggiornate!': 'Database statistics updated!'
+STATO: STATUS
+Stato: Status
+Stato / Progresso: Status / Progress
+Stato Attuale: Current Status
+'Stato del demone in background. Se è ''Offline'', assicurati che il servizio extto.service sia in esecuzione.': 'Background daemon status. If it''s ''Offline'', make sure the extto.service is running.'
+Stato e Salute Fonti: Sources Health Status
+Stato porta DHT/PEX.: DHT/PEX port status.
+Stop automatico al ratio: Auto-stop at ratio
+'Stop Scraping (%)': 'Stop Scraping (%)'
+Storico: History
+'Sub-folder opzionale per l''organizzazione post-download': Optional sub-folder for post-download organization
+Svuota Archivio Jackett/Scraping: Clear Jackett/Scraping Archive
+Svuota il file extto.log: Clear extto.log file
+Sì: True
+Tag: Tag
+Tag aggiornati con successo: Tags updated successfully
+Telemetria e Storico: 'Telemetry & History'
+Tempi (Attivo / Seeding): Times (Active / Seeding)
+Tempistiche Motore: Engine Timing
+Tempo: Time
+Tempo impiegato: Time elapsed
+'Tempo massimo di attesa per le risposte da Jackett/Prowlarr. Alzalo a 45 o 60 se hai tracker lenti (Read timed out). Default: 30.': 'Maximum wait time for responses from Jackett/Prowlarr. Raise it to 45 or 60 if you have slow trackers (Read timed out). Default: 30.'
+Tendenze: Trending
+'Tenta di aprire la porta configurata sul router automaticamente. Se fallisce, devi faro manualmente nel pannello router.': 'Attempts to open the configured port on the router automatically. If it fails, you must do it manually in the router panel.'
+Testa Notifica: Test Notification
+Timeframe (h): Timeframe (h)
+Timeframe (ore): Timeframe (hours)
+Timeframe Scaduto (Miglior Qualità): Timeframe Expired (Best Quality)
+Tipo Cloud: Cloud Type
+Tipo proxy: Proxy type
+Titolo: Title
+Togli la spunta per sospendere temporaneamente il download di nuovi episodi.: Uncheck to temporarily suspend downloading new episodes.
+Torna ai Film: Back to Movies
+Torna alla Lista: Back to List
+Torrent: Torrent
+'Torrent aggiunto con successo!': 'Torrent added successfully!'
+'Torrent aggiunto da URL!': 'Torrent added from URL!'
+'Torrent aggiunto!': 'Torrent added!'
+Torrent attivi.: Active torrents.
+'Torrent caricato!': 'Torrent loaded!'
+Torrent e file eliminati: Torrent and files deleted
+Torrent inviato a libtorrent: Torrent sent to libtorrent
+'Torrent inviato al client, download in corso': 'Torrent sent to client, downloading'
+Torrent Lenti: Slow Torrents
+torrent messi in pausa: torrents paused
+Torrent rimosso: Torrent removed
+torrent ripresi: torrents resumed
+'torrent?': 'torrents?'
+Totale: '": Total:'
+Totale complessivo dei file multimediali trovati e scaricati con successo.: Grand total of successfully found and downloaded media files.
+Totale Storico: Total History
+'Totale:': 'Total:'
+Tracker: Tracker
+Tracker aggiuntivi: Additional trackers
+Tracker extra: Extra trackers
+TRADUZIONE: TRANSLATION
+Traduzioni: Translations
+Traffico Totale (Sessione): Total Traffic (Session)
+Traftico Totale (Sessione): Total Traffic (Session)
+Trascina o cerca un piccolo file .torrent locale.: Drag and drop or browse for a small local .torrent file.
+Trovato: Found
+'Trovato e inviato l''episodio mancante': Found and sent the missing episode
+Trovato nel feed ma non ancora scaricato (qualità o lingua non soddisfatte): Found in feed but not yet downloaded (quality or language not met)
+'Tutta la configurazione è stata salvata con successo!': 'All configuration saved successfully!'
+Tutte le info tecniche.: All technical info.
+'Tutti gli episodi delle stagioni monitorate sono già stati scaricati!': 'All episodes of monitored seasons have already been downloaded!'
+'Tutti i file sono già nel formato corretto!': 'All files are already in the correct format!'
+Tutti i file sono già rinominati correttamente.: All files are already renamed correctly.
+'Tutti i file sono già rinominati in modo perfetto!': 'All files are already perfectly renamed!'
+Tutto: All
+UL: UL
+Ultima attività: Last activity
+'Ultima attività:': 'Last activity:'
+Ultimi 30 Giorni: Last 30 Days
+Ultimi 7 Giorni: Last 7 Days
+Ultimi 7 giorni: Last 7 days
+Ultimi Download: Recent Downloads
+Ultimi Errori Log: Latest Log Errors
+Ultimi eventi: Latest events
+Ultimi rilevamenti (Archivio): Latest detections (Archive)
+Ultimi trovati nel feed: Latest found in feed
+Ultimo: Last
+'Un torrent ''lento'' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri.': 'A ''slow'' torrent does not count toward queue limits. Useful if you have rare torrents that download slowly: they don''t block slots for others.'
+Upload attuale.: Current upload.
+Upload durante scheduler (KB/s): Upload during scheduler (KB/s)
+Upload su Telegram in corso... (potrebbe volerci qualche decina di secondi): Uploading to Telegram... (may take a few tens of seconds)
+UPnP (apertura porte): UPnP (port forwarding)
+Uptime: Uptime
+Uptime Motore: Engine Uptime
+URL: URL
+URL blocklist: Blocklist URL
+URL RPC: RPC URL
+URL Scraping: Scraping URLs
+Username: Username
+Utente / Client ID: User / Client ID
+'Utente dell''interfaccia web di qBit': qBit web interface user
+'Utile se l''archivio ha superato le decine di migliaia di righe rallentando il sistema.': 'Useful if the archive has exceeded tens of thousands of rows, slowing down the system.'
+Utilizzo reale di CPU e RAM della macchina Linux host in questo esatto momento.: Real CPU and RAM usage of the host Linux machine at this exact moment.
+VACUUM: VACUUM
+Vai: Go
+Velocità download nel periodo programmato.: Download speed in the scheduled period.
+Velocità e Connessioni: 'Speed & Connections'
+Velocità in Tempo Reale: Real-time Speed
+Velocità media: Average speed
+Velocità upload nel periodo programmato.: Upload speed in the scheduled period.
+Ven: Fri
+Verifica permessi...: Checking permissions...
+Verifica...: Checking...
+Verranno rimossi dal DB anche gli episodi e i feed correlati.: Episodes and related feeds will also be removed from the DB.
+'vincola traffico a interfaccia specifica (es. tun0, wg0)': 'bind traffic to specific interface (e.g. tun0, wg0)'
+Vuoi davvero eliminare: Do you really want to delete
+Vuoi davvero riavviare: Do you really want to restart
+'Vuoi davvero riavviare l''EXTTO Engine?': 'Do you really want to restart the EXTTO Engine?'
+'Vuoi inviare questo backup di EXTTO al gruppo Telegram configurato?': 'Do you want to send this EXTTO backup to the configured Telegram group?'
+Vuoi rimuovere: Do you want to remove
+'vuoto = tutti': 'empty = all'
+Wantedlist: Wantedlist
+WARNING - solo avvisi e errori: WARNING - warnings and errors only
+WARNING — solo avvisi e errori: WARNING — warnings and errors only
+Web Interface v3.8: Web Interface v3.8
+Weekly Pack: Weekly Pack
+WEEKLY PACK: WEEKLY PACK
+year: year
+— nessuna preferenza —: — no preference —
+'⬆ Upload (KB/s) — 0 = nessun limite': '⬆ Upload (KB/s) — 0 = no limit'
+'⬇ Download (KB/s) — 0 = nessun limite': '⬇ Download (KB/s) — 0 = no limit'
+Nome Attuale (Vecchio): Current Name (Old)
+Nuovo Nome (TMDB): New Name (TMDB)
+Esegui Rinomina: Run Rename
+I seguenti file presenti nella cartella verranno fisicamente rinominati.: The following files in the folder will be physically renamed.
+L'operazione è irreversibile.: This operation is irreversible.
+
+# --- Chiavi aggiunte v42 ---
+'Archive Max Age (giorni)': Archive Max Age (days)
+'Automazione & Ricerca': 'Automation & Search'
+Azione Pulizia: Cleanup Action
+'Database & Archivio': 'Database & Archive'
+'Diff. Minima Score': Min. Score Diff
+'Francese (fr-FR)': French (fr-FR)
+'Inglese (en-US)': English (en-US)
+'Italiano (it-IT)': Italian (it-IT)
+'Logging & Debug': 'Logging & Debug'
+'Max Age (giorni)': Max Age (days)
+'Nessun download recente.': No recent downloads.
+'Nessun evento recente.': No recent events.
+Nessuna interfaccia rilevata: No interface detected
+'Nessuna release trovata di recente.': No releases found recently.
+Nessuna sottocartella: No subfolders
+'Personalizzata...': Custom...
+'Pulizia & Eliminazione': 'Cleanup & Deletion'
+'Radice Archivio (NAS)': Archive Root (NAS)
+Rimuovi ed Elimina: Remove and Delete
+Rinomina Episodi: Rename Episodes
+'Spagnolo (es-ES)': Spanish (es-ES)
+'Spazio Minimo (GB)': Min Free Space (GB)
+'Tedesco (de-DE)': German (de-DE)
+'Timeout Indexer (sec)': Indexer Timeout (sec)
+attivi: active
+in pausa: paused
+selezionata: selected
+selezionate: selected
+
+'Avvio...': Starting...
+Data Pack: Pack Date
+'Errore caricamento dati.': Error loading data.
+Errore di connessione al server: Connection error to server
+'Errore di rete durante l''invio': Network error during send
+'Errore di rete. Server non raggiungibile.': Network error. Server unreachable.
+I dettagli e gli episodi appariranno dopo il: Details and episodes will appear after the
+'Il torrent usa la rete DHT decentralizzata.': The torrent uses the decentralized DHT network.
+Modifica Impostazioni Serie: Edit Series Settings
+'Nessun backup trovato.': No backups found.
+'Nessun download ancora.': No downloads yet.
+'Nessun episodio in uscita nei prossimi giorni.': No upcoming episodes in the next few days.
+'Nessun fumetto monitorato.': No monitored comics.
+'Nessun peer connesso.': No peers connected.
+Nessun risultato trovato: No results found
+'Nessun risultato trovato.': No results found.
+'Nessun tracker inserito.': No trackers added.
+'Nessun weekly pack nello storico.': No weekly packs in history.
+Nome File nel Torrent: File Name in Torrent
+Salva risultati Jackett: Save Jackett results
+Salva risultati Prowlarr: Save Prowlarr results
+Scarica a partire dal: Download starting from
+Serie aggiunta correttamente in: Series added successfully to
+Titolo Download: Download Title
+Trovato il: Found on
+Usa il pannello: Use the panel
+Usa la tab: Use the tab
+'per aggiungerne.': to add some.
+'per aggiustare le impostazioni nel frattempo.': to adjust settings in the meantime.
+primo ciclo del motore: first engine cycle
+
+'LSD (Local Discovery)': LSD (Local Discovery)
+NAT-PMP: NAT-PMP
+Nota sulle Notifiche: Notification Note
+'PEX (Peer Exchange)': PEX (Peer Exchange)
+Protocolli: Protocols
+'Se stai usando client esterni (qBittorrent, Transmission, aria2), EXTTO invierà solo gli avvisi di': If you are using external clients (qBittorrent, Transmission, aria2), EXTTO will only send
+'VPN Killswitch / Interface Binding': VPN Killswitch / Interface Binding
+'download. Per gli avvisi di fine download, usa le impostazioni interne di quei programmi.': download. For end-of-download alerts, use the internal settings of those programs.
+esclusivamente: exclusively
+
+sconosciuto: unknown
+
+# --- Activity ---
+trovati: found
+scaricati: downloaded
+nessun download: no downloads
+errori: errors
+ciclo: cycle
+Fumetto: Comic
+LATEST EVENTS: LATEST EVENTS
+Last 7 days: Last 7 days
+# --- Archivio paginazione ---
+Pag: Page
+totali: total
+# --- Rename format ---
+Base: Base
+# --- Add Magnet modal ---
+Magnet Link o URL (.torrent): Magnet Link or URL (.torrent)
+File .torrent: .torrent file
+Righe:: 'Rows:'
+# --- Notification Note (fix frase che inizia in italiano) ---
+Le notifiche di: Notifications for
+sono supportate e funzionano: are supported and working
+se utilizzi il client integrato: if you use the built-in client
+Se stai usando client esterni (qBittorrent, Transmission, aria2), EXTTO invierà solo gli avvisi di: 'If you are using external clients (qBittorrent, Transmission, aria2), EXTTO will only send'
+
+# --- Manutenzione: Porte, Trash, Restart ---
+'Termina il servizio Extto e lo riavvia dopo circa 10 secondi... non temere! Utile per forzare lo svuotamento della memoria cache o ricaricare in modo pulito i file di configurazione se modificati a mano.': 'Stops the Extto service and restarts it after about 10 seconds... don''t worry! Useful to flush the memory cache or cleanly reload configuration files if edited manually.'
+'Modificare queste porte cambia il modo in cui il sistema comunica.': 'Changing these ports changes how the system communicates.'
+'Dopo aver salvato, l''interfaccia smetterà di funzionare. Riavvia extto manualmente.': 'After saving, the interface will stop working. Restart extto manually.'
+Motore Interno: Internal Engine
+'La porta a cui ti connetti dal browser (http://tuo-ip:PORTA). Default: 5000': 'The port you connect to from the browser (http://your-ip:PORT). Default: 5000'
+'La porta nascosta usata dal motore in background per comunicare con l''interfaccia. Default: 8889': 'The hidden port used by the background engine to communicate with the interface. Default: 8889'
+'Elimina manualmente i file nel cestino (': 'Manually delete trash files ('
+'più vecchi del numero di giorni configurato in': 'older than the number of days configured in'
+
+Scarico: Download
+Personalizzato…: Custom…
+Righe: Rows
+In Scarico: Downloading
+In Scarico (Fermo): Downloading (Idle)
+In Seeding: Seeding
+Seeding (Fermo): Seeding (Idle)
+In Pausa: Paused
+In Coda (DL): Queued (DL)
+In Coda (Seeding): Queued (Seeding)
+Terminato: Finished
+Salvato: Saved
+Attesa Metadati: Waiting Metadata
+Allocazione Spazio: Allocating Space
+Controllo File: Checking Files
+Controllo Dati: Checking Data
+'Controllo (100%)': 'Checking (100%)'
+Metadati...: Meta...
+Alloc...: Alloc...
+Check...: Check...
+Tutti i Tag: All Tags
+In lista: In list
+Scaricato: Downloaded
+Caricamento storico...: Loading history...
+pack totali: total packs
+Inviato: Sent
+Pagina: Page
+Il download automatico avviene durante il ciclo programmato. La data minima filtra i pack più vecchi di quella data.: Automatic download occurs during the scheduled cycle. The minimum date filters out packs older than that date.
+
+# --- Notifier Season Pack ---
+Season Pack: Season Pack
+Archiviato in: Archived to
+
+# --- Notifiche / Activity ---
+Token Bot: Token Bot
+salvato nel Database: saved in Database
+'Le notifiche di completamento download sono supportate e funzionano esclusivamente se utilizzi il client integrato libtorrent.': 'Download completion notifications are supported and working <strong>exclusively</strong> if you use the built-in client <strong>libtorrent</strong>.'
+
+# --- Rename execute result ---
+file rinominati con successo: files renamed successfully
+file rinominati: files renamed
+Rimossi: Removed
+doppioni inferiori/cadaveri: inferior duplicates/orphans
+
+# --- Season Pack notification ---
+Season Pack Archiviato: Season Pack Archived
+Episodi: Episodes
+nuovi: new
+upgrade: upgrades
+già presenti: already present
+inferiori scartati: inferior discarded
+e altri: and
+# EXTTO - English
+# Auto-generated
+
+'Avvia il collegamento con Trakt tramite Device Flow': 'Start the Trakt connection via Device Flow'
+'Clicca Aggiorna per caricare il calendar.': 'Click "Refresh" to load the calendar.'
+'Clicca Aggiorna per caricare la watchlist.': 'Click "Refresh" to load the watchlist.'
+'Codice scaduto. Riprova.': 'Code expired. Try again.'
+'Collega Trakt': 'Connect Trakt'
+'Connesso': 'Connected'
+'Connesso a Trakt': 'Connected to Trakt'
+'Crea un''app su': 'Create an app on'
+'Credenziali Trakt salvate': 'Trakt credentials saved'
+'Data sconosciuta': 'Unknown date'
+'Disconnesso da Trakt': 'Disconnected from Trakt'
+'Disconnettere EXTTO da Trakt?': 'Disconnect EXTTO from Trakt?'
+'Disconnetti': 'Disconnect'
+'e inserisci questo codice:': 'and enter this code:'
+'Errore import': 'Import error'
+'Errore salvataggio': 'Save error'
+'gia presenti': 'already present'
+'giorni': 'days'
+'Giorni Calendar': 'Calendar Days'
+'Importa le serie selezionate dalla watchlist Trakt in EXTTO': 'Import the selected series from the Trakt watchlist into EXTTO'
+'Importa Selezionate': 'Import Selected'
+'Importa Tutte le Nuove': 'Import All New'
+'Importa tutte le serie della watchlist non ancora monitorate': 'Import all watchlist series not yet monitored'
+'importate': 'imported'
+'Importazione in corso...': 'Importing...'
+'In attesa di autorizzazione...': 'Waiting for authorization...'
+'In EXTTO': 'In EXTTO'
+'Incolla il Client ID': 'Paste the Client ID'
+'Incolla il Client Secret': 'Paste the Client Secret'
+'Inserisci il Client ID': 'Enter the Client ID'
+'Le serie con sono gia monitorate in EXTTO.': 'Series marked with ● are already monitored in EXTTO. Select new ones and click Import Selected.'
+'Lingua audio richiesta per le serie importate dalla watchlist Trakt': 'Audio language required for series imported from the Trakt watchlist'
+'Lingua default import': 'Default import language'
+'Monitorato': 'Monitored'
+'Nessun episodio in uscita nel periodo selezionato.': 'No episodes airing in the selected period.'
+'Non autenticato su Trakt.': 'Not authenticated on Trakt.'
+'Non connesso': 'Not connected'
+'Non monitorato': 'Not monitored'
+'Opzioni Import Trakt': 'Trakt Import Options'
+'Opzioni Trakt salvate': 'Trakt options saved'
+'Prossimi Episodi (Calendar)': 'Upcoming Episodes (Calendar)'
+'Qualita assegnata alle serie importate dalla watchlist Trakt': 'Quality assigned to series imported from the Trakt watchlist'
+'Qualita default import': 'Default import quality'
+'Quanti giorni avanti mostrare nel calendar Trakt (max 31)': 'How many days ahead to show in the Trakt calendar (max 31)'
+'Ricarica il calendar da Trakt': 'Reload calendar from Trakt'
+'Ricarica la watchlist da Trakt': 'Reload watchlist from Trakt'
+'Rimuove il token e disconnette EXTTO da Trakt': 'Removes the token and disconnects EXTTO from Trakt'
+'Salva Credenziali': 'Save Credentials'
+'Salva Opzioni': 'Save Options'
+'Scrobbling': 'Scrobbling'
+'Se abilitato, permette di segnare episodi come visti su Trakt': 'If enabled, allows marking episodes as watched on Trakt via /api/trakt/scrobble'
+'sono già monitorate in EXTTO. Seleziona quelle nuove e clicca': 'are already monitored in EXTTO. Select new ones and click'
+'Seleziona almeno una serie': 'Select at least one series'
+'Stato Connessione Trakt': 'Trakt Connection Status'
+'Token valido per': 'Token valid for'
+'Trakt collegato!': 'Trakt connected!'
+'usando come Redirect URI, poi incolla le credenziali.': 'using <code>urn:ietf:wg:oauth:2.0:oob</code> as Redirect URI, then paste your credentials.'
+'Vai su': 'Go to'
+'Watchlist Trakt': 'Trakt Watchlist'
+'Watchlist vuota.': 'Watchlist is empty.'
+
+# --- aMule / eD2k ---
+'(0 = illimitato — richiede riavvio amuled)': '(0 = unlimited — requires amuled restart)'
+'(cerca su eD2k se Jackett non trova nulla)': '(search on eD2k if Jackett finds nothing)'
+'(download completati)': '(completed downloads)'
+'(download in corso)': '(downloads in progress)'
+'(lette da amule.conf — modificabili da qui)': '(read from amule.conf — editable here)'
+'(path del file di configurazione di amuled — EXTTO lo legge e aggiorna)': '(configuration file path for amuled — EXTTO reads and updates it)'
+'Abilita Gap Fill eD2k': 'Enable eD2k Gap Fill'
+'Abilita aMule': 'Enable aMule'
+'Abilita fallback eD2k nel Gap Filling': 'Enable eD2k fallback in Gap Filling'
+'Action applied to': 'Action applied to'
+'Aggiungi Cartella': 'Add Folder'
+'Aggiungi Server': 'Add Server'
+'CARTELLE CONDIVISE': 'SHARED FOLDERS'
+'Cartella Incoming': 'Incoming Folder'
+'Cartella Temp': 'Temp Folder'
+'Cartella rimossa dalla condivisione': 'Folder removed from sharing'
+'Cartelle (lette da amule.conf — modificabili da qui)': 'Folders (read from amule.conf — editable here)'
+'Collega ad amuled': 'Connect to amuled'
+'Condivisi': 'Shared'
+'Connessione EC': 'EC Connection'
+'Connessione fallita': 'Connection failed'
+'Download cancellato': 'Download cancelled'
+'Error during bulk update': 'Error during bulk update'
+'Errore cancellazione': 'Cancellation error'
+'Errore generazione .service': 'Error generating .service'
+'Errore installazione handler': 'Error installing handler'
+'Errore pausa': 'Pause error'
+'Errore ripresa': 'Resume error'
+'Errore riscansione': 'Rescan error'
+'Ferma seed': 'Stop seed'
+'File': 'File'
+'Gap Filling — Fallback eD2k (cerca su eD2k se Jackett non trova nulla)': 'Gap Filling — eD2k Fallback (search on eD2k if Jackett finds nothing)'
+'Genera .service': 'Generate .service'
+'Host aMule': 'aMule Host'
+'Importazione server...': 'Importing server...'
+'Inserisci un URL .met': 'Enter a .met URL'
+'Inserisci un termine di ricerca': 'Enter a search term'
+'Installa handler ed2k': 'Install eD2k handler'
+'Kad': 'Kad'
+'Le serie con': 'Series with'
+'Limite Download aMule (KB/s)': 'aMule Download Limit (KB/s)'
+'Limite Upload aMule (KB/s)': 'aMule Upload Limit (KB/s)'
+'Limiti di banda (0 = illimitato — richiede riavvio amuled)': 'Bandwidth limits (0 = unlimited — requires amuled restart)'
+'Log di Sistema': 'System Log'
+'Log eventi di amuled': 'amuled event log'
+'Movie not found': 'Movie not found'
+'Name and seasons are required': 'Name and seasons are required'
+'Name is required': 'Name is required'
+'No': 'No'
+'No movies loaded': 'No movies loaded'
+'No series loaded': 'No series loaded'
+'Password EC': 'EC Password'
+'Path updated in config': 'Path updated in config'
+'Porta EC': 'EC Port'
+'Porta TCP': 'TCP Port'
+'Porta UDP': 'UDP Port'
+'Porte ed2k (lette da amule.conf — modificabili da qui)': 'eD2k ports (read from amule.conf — editable here)'
+'Pulisce dalla vista i download già arrivati al 100%': 'Removes completed downloads (100%) from the view'
+'Qualità assegnata alle serie importate dalla watchlist Trakt': 'Quality assigned to series imported from the Trakt watchlist'
+'Qualità default import': 'Default import quality'
+'Recupera .part': 'Recover .part'
+'Rimozione in corso...': 'Removing...'
+'Rimuovi Server': 'Remove Server'
+'Riprendi download': 'Resume download'
+'Riscansione avviata': 'Rescan started'
+'Risultato non trovato': 'Result not found'
+'Running general archive scan...': 'Running general archive scan...'
+'Salva Banda': 'Save Bandwidth'
+'Save error': 'Save error'
+'Saving all configuration...': 'Saving all configuration...'
+'Scan completed': 'Scan completed'
+'Scan error': 'Scan error'
+'Scansione TempDir in corso...': 'Scanning TempDir...'
+'Scansione in corso': 'Scanning...'
+'Scarichi': 'Downloads'
+"Se abilitato, permette di segnare episodi come visti su Trakt tramite l'endpoint /api/trakt/scrobble": 'If enabled, allows marking episodes as watched on Trakt via the /api/trakt/scrobble endpoint'
+'Series not found in config': 'Series not found in config'
+'Series updated!': 'Series updated!'
+'Servizio systemd': 'systemd Service'
+'Statistiche': 'Statistics'
+'Statistiche aMule': 'aMule Statistics'
+'aMule / ed2k': 'aMule / eD2k'
+'aMule non ha accettato il download': 'aMule did not accept the download'
+'amule.conf (path del file di configurazione di amuled — EXTTO lo legge e aggiorna)': 'amule.conf (configuration file path for amuled — EXTTO reads and updates it)'
+'ed2k': 'eD2k'
+
+# --- Prune by keyword ---
+'Filtra per Parola Chiave': 'Filter by Keyword'
+"Cerca nell'archivio per titolo ed elimina tutti i record corrispondenti. Più parole separate da virgola o spazio applicano un OR (basta una corrispondenza).": "Search the archive by title and delete all matching records. Multiple words separated by comma or space apply an OR (any match is sufficient)."
+'Anteprima': 'Preview'
+'Conta quanti record verrebbero eliminati senza cancellare nulla': 'Count how many records would be deleted without actually deleting anything'
+'record trovati': 'records found'
+'per': 'for'
+'Campione': 'Sample'
+'record': 'records'
+"Eliminare definitivamente": 'Permanently delete'
+"record dall'archivio?": 'records from the archive?'
+"L'operazione non è reversibile.": 'This operation cannot be undone.'
+'Eliminazione in corso...': 'Deleting...'
+'Eliminati': 'Deleted'
+'Inserisci almeno una parola chiave': 'Enter at least one keyword'
+'Ricerca in corso...': 'Searching...'
+
+# --- Prune keyword list UI ---
+'Nessun record trovato': 'No records found'
+'mostrati': 'showing'
+'di': 'of'
+'Seleziona tutti': 'Select all'
+'Deseleziona tutti': 'Deselect all'
+'Elimina selezionati': 'Delete selected'
+'selezionati': 'selected'
+'selezionati': 'selected'
+'Rimuovi dalla lista': 'Remove from list'
+"record selezionati dall'archivio?": 'selected records from the archive?'

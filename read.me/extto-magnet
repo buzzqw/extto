@@ -1,0 +1,53 @@
+#!/bin/bash
+# EXTTO — Handler protocollo magnet:
+# Invia il link magnet all'endpoint /api/send-magnet di EXTTO.
+# Installazione: vedi install-extto-handlers.sh
+
+EXTTO_URL="${EXTTO_URL:-http://localhost:5000}"
+LOG="/tmp/extto-magnet.log"
+
+# Vivaldi/Chrome a volte passano il magnet come unico argomento,
+# a volte con quoting strano — raccogliamo tutto in $@ per sicurezza
+MAGNET="${*}"
+
+# Log sempre, utile per debug
+echo "$(date '+%F %T') --- CHIAMATA ---" >> "$LOG"
+echo "  ARG1: ${1}" >> "$LOG"
+echo "  ALL:  ${*}" >> "$LOG"
+echo "  MAGNET: ${MAGNET}" >> "$LOG"
+
+if [[ -z "$MAGNET" ]]; then
+    echo "$(date '+%F %T') ERRORE: magnet vuoto" >> "$LOG"
+    notify-send "EXTTO" "Nessun link magnet ricevuto" --icon=dialog-error 2>/dev/null
+    exit 1
+fi
+
+# Notifica visiva immediata (opzionale, richiede libnotify)
+notify-send "EXTTO" "Invio magnet in corso..." --icon=emblem-downloads 2>/dev/null
+
+# Costruisce il JSON in modo sicuro tramite python3
+JSON=$(python3 -c "import json,sys; print(json.dumps({'magnet': sys.argv[1]}))" "$MAGNET")
+echo "$(date '+%F %T') JSON: $JSON" >> "$LOG"
+
+RESPONSE=$(curl -s -w "\n%{http_code}" \
+    -X POST "${EXTTO_URL}/api/send-magnet" \
+    -H 'Content-Type: application/json' \
+    --data-raw "$JSON" \
+    --max-time 10 2>/dev/null)
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+
+echo "$(date '+%F %T') HTTP: $HTTP_CODE  BODY: $BODY" >> "$LOG"
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    SUCCESS=$(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('success',''))" 2>/dev/null)
+    if [[ "$SUCCESS" == "True" ]]; then
+        notify-send "EXTTO" "✅ Torrent aggiunto con successo" --icon=emblem-downloads 2>/dev/null
+    else
+        MSG=$(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','') or d.get('error','Errore sconosciuto'))" 2>/dev/null)
+        notify-send "EXTTO" "⚠️ $MSG" --icon=dialog-warning 2>/dev/null
+    fi
+else
+    notify-send "EXTTO" "❌ EXTTO non raggiungibile (${EXTTO_URL})" --icon=dialog-error 2>/dev/null
+fi

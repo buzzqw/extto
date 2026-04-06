@@ -1,0 +1,25 @@
+[Unit]
+Description=EXTTO Automation Service
+After=network.target
+
+[Service]
+Type=simple
+User=andres
+Group=andres
+
+# NUOVO PERCORSO
+WorkingDirectory=/home/andres/extto
+
+# NUOVO PERCORSO PYTHON (Virtual Environment)
+ExecStart=/home/andres/extto/.venv/bin/python3 /home/andres/extto/extto3.py
+
+# Riavvia sempre in caso di crash
+Restart=always
+RestartSec=10
+
+# Variabili d'ambiente utili
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+

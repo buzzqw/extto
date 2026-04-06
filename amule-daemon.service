@@ -1,0 +1,13 @@
+[Unit]
+Description=aMule Daemon (gestito da EXTTO)
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/amuled -f
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=default.target

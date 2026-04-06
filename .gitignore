@@ -1,0 +1,16 @@
+extto_archive.*
+comics.*
+corsaro_cache.json
+extto.log*
+extto_config.*
+extto_magnet_feed.xml
+extto_series.*
+backups/
+extto_torrents_state/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+.env
+.venv/
