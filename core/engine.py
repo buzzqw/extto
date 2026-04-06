@@ -182,6 +182,9 @@ class Engine:
                     for i in items:
                         i['source'] = 'Corsaro Live'
                     results.extend(items)
+                elif 'get-posts/user:' in url:
+                    items = list(self._tgx_user(url))
+                    results.extend(items)
             except Exception as e:
                 logger.error(f"Search error {url}: {e}")
 
@@ -287,6 +290,11 @@ class Engine:
                     stats.scraped['Corsaro'] += len(g)
                     items.extend(g)
                     logger.info(f"🔎 Corsaro [{idx+1}/{len(urls)}]: {len(g)} items — {url[:55]}...")
+                elif 'get-posts/user:' in url:
+                    g = list(self._tgx_user(url))
+                    stats.scraped['TGx'] = stats.scraped.get('TGx', 0) + len(g)
+                    items.extend(g)
+                    logger.info(f"🔎 TGx [{idx+1}/{len(urls)}]: {len(g)} items — {url[:55]}...")
                 else:
                     g = list(self._generic_rss(url))
                     src_label = self._rss_source_label(url)
@@ -985,6 +993,116 @@ class Engine:
             except Exception as _page_err:
                 logger.debug(f"_corsaro page {page} error: {_page_err}")
                 break
+
+    # ------------------------------------------------------------------
+    # TORRENTGALAXY — scraping pagina uploader /get-posts/user:USERNAME/
+    # Funziona con tutti i domini/mirror: torrentgalaxy.one/.to/.info/.space/ecc.
+    # Il riconoscimento avviene tramite 'get-posts/user:' nel path dell'URL,
+    # non sul dominio — così è mirror-agnostic.
+    # ------------------------------------------------------------------
+
+    def _tgx_user(self, url: str):
+        """
+        Scarica e parsa la pagina uploader di TorrentGalaxy (qualsiasi mirror).
+
+        Struttura HTML reale (verificata su torrentgalaxy.one):
+          div.tgxtablerow
+            └─ div.tgxtablecell > a.txlight[href="/post-detail/HASH/nome/"]
+                 → titolo del torrent (testo del <b> interno)
+            └─ NON c'è il magnet diretto nella listing
+               → bisogna visitare /post-detail/HASH/nome/ per trovarlo
+
+        Nella pagina di dettaglio il magnet è in un <a href="magnet:?...">
+        con HTML entities (&amp; ecc.) che BeautifulSoup decodifica automaticamente.
+
+        La SmartCache evita di rivisitare le pagine di dettaglio già note.
+        """
+        import re as _re
+        from urllib.parse import urljoin as _urljoin, urlparse as _urlparse, quote as _quote, unquote as _unquote
+        from html import unescape as _unescape
+
+        # Etichetta: "TGx - MIRCrewRS" estratta dall'URL
+        m_user = _re.search(r'/get-posts/user:([^/?]+)', url)
+        username = _unquote(m_user.group(1)) if m_user else 'TGx'
+        tag = f"TGx - {username}"
+
+        parsed = _urlparse(url)
+        base   = f"{parsed.scheme}://{parsed.netloc}"
+
+        _HEADERS = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0',
+            'Accept-Language': 'en-US,en;q=0.5',
+        }
+
+        items = []
+
+        # --- Scarica la pagina listing ---
+        try:
+            resp = self.sess.get(url, timeout=15, headers=_HEADERS)
+            resp.raise_for_status()
+        except Exception as e:
+            logger.error(f"❌ TGx listing error '{url}': {e}")
+            return items
+
+        soup = BeautifulSoup(resp.content, 'html.parser')
+        rows = soup.select('div.tgxtablerow')
+
+        if not rows:
+            logger.warning(f"⚠️ TGx: nessuna riga trovata in {url[:60]} — struttura HTML cambiata?")
+            return items
+
+        logger.debug(f"   TGx {tag}: {len(rows)} righe trovate in listing")
+
+        for row in rows:
+            # --- Titolo: <a class="txlight" href="/post-detail/..."> ---
+            title_tag = row.select_one('a.txlight[href*="post-detail"]')
+            if not title_tag:
+                continue
+            title = title_tag.get_text(strip=True)
+            if not title:
+                continue
+
+            torrent_path = title_tag.get('href', '')
+            torrent_url  = _urljoin(base, torrent_path) if torrent_path else ''
+            t_display    = f"{title} [{tag}]"
+
+            # --- Cache: evita visite duplicate alla pagina di dettaglio ---
+            cached_mg = self.cache.get(title)
+            if cached_mg:
+                magnet = cached_mg
+            else:
+                if not torrent_url:
+                    logger.debug(f"   TGx: nessun URL dettaglio per '{title[:60]}'")
+                    continue
+                try:
+                    time.sleep(1)  # Cortesia verso il server
+                    sub = self.sess.get(torrent_url, timeout=10, headers=_HEADERS)
+                    sub.raise_for_status()
+                    sub_soup = BeautifulSoup(sub.content, 'html.parser')
+                    # BeautifulSoup decodifica automaticamente &amp; → & nelle href
+                    mag_tag = sub_soup.find('a', href=_re.compile(r'^magnet:\?'))
+                    if not mag_tag:
+                        logger.debug(f"   TGx: no magnet in '{torrent_url}'")
+                        continue
+                    magnet = mag_tag['href']  # già decodificato da BS4
+                    self.cache.set(title, magnet)
+                except Exception as e:
+                    logger.debug(f"   TGx detail error '{torrent_url}': {e}")
+                    continue
+
+            # --- Sanitizza e aggiorna dn= nel magnet ---
+            magnet = sanitize_magnet(magnet, t_display) or magnet
+            if magnet.startswith('magnet:?'):
+                if 'dn=' in magnet:
+                    magnet = re.sub(r'dn=[^&]+', f"dn={quote(t_display)}", magnet)
+                else:
+                    magnet += f"&dn={quote(t_display)}"
+
+            items.append({'title': t_display, 'magnet': magnet, 'source': tag})
+
+        logger.info(f"   TGx {tag}: {len(items)}/{len(rows)} items con magnet estratti")
+        self.cache.save()
+        return items
 
     def generate_xml(self, items, base_url: str = None):
         rss  = ET.Element('rss', version='2.0')

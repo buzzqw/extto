@@ -4589,7 +4589,30 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             listEl.innerHTML = `<div style="padding:16px; color:var(--danger);">${t('Errore di rete')}</div>`;
         }
     },
-    addUrlTemplate(t) { const el=document.getElementById('urls-list'); el.value += (el.value?'\n':'') + (t==='extto'?'https://extto.org/browse/?filter=u=USERNAME':'https://ilcorsaronero.link/user/USERNAME'); },
+    addUrlTemplate(t) {
+        const el = document.getElementById('urls-list');
+        let url = '';
+        if (t === 'extto') {
+            const u = prompt('Nome utente ExtTo (lascia vuoto per feed globale):');
+            if (u === null) return;
+            url = u.trim() ? `https://extto.org/browse/?filter=u=${encodeURIComponent(u.trim())}` : 'https://extto.org/browse/';
+        } else if (t === 'corsaro') {
+            const u = prompt('Nome utente Il Corsaro Nero (lascia vuoto per feed globale):');
+            if (u === null) return;
+            url = u.trim() ? `https://ilcorsaronero.link/user/${encodeURIComponent(u.trim())}` : 'https://ilcorsaronero.link/';
+        } else if (t === 'knaben') {
+            url = 'https://rss.knaben.org/ita///1337x|eztv|showunsafe|hidex:';
+        } else if (t === 'rss') {
+            const u = prompt('Incolla l\'URL del feed RSS:');
+            if (!u || !u.trim()) return;
+            url = u.trim();
+        } else if (t === 'tgx') {
+            const u = prompt('Nome utente TorrentGalaxy (es. MIRCrewRS):');
+            if (!u || !u.trim()) return;
+            url = `https://torrentgalaxy.one/get-posts/user:${encodeURIComponent(u.trim())}/`;
+        }
+        if (url) el.value += (el.value ? '\n' : '') + url;
+    },
     
     // Save Series & Movie (Adding New)
     async saveSeries(e) {
