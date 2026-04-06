@@ -111,9 +111,10 @@ Licensed under the [European Union Public Licence 1.2 (EUPL-1.2)](EUPL-1.2%20EN.
 
 If you find EXTTO useful, consider supporting its development with a donation via PayPal:
 
-[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/azanzani)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
 
 Or send directly to: **azanzani@gmail.com**
+
 
 ---
 
@@ -232,6 +233,5 @@ Rilasciato sotto [European Union Public Licence 1.2 (EUPL-1.2)](EUPL-1.2%20EN.tx
 
 Se EXTTO ti è utile, considera di supportarne lo sviluppo con una donazione via PayPal:
 
-[![Dona con PayPal](https://img.shields.io/badge/Dona-PayPal-blue.svg)](https://www.paypal.com/paypalme/azanzani)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
 
-Oppure invia direttamente a: **azanzani@gmail.com**
