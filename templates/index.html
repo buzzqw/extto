@@ -1093,6 +1093,10 @@
                         <i class="fa-solid fa-gears" style="color:var(--primary)"></i> Configurazione Globale
                     </h3>
                     <div style="flex:1;"></div>
+                    <div id="config-unsaved-banner" style="display:none; align-items:center; gap:8px; padding:0.45rem 0.9rem; background:rgba(245,158,11,0.15); border:1px solid var(--warning); border-radius:6px; font-size:0.82rem; color:var(--warning); margin-right:0.75rem;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span data-i18n="Modifiche non salvate">Modifiche non salvate</span>
+                    </div>
                     <button class="btn btn-primary" data-i18n-title="Scrive in modo permanente le modifiche nel file extto_settings.ini e applica istantaneamente le policy senza riavviare." title="Scrive in modo permanente le modifiche nel file extto_settings.ini e applica istantaneamente le policy senza riavviare." onclick="app.saveAllConfig()" style="font-size: 0.95rem; padding: 0.8rem 1.5rem; box-shadow: 0 4px 15px rgba(37,99,235,0.4);">
                         <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="Salva Tutte le Impostazioni">Salva Tutte le Impostazioni</span>
                     </button>
@@ -1137,6 +1141,80 @@
                                     <div class="form-group"><label><span data-i18n="Porta max">Porta max</span></label><input type="number" id="lt-port-max" class="form-input" data-i18n-title="Porta massima." title="Porta massima." placeholder="6891" data-i18n-placeholder="6891"></div>
                                     <div class="form-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><select id="lt-paused" class="form-input" data-i18n-title="Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale." title="Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale."><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
                                     <div class="form-group"><label><span data-i18n="Download Sequenziale">Download Sequenziale</span> <span class="unit" data-i18n-title="Scarica i pezzi sequenzialmente dall'inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi." title="Scarica i pezzi sequenzialmente dall'inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi.">ⓘ</span></label><select id="lt-sequential" class="form-input"><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
+                                </div>
+
+                                <div class="lt-section-title">🐏 <span data-i18n="RAM Disk (Download Temporaneo)">RAM Disk (Download Temporaneo)</span>
+                                    <span class="unit" title="Se abilitato, EXTTO scarica i torrent piccoli direttamente in RAM (tmpfs) invece che su disco. Al completamento li sposta nella cartella definitiva. Richiede un tmpfs montato dall'utente in /etc/fstab." data-i18n-title="Se abilitato, EXTTO scarica i torrent piccoli direttamente in RAM (tmpfs) invece che su disco. Al completamento li sposta nella cartella definitiva. Richiede un tmpfs montato dall'utente in /etc/fstab.">ⓘ</span>
+                                </div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group">
+                                        <label><span data-i18n="RAM Disk abilitato">RAM Disk abilitato</span></label>
+                                        <select id="lt-ramdisk-enabled" class="form-input" onchange="app.toggleRamdisk()">
+                                            <option value="no"  data-i18n="No">No</option>
+                                            <option value="yes" data-i18n="Sì">Sì</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="lt-ramdisk-fields" style="display:none;">
+                                    <div class="form-grid lt-grid">
+                                        <div class="form-group lt-span2">
+                                            <label><span data-i18n="Percorso RAM Disk">Percorso RAM Disk</span></label>
+                                            <div style="display:flex; gap:8px; align-items:center;">
+                                                <input type="text" id="lt-ramdisk-dir" class="form-input" style="flex:1;"
+                                                    placeholder="/mnt/ramdisk"
+                                                    title="Percorso del mountpoint tmpfs dedicato ai download temporanei (es. /mnt/ramdisk). Deve essere montato dall'utente in /etc/fstab."
+                                                    oninput="app._clearRamdiskStatus()">
+                                                <button type="button" class="btn btn-secondary btn-small"
+                                                    title="Sfoglia cartelle del server"
+                                                    onclick="event.stopPropagation(); app.openDirBrowser('lt-ramdisk-dir')">
+                                                    <i class="fa-regular fa-folder-open"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-secondary btn-small" id="lt-ramdisk-check-btn"
+                                                    title="Verifica che EXTTO possa scrivere nel RAM disk e mostra le info sul filesystem"
+                                                    onclick="app.checkRamdisk()">
+                                                    <i class="fa-solid fa-stethoscope"></i> <span data-i18n="Verifica">Verifica</span>
+                                                </button>
+                                            </div>
+                                            <!-- Badge stato verifica -->
+                                            <div id="lt-ramdisk-status" style="margin-top:0.5rem; display:none;"></div>
+                                            <!-- Info strip spazio -->
+                                            <div id="lt-ramdisk-info" style="display:none; margin-top:0.5rem; padding:0.6rem 0.9rem; background:rgba(59,130,246,0.08); border-radius:6px; border-left:3px solid var(--primary); font-size:0.82rem;">
+                                                <span style="color:var(--text-secondary);">
+                                                    <strong data-i18n="Totale">Totale</strong>: <span id="rd-total">—</span> &nbsp;|&nbsp;
+                                                    <strong data-i18n="Usato">Usato</strong>: <span id="rd-used">—</span> &nbsp;|&nbsp;
+                                                    <strong data-i18n="Libero">Libero</strong>: <span id="rd-free">—</span>
+                                                    &nbsp;&nbsp;<span id="rd-fstype" style="opacity:0.65; font-style:italic;"></span>
+                                                </span>
+                                            </div>
+                                            <!-- Istruzioni fstab collassabili -->
+                                            <details style="margin-top:0.6rem;">
+                                                <summary style="cursor:pointer; font-size:0.8rem; color:var(--text-secondary);" data-i18n="Come creare il RAM disk (fstab)">Come creare il RAM disk (fstab)</summary>
+                                                <div style="margin-top:0.4rem; padding:0.6rem 0.9rem; background:var(--bg-secondary); border-radius:4px; font-size:0.78rem; font-family:monospace; color:var(--text-secondary); white-space:pre-wrap;">sudo mkdir -p /mnt/ramdisk
+# Aggiungi a /etc/fstab:
+tmpfs  /mnt/ramdisk  tmpfs  defaults,size=4G,mode=0755  0  0
+# Monta subito (senza reboot):
+sudo mount /mnt/ramdisk</div>
+                                            </details>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <span data-i18n="Dimensione max torrent">Dimensione max torrent</span>
+                                                <span class="unit">(GB)</span>
+                                                <span class="unit" title="Torrent più grandi di questo valore vanno direttamente su disco, anche se c'è spazio nel RAM disk." data-i18n-title="Torrent più grandi di questo valore vanno direttamente su disco, anche se c'è spazio nel RAM disk.">ⓘ</span>
+                                            </label>
+                                            <input type="number" id="lt-ramdisk-threshold" class="form-input"
+                                                placeholder="3.5" min="0.1" step="0.1">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <span data-i18n="Margine di sicurezza">Margine di sicurezza</span>
+                                                <span class="unit">(GB)</span>
+                                                <span class="unit" title="Spazio minimo da lasciare sempre libero nel RAM disk. Evita di riempirlo al 100% causando errori." data-i18n-title="Spazio minimo da lasciare sempre libero nel RAM disk. Evita di riempirlo al 100% causando errori.">ⓘ</span>
+                                            </label>
+                                            <input type="number" id="lt-ramdisk-margin" class="form-input"
+                                                placeholder="0.5" min="0.1" step="0.1">
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="lt-section-title">🔒 <span data-i18n="VPN Killswitch / Interface Binding">VPN Killswitch / Interface Binding</span></div>

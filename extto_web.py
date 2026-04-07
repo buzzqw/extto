@@ -2261,13 +2261,16 @@ def run_backup():
         kept = len(glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip')))
         tg_sent = False
         try:
-            from core.config import Config as _Cfg
-            from core.notifier import Notifier as _Notifier
-            _ncfg = _Cfg()
-            _n = _Notifier(_ncfg.qbt if hasattr(_ncfg, 'qbt') else {})
-            if _n.tg_enabled:
-                _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info)
-                tg_sent = True
+            cfg_full = parse_series_config().get('settings', {})
+            send_tg  = str(cfg_full.get('backup_send_telegram', 'false')).lower() in ('true', '1', 'yes')
+            if send_tg:
+                from core.notifier import Notifier as _Notifier
+                _n = _Notifier(cfg_full)
+                if _n.tg_enabled:
+                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info)
+                    tg_sent = True
+                else:
+                    logger.debug("backup notify: Telegram abilitato nelle impostazioni backup ma token/chat_id mancanti")
         except Exception as _ne:
             logger.debug(f"backup notify: {_ne}")
         tg_str = " 📨 Telegram ✓" if tg_sent else ""
@@ -7629,6 +7632,96 @@ def i18n_import_yaml(lang):
     except Exception as e:
         logger.warning(f"i18n_import_yaml {lang}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ramdisk_check', methods=['GET'])
+def ramdisk_check():
+    """
+    Verifica che il path indicato sia usabile da EXTTO come RAM disk.
+    Controlla: esistenza, tipo di mount (tmpfs/ramfs), permessi di scrittura, spazio.
+    Risposta JSON:
+      ok          bool   — tutto ok, EXTTO può scrivere
+      writable    bool   — EXTTO ha i permessi di scrittura
+      mount_type  str    — 'tmpfs' | 'ramfs' | 'other' | 'unknown'
+      is_ramdisk  bool   — True se mount_type in (tmpfs, ramfs)
+      total_gb    float
+      used_gb     float
+      free_gb     float
+      warning     str    — eventuale avviso non bloccante
+      error       str    — errore bloccante (path inesistente, non scrivibile, ecc.)
+    """
+    import shutil, tempfile
+    path = request.args.get('path', '').strip()
+
+    if not path:
+        return jsonify({'ok': False, 'error': 'Percorso non specificato'})
+    if not os.path.isdir(path):
+        return jsonify({'ok': False, 'error': f'Directory non trovata: {path}'})
+
+    # --- Tipo di mount ---
+    mount_type = 'unknown'
+    try:
+        with open('/proc/mounts', 'r') as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) >= 3:
+                    mpoint = parts[1]
+                    fstype = parts[2]
+                    # Cerca il mountpoint più specifico che prefissa il path
+                    norm_path   = os.path.normpath(path)
+                    norm_mpoint = os.path.normpath(mpoint)
+                    if norm_path == norm_mpoint or norm_path.startswith(norm_mpoint + os.sep):
+                        mount_type = fstype
+    except Exception:
+        pass
+
+    is_ramdisk = mount_type in ('tmpfs', 'ramfs')
+
+    # --- Permessi di scrittura: tenta un file temporaneo reale ---
+    writable = False
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=path, prefix='.extto_writetest_')
+        os.close(fd)
+        os.unlink(tmp_path)
+        writable = True
+    except Exception:
+        pass
+
+    if not writable:
+        return jsonify({
+            'ok': False, 'writable': False, 'is_ramdisk': is_ramdisk,
+            'mount_type': mount_type,
+            'error': f'EXTTO non ha i permessi di scrittura su {path}'
+        })
+
+    # --- Spazio ---
+    try:
+        usage   = shutil.disk_usage(path)
+        total_gb = round(usage.total / 1024**3, 2)
+        used_gb  = round(usage.used  / 1024**3, 2)
+        free_gb  = round(usage.free  / 1024**3, 2)
+    except Exception as e:
+        return jsonify({'ok': False, 'writable': True, 'error': f'Errore lettura spazio: {e}'})
+
+    # --- Avviso non bloccante se non è un fs in RAM ---
+    warning = ''
+    if not is_ramdisk:
+        warning = (
+            f"Il filesystem rilevato è '{mount_type}', non tmpfs/ramfs. "
+            f"EXTTO funzionerà, ma non si tratta di un vero RAM disk."
+        )
+
+    return jsonify({
+        'ok':         True,
+        'writable':   True,
+        'mount_type': mount_type,
+        'is_ramdisk': is_ramdisk,
+        'total_gb':   total_gb,
+        'used_gb':    used_gb,
+        'free_gb':    free_gb,
+        'warning':    warning,
+        'error':      '',
+    })
 
 
 @app.route('/api/browse_dir', methods=['GET'])

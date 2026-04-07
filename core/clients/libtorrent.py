@@ -24,7 +24,9 @@ class LibtorrentClient:
       dht, pex, lsd, upnp, natpmp, encryption, proxy_type,
       proxy_host, proxy_port, proxy_username, proxy_password,
       extra_trackers, announce_to_all, stop_at_ratio,
-      temp_dir, sched_enabled, sched_start, sched_end,
+      temp_dir,
+      ramdisk_enabled, ramdisk_dir, ramdisk_threshold_gb, ramdisk_margin_gb,
+      sched_enabled, sched_start, sched_end,
       sched_dl_limit, sched_ul_limit, paused
     """
 
@@ -54,6 +56,119 @@ class LibtorrentClient:
         self.save_path = self.cfg.get('libtorrent_dir', '/downloads').strip()
         self._ensure_session(self.cfg)
         self._apply_settings(self.cfg)
+
+    # ------------------------------------------------------------------
+    # DIRECTORY HELPERS (3-tier: ramdisk / temp / final)
+    #
+    # Parametri configurabili:
+    #   libtorrent_ramdisk_enabled      yes/no  — interruttore master
+    #   libtorrent_ramdisk_dir          path    — mountpoint del tmpfs (es. /mnt/ramdisk)
+    #   libtorrent_ramdisk_threshold_gb float   — dimensione max di un singolo torrent
+    #                                             ammesso sul RAM disk (es. 3.5)
+    #   libtorrent_ramdisk_margin_gb    float   — spazio minimo da lasciare libero
+    #                                             sul RAM disk dopo il download (es. 0.5)
+    #
+    # Il RAM disk deve essere creato e montato dall'utente (richiede root).
+    # Esempio /etc/fstab:
+    #   tmpfs  /mnt/ramdisk  tmpfs  defaults,size=4G,mode=0755  0  0
+    #
+    # Flusso:
+    #   add()            → punta sempre a ramdisk_dir (dim. ancora ignota)
+    #   metadata_recv    → ora la dimensione è nota: se non ci sta → move a temp_dir
+    #   torrent_finished → logica esistente: move verso libtorrent_dir / archive_path
+    #   check_seeding    → dopo il seeding svuota sia ramdisk_dir che temp_dir
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _ramdisk_enabled(cls, cfg: dict) -> bool:
+        """True se il RAM disk è abilitato E la directory esiste sul filesystem."""
+        if str(cfg.get('libtorrent_ramdisk_enabled', 'no')).lower() not in ('yes', 'true', '1'):
+            return False
+        rd = cfg.get('libtorrent_ramdisk_dir', '').strip()
+        return bool(rd and os.path.isdir(rd))
+
+    @classmethod
+    def _resolve_initial_save_path(cls, cfg: dict) -> str:
+        """
+        Determina la directory di download iniziale (logica a 3 livelli):
+          1. ramdisk_dir  — se abilitato e montato (dimensione ancora ignota,
+                            la verifica avviene in metadata_received_alert)
+          2. temp_dir     — disco standard, per file grandi o ramdisk disabilitato
+          3. libtorrent_dir — destinazione finale (ultimo resort)
+        """
+        if cls._ramdisk_enabled(cfg):
+            rd = cfg.get('libtorrent_ramdisk_dir', '').strip()
+            logger.info(f"🐏 Download target: RAM disk → {rd}")
+            return rd
+
+        temp_dir  = cfg.get('libtorrent_temp_dir',  '').strip()
+        final_dir = cfg.get('libtorrent_dir', '/downloads').strip()
+
+        if temp_dir and os.path.isdir(temp_dir):
+            logger.info(f"💾 Download target: temp_dir → {temp_dir}")
+            return temp_dir
+        logger.info(f"💾 Download target: final_dir → {final_dir}")
+        return final_dir
+
+    @classmethod
+    def _check_ramdisk_capacity(cls, cfg: dict, total_size: int) -> tuple[bool, str]:
+        """
+        Verifica se un torrent di total_size byte può stare nel RAM disk.
+        Ritorna (fits: bool, reason: str).
+
+        Criteri — entrambi devono essere soddisfatti:
+          1. total_size ≤ libtorrent_ramdisk_threshold_gb
+          2. spazio libero sul ramdisk ≥ total_size + libtorrent_ramdisk_margin_gb
+
+        Il controllo "spazio libero" riflette direttamente il tmpfs: se il disk
+        è da 4 GB e ci sono già 1 GB occupati, free = 3 GB. Nessun calcolo
+        sulla RAM di sistema — è compito dell'utente dimensionare il tmpfs.
+        """
+        import shutil
+
+        ramdisk_dir   = cfg.get('libtorrent_ramdisk_dir', '').strip()
+        threshold_gb  = float(cfg.get('libtorrent_ramdisk_threshold_gb', 3.5))
+        margin_gb     = float(cfg.get('libtorrent_ramdisk_margin_gb',    0.5))
+        threshold_b   = int(threshold_gb * 1024 ** 3)
+        margin_b      = int(margin_gb    * 1024 ** 3)
+
+        # Criterio 1: dimensione massima per singolo torrent
+        if total_size > threshold_b:
+            return False, (
+                f"file troppo grande per il RAM disk: "
+                f"{total_size / 1024**3:.2f} GB > soglia {threshold_gb} GB"
+            )
+
+        # Criterio 2: spazio libero residuo
+        try:
+            free = shutil.disk_usage(ramdisk_dir).free
+        except Exception as e:
+            return False, f"impossibile leggere spazio libero su '{ramdisk_dir}': {e}"
+
+        required = total_size + margin_b
+        if free < required:
+            return False, (
+                f"spazio insufficiente sul RAM disk "
+                f"(libero: {free / 1024**3:.2f} GB, "
+                f"richiesto: {required / 1024**3:.2f} GB = "
+                f"file {total_size / 1024**3:.2f} GB + margine {margin_gb} GB)"
+            )
+
+        return True, "ok"
+
+    @classmethod
+    def _set_preallocate(cls, enabled: bool):
+        """
+        Imposta pre_allocate_storage a livello di sessione.
+        Usato per disabilitare temporaneamente la prealloca quando si aggiunge
+        un torrent destinato al RAM disk (evita di riempire la RAM inutilmente).
+        """
+        if not cls.session_available():
+            return
+        try:
+            cls._session.apply_settings({'pre_allocate_storage': bool(enabled)})
+        except Exception as e:
+            logger.debug(f"_set_preallocate({enabled}): {e}")
 
     # ------------------------------------------------------------------
     # SESSION LIFECYCLE
@@ -830,6 +945,43 @@ class LibtorrentClient:
                                         _f.flush(); os.fsync(_f.fileno())
                                     os.replace(_tmp, _tp)
                                     logger.info(f"💾 Torrent metadata saved: '{_mh.name()}'")
+
+                                    # ---> LOGICA 3-TIER: ramdisk / temp_dir / final_dir <---
+                                    # Ora che conosciamo la dimensione reale, decidiamo dove scaricare.
+                                    try:
+                                        _cfg        = cls._cfg_snapshot
+                                        _ramdisk    = _cfg.get('libtorrent_ramdisk_dir', '').strip()
+                                        _temp_dir   = _cfg.get('libtorrent_temp_dir',    '').strip()
+                                        _curr_save  = os.path.normpath(os.path.abspath(_mh.status().save_path))
+                                        _total_size = _ti.total_size()
+
+                                        # Il torrent è attualmente sul RAM disk?
+                                        _on_ramdisk = (
+                                            cls._ramdisk_enabled(_cfg) and
+                                            _ramdisk and
+                                            _curr_save.startswith(os.path.normpath(os.path.abspath(_ramdisk)))
+                                        )
+
+                                        if _on_ramdisk:
+                                            _fits, _reason = cls._check_ramdisk_capacity(_cfg, _total_size)
+                                            if _fits:
+                                                logger.info(
+                                                    f"🐏 RAM disk OK per '{_mh.name()}' "
+                                                    f"({_total_size / 1024**3:.2f} GB) → {_ramdisk}"
+                                                )
+                                            else:
+                                                # Non ci sta: fallback su temp_dir o final_dir
+                                                _fallback = _temp_dir if (_temp_dir and os.path.isdir(_temp_dir)) \
+                                                            else _cfg.get('libtorrent_dir', '/downloads').strip()
+                                                logger.warning(
+                                                    f"🔄 RAM disk fallback per '{_mh.name()}': {_reason} "
+                                                    f"→ moving to: {_fallback}"
+                                                )
+                                                _mh.move_storage(_fallback)
+                                    except Exception as _f_err:
+                                        logger.warning(f"⚠️ Errore logica 3-tier ramdisk: {_f_err}")
+                                    # ---> FINE LOGICA 3-TIER <---
+
                                     # Forza subito un save_resume_data con i metadati ora disponibili
                                     _mh.save_resume_data()
                             except Exception as _me:
@@ -1095,13 +1247,32 @@ class LibtorrentClient:
             s      = self.__class__._session
             params = lt.parse_magnet_uri(magnet)
 
+            # Arricchisce self.cfg con tutti i parametri dal DB (inclusi ramdisk_*)
+            # che potrebbero non essere stati passati al costruttore.
+            _full = self.__class__._load_full_cfg()
+            if _full:
+                self.cfg = {**_full, **self.cfg}   # self.cfg ha priorità su eventuali override
+
             final_path = self.save_path
             temp_path  = self.cfg.get('libtorrent_temp_dir', '').strip()
-            params.save_path = temp_path if temp_path else final_path
+            params.save_path = self.__class__._resolve_initial_save_path(self.cfg)
 
+            # Se il torrent va sul RAM disk, disabilita temporaneamente la prealloca:
+            # preallocare in RAM prima di sapere la dimensione reale (i metadati arrivano
+            # dopo) è controproducente e potrebbe riempire il RAM disk subito.
+            # La prealloca viene ripristinata al valore config subito dopo l'add.
+            _going_to_ramdisk = self.__class__._ramdisk_enabled(self.cfg) and \
+                params.save_path == self.cfg.get('libtorrent_ramdisk_dir', '').strip()
+            _global_preallocate = str(self.cfg.get('libtorrent_preallocate', 'no')).lower() in ('yes', 'true', '1')
+            if _going_to_ramdisk and _global_preallocate:
+                logger.debug("🐏 RAM disk target: disabilito prealloca temporaneamente")
+                self.__class__._set_preallocate(False)
             # SMART 1: Controllo Spazio Disco
+            # Skippato se il target è il RAM disk: min_free_space_gb è pensato per
+            # il disco rigido, non per tmpfs. Il controllo capacità ramdisk avviene
+            # in metadata_received_alert tramite _check_ramdisk_capacity().
             min_space_gb = float(self.cfg.get('min_free_space_gb', 0))
-            if min_space_gb > 0:
+            if min_space_gb > 0 and not _going_to_ramdisk:
                 import shutil
                 try:
                     check_path = params.save_path if os.path.exists(params.save_path) else '/'
@@ -1129,8 +1300,11 @@ class LibtorrentClient:
                     pass
 
             h      = s.add_torrent(params)
-            
-            # SMART 2: Download Sequenziale
+
+            # Ripristina la prealloca al valore globale dopo l'add
+            if _going_to_ramdisk and _global_preallocate:
+                self.__class__._set_preallocate(True)
+                logger.debug("🐏 Prealloca ripristinata al valore globale")
             if str(self.cfg.get('libtorrent_sequential', 'no')).lower() in ('yes', 'true', '1'):
                 try:
                     h.set_sequential_download(True)
@@ -1633,21 +1807,51 @@ class LibtorrentClient:
         try:
             lt        = cls._lt
             s         = cls._session
-            cfg       = cls._cfg_snapshot
+            # Usa _load_full_cfg per avere TUTTI i parametri dal DB (inclusi
+            # libtorrent_ramdisk_* che non transitano per _apply_settings).
+            # Aggiorna anche _cfg_snapshot così i controlli successivi li vedono.
+            cfg = cls._load_full_cfg()
+            if cfg:
+                cls._cfg_snapshot.update(cfg)
+            else:
+                cfg = cls._cfg_snapshot
             final_dir = cfg.get('libtorrent_dir', '/downloads').strip()
             temp_dir  = cfg.get('libtorrent_temp_dir', '').strip()
             target    = save_path.strip()
-            if not target or target == final_dir:
-                target = temp_dir if temp_dir else final_dir
+
+            # Usa _resolve_initial_save_path (logica ramdisk) se:
+            # - nessun save_path esplicito, oppure
+            # - il save_path passato coincide con final_dir o temp_dir
+            #   (cioè il chiamante non ha una destinazione specifica diversa da quella di default)
+            _norm = os.path.normpath
+            _is_default = (
+                not target or
+                _norm(target) == _norm(final_dir) or
+                (temp_dir and _norm(target) == _norm(temp_dir))
+            )
+            if _is_default:
+                target = cls._resolve_initial_save_path(cfg)
+            else:
+                logger.debug(f"add_magnet: save_path esplicito non-default → {target}")
 
             params           = lt.parse_magnet_uri(magnet)
             params.save_path = target
 
+            # Disabilita prealloca temporaneamente se il target è il RAM disk
+            _going_to_ramdisk = cls._ramdisk_enabled(cfg) and \
+                target == cfg.get('libtorrent_ramdisk_dir', '').strip()
+            _global_preallocate = str(cfg.get('libtorrent_preallocate', 'no')).lower() in ('yes', 'true', '1')
+            if _going_to_ramdisk and _global_preallocate:
+                logger.debug("🐏 RAM disk target: disabilito prealloca temporaneamente")
+                cls._set_preallocate(False)
             # SMART 1: Controllo Spazio Disco
+            # Skippato se il target è il RAM disk: min_free_space_gb è pensato per
+            # il disco rigido, non per tmpfs. Il controllo capacità ramdisk avviene
+            # in metadata_received_alert tramite _check_ramdisk_capacity().
             min_space_gb = float(cfg.get('min_free_space_gb', 0))
-            if min_space_gb > 0:
-                import shutil
+            if min_space_gb > 0 and not _going_to_ramdisk:
                 try:
+                    import shutil
                     check_path = target if os.path.exists(target) else '/'
                     free_space = shutil.disk_usage(check_path).free
                     if free_space < (min_space_gb * 1024**3):
@@ -1666,8 +1870,11 @@ class LibtorrentClient:
 
             h      = s.add_torrent(params)
             h.save_resume_data()
-            
-            # SMART 2: Download Sequenziale
+
+            # Ripristina la prealloca al valore globale dopo l'add
+            if _going_to_ramdisk and _global_preallocate:
+                cls._set_preallocate(True)
+                logger.debug("🐏 Prealloca ripristinata al valore globale")
             if str(cfg.get('libtorrent_sequential', 'no')).lower() in ('yes', 'true', '1'):
                 try:
                     h.set_sequential_download(True)
@@ -1850,12 +2057,19 @@ class LibtorrentClient:
                     #   2. Controllo sull'archive_path configurato: se il save_path
                     #      corrente corrisponde già alla NAS, skip sicuro.
                     try:
-                        temp_dir  = cfg.get('libtorrent_temp_dir', '').strip()
-                        final_dir = cfg.get('libtorrent_dir', '').strip()
-                        if temp_dir and final_dir and temp_dir != final_dir:
+                        ramdisk_dir = cfg.get('libtorrent_ramdisk_dir', '').strip()
+                        temp_dir    = cfg.get('libtorrent_temp_dir',    '').strip()
+                        final_dir   = cfg.get('libtorrent_dir',         '').strip()
+                        # Considera "temporanee" sia ramdisk_dir che temp_dir
+                        _tmp_candidates = [d for d in (ramdisk_dir, temp_dir) if d and d != final_dir]
+                        if _tmp_candidates and final_dir:
                             curr_save = os.path.normpath(os.path.abspath(s.save_path))
-                            temp_norm = os.path.normpath(os.path.abspath(temp_dir))
-                            if curr_save.startswith(temp_norm):
+                            # Verifica se il save_path corrente è in una delle dir temporanee
+                            _in_tmp = any(
+                                curr_save.startswith(os.path.normpath(os.path.abspath(d)))
+                                for d in _tmp_candidates
+                            )
+                            if _in_tmp:
                                 ih_str = str(h.info_hash())
                                 # Livello 1: move verso NAS già avviato da torrent_finished_alert?
                                 _pending = getattr(cls, '_nas_move_pending', set())

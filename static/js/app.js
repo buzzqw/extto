@@ -1598,6 +1598,10 @@ const app = {
             libtorrent_dir: v('lt-dir'),
             libtorrent_sequential: v('lt-sequential'),
             libtorrent_temp_dir: v('lt-temp-dir'),
+            libtorrent_ramdisk_enabled:      v('lt-ramdisk-enabled'),
+            libtorrent_ramdisk_dir:          v('lt-ramdisk-dir'),
+            libtorrent_ramdisk_threshold_gb: v('lt-ramdisk-threshold') || '3.5',
+            libtorrent_ramdisk_margin_gb:    v('lt-ramdisk-margin')    || '0.5',
             libtorrent_interface: v('lt-interface'), 
             libtorrent_paused: v('lt-paused'),
             libtorrent_port_min: v('lt-port-min'),
@@ -3004,7 +3008,12 @@ const app = {
         });
         set('lt-sequential', get('sequential', 'no'));
         set('lt-dir',           get('dir', '/downloads'));
-        set('lt-temp-dir',      get('temp_dir', '')); 
+        set('lt-temp-dir',      get('temp_dir', ''));
+        set('lt-ramdisk-enabled',   get('ramdisk_enabled',   'no'));
+        set('lt-ramdisk-dir',       get('ramdisk_dir',       ''));
+        set('lt-ramdisk-threshold', get('ramdisk_threshold_gb', '3.5'));
+        set('lt-ramdisk-margin',    get('ramdisk_margin_gb',    '0.5'));
+        this.toggleRamdisk();
         set('lt-paused',        get('paused', 'no'));
         const parseLimit = (val) => { let v = parseInt(val)||0; return v > 1000000 ? Math.round(v/1024) : v; };
         
@@ -3089,6 +3098,76 @@ const app = {
             .forEach(id => { const el = document.getElementById(id); if(el) el.style.display = vis; });
     },
 
+    toggleRamdisk() {
+        const enabled = document.getElementById('lt-ramdisk-enabled')?.value === 'yes';
+        const fields  = document.getElementById('lt-ramdisk-fields');
+        if (fields) fields.style.display = enabled ? '' : 'none';
+        if (!enabled) this._clearRamdiskStatus();
+    },
+
+    _clearRamdiskStatus() {
+        const s = document.getElementById('lt-ramdisk-status');
+        const i = document.getElementById('lt-ramdisk-info');
+        if (s) { s.style.display = 'none'; s.innerHTML = ''; }
+        if (i)   i.style.display = 'none';
+    },
+
+    async checkRamdisk() {
+        const path = document.getElementById('lt-ramdisk-dir')?.value?.trim();
+        const statusEl = document.getElementById('lt-ramdisk-status');
+        const infoEl   = document.getElementById('lt-ramdisk-info');
+        const btn      = document.getElementById('lt-ramdisk-check-btn');
+
+        if (!path) {
+            if (statusEl) {
+                statusEl.style.display = '';
+                statusEl.innerHTML = `<span style="color:var(--warning);">⚠️ ${t('Inserisci prima il percorso del RAM disk.')}</span>`;
+            }
+            return;
+        }
+
+        // Spinner durante la verifica
+        if (btn) btn.disabled = true;
+        if (statusEl) {
+            statusEl.style.display = '';
+            statusEl.innerHTML = `<span style="color:var(--text-secondary);"><i class="fa-solid fa-spinner fa-spin"></i> ${t('Verifica in corso...')}</span>`;
+        }
+
+        try {
+            const res  = await fetch(`/api/ramdisk_check?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+
+            if (!data.ok) {
+                // Errore bloccante
+                statusEl.innerHTML = `<span style="color:var(--danger);">❌ ${data.error}</span>`;
+                if (infoEl) infoEl.style.display = 'none';
+            } else {
+                // Tutto ok (o ok con avviso)
+                let badge = '';
+                if (data.warning) {
+                    badge = `<span style="color:var(--warning);">⚠️ ${t('Scrivibile, ma')}: ${data.warning}</span>`;
+                } else {
+                    badge = `<span style="color:var(--success);">✅ ${t('RAM disk OK')} — <code>${data.mount_type}</code></span>`;
+                }
+                statusEl.innerHTML = badge;
+
+                // Info strip spazio
+                if (infoEl) {
+                    document.getElementById('rd-total').textContent = data.total_gb + ' GB';
+                    document.getElementById('rd-used').textContent  = data.used_gb  + ' GB';
+                    document.getElementById('rd-free').textContent  = data.free_gb  + ' GB';
+                    const fsEl = document.getElementById('rd-fstype');
+                    if (fsEl) fsEl.textContent = `(${data.mount_type})`;
+                    infoEl.style.display = '';
+                }
+            }
+        } catch (e) {
+            if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">❌ ${t('Errore di rete')}: ${e.message}</span>`;
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    },
+
     async saveLtSettings() {
         if (!this._configData) return;
         const s = this._configData.settings || {};
@@ -3101,6 +3180,10 @@ const app = {
             libtorrent_dir:                v('lt-dir'),
             libtorrent_sequential:         v('lt-sequential'),
             libtorrent_temp_dir:           v('lt-temp-dir'),
+            libtorrent_ramdisk_enabled:    v('lt-ramdisk-enabled'),
+            libtorrent_ramdisk_dir:        v('lt-ramdisk-dir'),
+            libtorrent_ramdisk_threshold_gb: v('lt-ramdisk-threshold') || '3.5',
+            libtorrent_ramdisk_margin_gb:    v('lt-ramdisk-margin')    || '0.5',
             libtorrent_interface:          v('lt-interface'), 
             libtorrent_paused:             v('lt-paused'),
             libtorrent_port_min:           v('lt-port-min'),
