@@ -975,7 +975,7 @@ const app = {
         try {
             const [sysRes, netRes] = await Promise.all([
                 fetch(`${API_BASE}/api/system/stats`).catch(() => null),
-                fetch(`${LT_BASE}/api/torrents/stats`).catch(() => null)
+                fetch(`${API_BASE}/api/torrents/stats`).catch(() => null)
             ]);
 
             let sysInfo = { success: false, cpu: 0, ram: 0, disk: 0 };
@@ -1711,7 +1711,7 @@ const app = {
             });
             
             if (activeClient === 'libtorrent') {
-                await fetch(`${LT_BASE}/api/torrents/apply_settings`, {method:'POST'}).catch(()=>{});
+                await fetch(`${API_BASE}/api/torrents/apply_settings`, {method:'POST'}).catch(()=>{});
             }
             
             // Salva anche i punteggi
@@ -2925,7 +2925,7 @@ const app = {
 
     async _fetchLtStats() {
         try {
-            const r = await fetch(`${LT_BASE}/api/torrents/stats`);
+            const r = await fetch(`${API_BASE}/api/torrents/stats`);
             if (!r.ok) return null;
             return await r.json();
         } catch { return null; }
@@ -3142,13 +3142,13 @@ const app = {
             refresh_interval: v('setting-refresh_interval'),
         });
         await this._saveFullConfig({settings: s});
-        await fetch(`${LT_BASE}/api/torrents/apply_settings`, {method:'POST'});
+        await fetch(`${API_BASE}/api/torrents/apply_settings`, {method:'POST'});
         this.showToast(t('Libtorrent settings saved and applied'), 'success');
     },
 
     async reapplyLtSettings() {
         try {
-            const res = await fetch(`${LT_BASE}/api/torrents/apply_settings`, {method:'POST'});
+            const res = await fetch(`${API_BASE}/api/torrents/apply_settings`, {method:'POST'});
             if (!res.ok) throw new Error('HTTP ' + res.status);
             this.showToast(t('Settings reapplied to session'), 'success');
         } catch(e) {
@@ -3984,7 +3984,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             const ltEnabled = this._configData?.settings?.libtorrent_enabled === 'yes';
             if (ltEnabled) {
                 const ltDir = this._configData?.settings?.libtorrent_dir || '/downloads';
-                const res = await fetch(`${LT_BASE}/api/torrents/add`, {
+                const res = await fetch(`${API_BASE}/api/torrents/add`, {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({magnet, save_path: ltDir})
                 });
@@ -4986,7 +4986,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             // Stats dal motore LT (può fallire — non blocca i download HTTP/Mega)
             let s = { available: false, dl_rate: 0, ul_rate: 0, active: 0, paused: 0 };
             try {
-                const sRes = await fetch(`${LT_BASE}/api/torrents/stats`);
+                const sRes = await fetch(`${API_BASE}/api/torrents/stats`);
                 s = await sRes.json();
             } catch(_) {}
 
@@ -5050,10 +5050,16 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             this._renderTorrentRows(torrents);
         } catch(e) {
             console.error("Errore in loadTorrents:", e);
-            // Opzionale: mostra un toast solo se non stiamo già mostrando la schermata "non disponibile"
+            // Mostra il toast solo se il pannello "non disponibile" è già visibile
+            // (condizione corretta: !== 'none' significa che il div è visibile/block)
+            // e solo una volta ogni 30 secondi per evitare spam durante il polling
             const unavail = document.getElementById('torrent-unavailable');
-            if (unavail && unavail.style.display === 'none') {
-                this.showToast(t('Errore di comunicazione con libtorrent'), "warning");
+            const now = Date.now();
+            if (unavail && unavail.style.display !== 'none') {
+                if (!this._ltErrorToastTs || (now - this._ltErrorToastTs) > 30000) {
+                    this._ltErrorToastTs = now;
+                    this.showToast(t('Errore di comunicazione con libtorrent'), "warning");
+                }
             }
         }
     },
@@ -5088,7 +5094,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     // --------------------------------------------------------
 
     async pauseTorrent(hash) {
-        await fetch(`${LT_BASE}/api/torrents/pause`, {
+        await fetch(`${API_BASE}/api/torrents/pause`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash})
         });
         await this.loadTorrents();
@@ -5100,14 +5106,14 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         if(!confirm(`${t('Recheck')}?`)) return;
         
         try {
-            await fetch(`${LT_BASE}/api/torrents/recheck`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hash}) });
+            await fetch(`${API_BASE}/api/torrents/recheck`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hash}) });
             this.showToast(t('Controllo file avviato'), 'info');
             await this.loadTorrents();
         } catch(e) { this.showToast(t('Errore di rete durante il recheck'), 'error'); }
     },
     
     async resumeTorrent(hash) {
-        await fetch(`${LT_BASE}/api/torrents/resume`, {
+        await fetch(`${API_BASE}/api/torrents/resume`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash})
         });
         await this.loadTorrents();
@@ -5125,7 +5131,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const delete_files = document.getElementById('remove-torrent-delfiles').checked;
         this.closeModal('remove-torrent-modal');
         try {
-            const res = await fetch(`${LT_BASE}/api/torrents/remove`, {
+            const res = await fetch(`${API_BASE}/api/torrents/remove`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({hash, delete_files})
             });
@@ -5158,7 +5164,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 return;
             }
 
-            const res = await fetch(`${LT_BASE}/api/torrents/remove`, {
+            const res = await fetch(`${API_BASE}/api/torrents/remove`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({hash: hash, delete_files: withFiles})
             });
@@ -5263,7 +5269,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 }
             } catch (e) {}
         } else {
-            const res  = await fetch(`${LT_BASE}/api/torrents/add`, {
+            const res  = await fetch(`${API_BASE}/api/torrents/add`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({magnet: inputStr, save_path})
             });
@@ -5389,7 +5395,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const statusEl = document.getElementById('lt-ipfilter-status');
         if (!statusEl) return;
         try {
-            const r = await fetch(`${LT_BASE}/api/torrents/ipfilter_status`, {
+            const r = await fetch(`${API_BASE}/api/torrents/ipfilter_status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -5422,7 +5428,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const statusEl = document.getElementById('lt-ipfilter-status');
         if (statusEl) statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Download in corso...';
         try {
-            const r = await fetch(`${LT_BASE}/api/torrents/ipfilter_update`, {
+            const r = await fetch(`${API_BASE}/api/torrents/ipfilter_update`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({url})
@@ -5656,7 +5662,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const hashes = this._getSelectedHashes();
         if (!hashes.length) { this.showToast(t('Nessun torrent selezionato'), 'warning'); return; }
         try {
-            const results = await Promise.all(hashes.map(h => fetch(`${LT_BASE}/api/torrents/pause`, {
+            const results = await Promise.all(hashes.map(h => fetch(`${API_BASE}/api/torrents/pause`, {
                 method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash:h})
             })));
             if (results.some(r => !r.ok)) throw new Error('Uno o più torrent non risposto');
@@ -5669,7 +5675,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const hashes = this._getSelectedHashes();
         if (!hashes.length) { this.showToast(t('Nessun torrent selezionato'), 'warning'); return; }
         try {
-            const results = await Promise.all(hashes.map(h => fetch(`${LT_BASE}/api/torrents/resume`, {
+            const results = await Promise.all(hashes.map(h => fetch(`${API_BASE}/api/torrents/resume`, {
                 method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash:h})
             })));
             if (results.some(r => !r.ok)) throw new Error('Uno o più torrent non risposto');
@@ -5685,7 +5691,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         
         try {
             await Promise.all(hashes.map(async h => {
-                await fetch(`${LT_BASE}/api/torrents/recheck`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash:h}) });
+                await fetch(`${API_BASE}/api/torrents/recheck`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash:h}) });
             }));
             this.showToast(`${t('Recheck avviato su')} ${hashes.length} torrent`, 'info');
             await this.loadTorrents();
@@ -5699,7 +5705,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         document.getElementById('bulk-remove-drop')?.remove();
         
         try {
-            const responses = await Promise.all(hashes.map(h => fetch(`${LT_BASE}/api/torrents/remove`, {
+            const responses = await Promise.all(hashes.map(h => fetch(`${API_BASE}/api/torrents/remove`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({hash:h, delete_files: withFiles})
             })));
