@@ -5590,7 +5590,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         let filteredTorrents = torrents;
         if (currentTagFilter !== 'all') {
             if (currentTagFilter === 'untagged') {
-                filteredTorrents = torrents.filter(t => !torrentTagsDb[t.hash]);
+                filteredTorrents = torrents.filter(t => !torrentTagsDb[t.hash] || String(torrentTagsDb[t.hash]).trim() === '');
             } else {
                 filteredTorrents = torrents.filter(t => torrentTagsDb[t.hash] === currentTagFilter);
             }
@@ -5602,14 +5602,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             row.className = 'table-row torrent-row';
             row.dataset.hash = t.hash;
             
-            // --- CONTROLLO FISICO SUL DISCO ---
             const fileOnDisk = t.physical_file_found === true;
-            // Libtorrent usa 0.0 -> 1.0. Moltiplichiamo per 100 per avere la percentuale reale!
             const rawPct = Math.min(100, Math.max(0, t.progress * 100));
-            const terminalState = t.state.includes('seeding') || t.state.includes('finished');
-            // Un torrent è "davvero finito" se libtorrent lo dice (stato/progresso)
-            // oppure se il file è su disco MA non sta ancora scaricando
-            // (evita di mostrare NAS/SALVATO durante un upgrade in corso)
+            
+            const stateStr = t.state || '';
+            const terminalState = stateStr.includes('seeding') || stateStr.includes('finished');
+            
             const isActiveDownload = rawPct > 0 && rawPct < 100 && !terminalState && !t.paused;
             const fileOnDiskFinal  = fileOnDisk && !isActiveDownload;
             const pct    = fileOnDiskFinal ? 100 : rawPct;
@@ -5617,18 +5615,16 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                         || (t.paused && t.total_size > 0 && t.downloaded >= t.total_size)
                         || fileOnDiskFinal;
 
-            let displayState = t.state;
+            let displayState = stateStr;
             if (fileOnDiskFinal) {
-                // Non sovrascrivere stati espliciti: pausa manuale, in coda, errore
                 const keepStates = ['in pausa', 'in coda (dl)', 'in coda (seeding)', 'errore'];
-                const isExplicitState = keepStates.some(k => (t.state || '').toLowerCase().includes(k));
+                const isExplicitState = keepStates.some(k => stateStr.toLowerCase().includes(k));
                 const finalStates = ['seeding', 'finished', 'finished_t', 'terminato', 'salvato',
                                      'in seeding', 'seeding (fermo)', 'in coda (seeding)'];
-                if (!isExplicitState && !finalStates.includes(t.state)) {
+                if (!isExplicitState && !finalStates.includes(stateStr)) {
                     displayState = 'salvato';
                 }
             }
-            // ------------------------------------------
             
             let etaStr = '—';
             if (fileOnDiskFinal) {
@@ -5636,9 +5632,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             } else if (t.eta > 0) {
                 etaStr = this._fmtEta(t.eta);
             } else if (isDone) {
-                // Spunta Doppia se archiviato/spostato, Spunta Singola se solo scaricato
                 etaStr = fileOnDiskFinal 
-                    ? `<span style="cursor:help;" title="${t('File Archiviato: Questo file è stato scaricato, spostato nel NAS e rinominato con successo.')}"><i class="fa-solid fa-check-double"></i></span>` 
+                    ? `<span style="cursor:help;" title="${t('File Archiviato')}"><i class="fa-solid fa-check-double"></i></span>` 
                     : `<span style="cursor:help;" title="${t('File presente sul NAS')}"><i class="fa-solid fa-check"></i></span>`;
             }
 
@@ -5647,7 +5642,6 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 : 'color:var(--text-secondary);';
                 
             let ratio  = (typeof t.ratio === 'number') ? t.ratio : (t.total_done > 0 ? (t.total_uploaded / t.total_done) : 0);
-            // FIX RATIO INFINITO:
             if (ratio > 999) ratio = 999.99;
             if (isNaN(ratio) || !isFinite(ratio)) ratio = 0.0;
             
@@ -5666,7 +5660,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             }
             
             const myTag = torrentTagsDb[t.hash];
-            if (myTag) {
+            if (myTag && String(myTag).trim() !== '') {
                 sourceHtml += `<span class="badge badge-secondary" style="margin-right:8px; padding:0.2rem 0.5rem; font-size:0.65rem; background:rgba(255,255,255,0.1);"><i class="fa-solid fa-tag"></i> ${this._esc(myTag)}</span>`;
             }
             
@@ -5880,13 +5874,19 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const select = document.getElementById('torrent-tag-filter');
         if (!select) return;
         
-        const uniqueTags = [...new Set(Object.values(torrentTagsDb))].sort();
+        // Protezione contro i tag vuoti o corrotti
+        const uniqueTags = [...new Set(Object.values(torrentTagsDb).filter(Boolean))].sort();
         
         let html = `<option value="all">🏷️ ${t('Tutti i Tag')}</option><option value="untagged">${t('Senza Tag')}</option>`;
         uniqueTags.forEach(tag => {
             html += `<option value="${this._esc(tag)}" ${currentTagFilter === tag ? 'selected' : ''}>${this._esc(tag)}</option>`;
         });
         select.innerHTML = html;
+        
+        // Se il filtro attuale non esiste più, torna a 'Tutti i tag'
+        if (currentTagFilter !== 'all' && currentTagFilter !== 'untagged' && !uniqueTags.includes(currentTagFilter)) {
+            currentTagFilter = 'all';
+        }
         select.value = currentTagFilter; 
     },
 
@@ -5894,8 +5894,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const hashes = this._getSelectedHashes();
         if (!hashes.length) { this.showToast(t('Nessun torrent selezionato'), 'warning'); return; }
 
-        // Raccoglie tutti i tag noti: da torrentTagsDb (torrent attivi)
-        // + dal dropdown filtro (che include anche tag persistenti dal JSON)
+        // Raccoglie tutti i tag salvati
         const tagSet = new Set(Object.values(torrentTagsDb).filter(Boolean));
         const filterSel = document.getElementById('torrent-tag-filter');
         if (filterSel) {
@@ -5906,9 +5905,16 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             });
         }
         const uniqueTags = [...tagSet].sort();
-        const dl = document.getElementById('existing-tags-list');
-        if (dl) {
-            dl.innerHTML = uniqueTags.map(tg => `<option value="${this._esc(tg)}">`).join('');
+        
+        // Disegna i bottoncini (badge) per ogni tag
+        const container = document.getElementById('existing-tags-container');
+        if (container) {
+            container.innerHTML = uniqueTags.map(tg => `
+                <span class="badge badge-secondary" style="padding: 6px 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1);">
+                    <span style="cursor:pointer; font-weight:600;" onclick="document.getElementById('set-tag-input').value='${this._esc(tg)}'">${this._esc(tg)}</span>
+                    <i class="fa-solid fa-xmark" style="cursor:pointer; color: var(--danger); padding-left: 4px; border-left: 1px solid rgba(255,255,255,0.2);" title="Elimina definitivamente questo Tag" onclick="app.deleteSpecificTag('${this._esc(tg)}')"></i>
+                </span>
+            `).join('');
         }
         
         document.getElementById('set-tag-input').value = '';
@@ -5917,33 +5923,46 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
 
     // ── Helper: pulisce dal JSON il tag di un hash rimosso,
     //    ma solo se esiste un altro hash con lo stesso tag (altrimenti lo lascia come segnaposto)
+    // Disinneschiamo l'automazione: i tag non si cancellano mai da soli
     async _cleanTagOnRemove(hashes) {
-        if (!hashes || !hashes.length) return;
-        const toDelete = [];
-        for (const h of hashes) {
-            const tag = torrentTagsDb[h];
-            if (!tag) continue;
-            // Controlla se ci sono altri hash vivi con lo stesso tag
-            const othersWithSameTag = Object.entries(torrentTagsDb)
-                .some(([k, v]) => k !== h && v === tag);
-            if (othersWithSameTag) {
-                // Possiamo rimuovere questa riga dal JSON — il tag è ancora rappresentato
-                toDelete.push(h);
-                delete torrentTagsDb[h];
+        return; // Non fa assolutamente nulla. I tag vivono per sempre.
+    },
+
+    // Nuova funzione per cancellare un singolo tag quando premi la "X"
+    async deleteSpecificTag(tag) {
+        if (!confirm(`${t('Vuoi eliminare definitivamente il tag')} "${tag}" ${t('da tutti i torrent e dalla memoria?')}`)) return;
+
+        const payload = {};
+        let hasChanges = false;
+        
+        // Trova tutti i torrent (vivi e passati) che hanno questo tag
+        for (const [h, t] of Object.entries(torrentTagsDb)) {
+            if (t === tag) {
+                payload[h] = ''; // Comanda al server di svuotarlo
+                delete torrentTagsDb[h]; // Lo cancella dalla memoria locale
+                hasChanges = true;
             }
-            // Se è l'unico con quel tag: lo lasciamo come segnaposto persistente
         }
-        if (!toDelete.length) return;
+
         try {
-            const payload = {};
-            toDelete.forEach(h => payload[h] = ''); // stringa vuota = cancella
-            await fetch(`${API_BASE}/api/torrent-tags`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
+            if (hasChanges) {
+                await fetch(`${API_BASE}/api/torrent-tags`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+            }
+            
+            this.showToast(`Tag "${tag}" eliminato`, 'success');
+            
+            // Aggiorna in tempo reale la grafica
             this._updateTagFilterDropdown();
-        } catch (_) {}
+            this.bulkSetTorrentTags(); // Ridisegna i bottoncini rimasti
+            if (this._torrentLastData) this._renderTorrentRows(this._torrentLastData); // Aggiorna la lista principale
+            
+        } catch(e) {
+            this.showToast(t('Errore durante l\'eliminazione del tag'), 'error');
+        }
     },
 
     // ── Helper: estrae info_hash da magnet link
@@ -5959,11 +5978,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     // così torrent_tags.json resta compatto (N righe = N tag distinti).
     async _saveTag(hash, tag) {
         if (!hash || !tag) return;
-        const tagAlreadyKnown = Object.values(torrentTagsDb).includes(tag);
+        
         // Aggiorna sempre la mappa locale per il filtraggio UI
         torrentTagsDb[hash] = tag;
         this._updateTagFilterDropdown();
-        if (tagAlreadyKnown) return;   // Il tag è già nel JSON — non serve scrivere
+        
+        // Comunica SEMPRE il nuovo tag al Database del server
         try {
             await fetch(`${API_BASE}/api/torrent-tags`, {
                 method: 'POST',

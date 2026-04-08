@@ -514,12 +514,14 @@
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label><span data-i18n="Scegli o scrivi un Tag">Scegli o scrivi un Tag</span></label>
-                            <input type="text" id="set-tag-input" class="form-control" list="existing-tags-list" data-i18n-title="Permette di organizzare i file. Se usi client esterni per l'importazione automatica, le etichette sono fondamentali." title="Permette di organizzare i file. Se usi client esterni per l'importazione automatica, le etichette sono fondamentali." placeholder="es. Serie TV, Film, Software..." data-i18n-placeholder="es. Serie TV, Film, Software...">
-                            <datalist id="existing-tags-list"></datalist>
-                            <small style="color:var(--text-muted); display:block; margin-top:0.5rem;" data-i18n="Lascia vuoto e salva per rimuovere il tag attuale.">Lascia vuoto e salva per rimuovere il tag attuale.</small>
+                            <label><span data-i18n="Scegli o scrivi un Tag">Scrivi un nuovo Tag o sceglilo sotto</span></label>
+                            <input type="text" id="set-tag-input" class="form-control" placeholder="es. Serie TV, Film, Software...">
+                            
+                            <div id="existing-tags-container" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                            
+                            <small style="color:var(--text-muted); display:block; margin-top:1rem;" data-i18n="Lascia vuoto e salva per rimuovere il tag attuale.">Lascia vuoto e salva per rimuovere il tag dal torrent.</small>
                         </div>
-                        <div class="modal-footer" style="margin-top:0.5rem;">
+                        <div class="modal-footer" style="margin-top:0.5rem; display:flex; justify-content:flex-end; gap:10px;">
                             <button class="btn btn-secondary" onclick="app.closeModal('set-tag-modal')" data-i18n="Annulla">Annulla</button>
                             <button class="btn btn-primary" onclick="app.confirmSetTorrentTags()"><i class="fa-solid fa-check"></i> <span data-i18n="Salva">Salva</span></button>
                         </div>
