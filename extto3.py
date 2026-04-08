@@ -692,12 +692,14 @@ def web_task():
                     info_hash = payload.get('hash', '').strip()
                     dl_kbps = int(payload.get('dl_kbps', 0))
                     ul_kbps = int(payload.get('ul_kbps', 0))
+                    seed_ratio = float(payload.get('seed_ratio', -1))
+                    seed_days  = float(payload.get('seed_days', -1))
+                    
                     dl_bytes = dl_kbps * 1024 if dl_kbps > 0 else -1
                     ul_bytes = ul_kbps * 1024 if ul_kbps > 0 else -1
-                    ok = LibtorrentClient.set_torrent_limits(info_hash, dl_bytes, ul_bytes)
-                    if ok:
-                        _config_db.set_torrent_limit(info_hash, dl_bytes, ul_bytes)
-                    self._json_response({'ok': ok, 'dl_kbps': dl_kbps, 'ul_kbps': ul_kbps})
+                    
+                    ok = LibtorrentClient.set_torrent_limits(info_hash, dl_bytes, ul_bytes, seed_ratio, seed_days)
+                    self._json_response({'ok': ok})
                     return
 
                 if self.path == '/api/torrents/peers':

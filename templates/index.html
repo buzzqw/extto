@@ -484,28 +484,7 @@
                 </div>
             </div>
 
-            <div id="add-magnet-torrent-modal" class="modal">
-                <div class="modal-content" style="max-width:600px;">
-                    <div class="modal-header">
-                        <h3><i class="fa-solid fa-magnet" style="color:var(--primary)"></i> <span data-i18n="Aggiungi Magnet">Aggiungi Magnet</span></h3>
-                        <button class="modal-close" data-i18n-title="Chiudi" title="Chiudi" onclick="app.closeModal('add-magnet-torrent-modal')">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label>Magnet Link o URL (.torrent)</label>
-                            <input type="text" id="add-magnet-torrent-input" class="search-input" style="padding-left:1rem; font-family:var(--font-mono); font-size:0.8rem;" data-i18n-title="Incolla qui la stringa che inizia per 'magnet:?xt=' o un link http diretto a un file .torrent" title="Incolla qui la stringa che inizia per 'magnet:?xt=' o un link http diretto a un file .torrent" placeholder="magnet:?xt=urn:btih:...">
-                        </div>
-                        <div class="form-group">
-                            <label><span data-i18n="Cartella di destinazione">Cartella di destinazione</span> <span style="color:var(--text-muted)" data-i18n="(opzionale)">(opzionale)</span></label>
-                            <div style="display:flex; gap:8px; flex:1;"><input type="text" id="add-magnet-torrent-path" class="search-input" style="padding-left:1rem; font-family:var(--font-mono); font-size:0.8rem; flex:1;" data-i18n-title="Lascia vuoto per usare la directory di default. Altrimenti specifica il percorso assoluto (es. /mnt/plex/movies)." title="Lascia vuoto per usare la directory di default. Altrimenti specifica il percorso assoluto (es. /mnt/plex/movies)." placeholder="/downloads"><button type="button" class="btn btn-secondary btn-small" data-i18n-title="Sfoglia cartelle del server" title="Sfoglia cartelle del server" onclick="event.stopPropagation(); app.openDirBrowser('add-magnet-torrent-path')"><i class="fa-regular fa-folder-open"></i></button></div>
-                        </div>
-                        <div style="display:flex; gap:1rem; margin-top:1.5rem; justify-content:flex-end;">
-                            <button class="btn btn-secondary" onclick="app.closeModal('add-magnet-torrent-modal')" data-i18n="Annulla">Annulla</button>
-                            <button class="btn btn-primary" onclick="app.submitAddMagnetTorrent()"><i class="fa-solid fa-plus"></i> <span data-i18n="Aggiungi">Aggiungi</span></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             <div id="remove-torrent-modal" class="modal">
                 <div class="modal-content" style="max-width:480px;">
@@ -2094,6 +2073,7 @@ sudo mount /mnt/ramdisk</div>
                             <div style="white-space:nowrap;"><span style="color:#3b82f6; font-size:1.2rem; vertical-align:middle;">■</span> CPU <br><span id="leg-cpu" style="font-family:var(--font-mono); font-size:1.1rem;">0%</span></div>
                             <div style="white-space:nowrap;"><span style="color:#10b981; font-size:1.2rem; vertical-align:middle;">■</span> RAM <br><span id="leg-ram" style="font-family:var(--font-mono); font-size:1.1rem;">0% (0 MB)</span></div>
                             <div style="white-space:nowrap;"><span style="color:#f59e0b; font-size:1.2rem; vertical-align:middle;">■</span> Disco <br><span id="leg-disk" style="font-family:var(--font-mono); font-size:1.1rem;">0%</span></div>
+                            <div style="white-space:nowrap;"><span style="color:#8b5cf6; font-size:1.2rem; vertical-align:middle;">■</span> RAM Disk <br><span id="leg-ramdisk" style="font-family:var(--font-mono); font-size:1.1rem;">0% (0 GB)</span></div>
                             <div style="white-space:nowrap;"><span style="color:#ffffff; font-size:1.2rem; vertical-align:middle;">■</span> DL <br><span id="leg-dl" style="font-family:var(--font-mono); font-size:1.1rem;">0.00 MB/s</span></div>
                             <div style="white-space:nowrap;"><span style="color:#f43f5e; font-size:1.2rem; vertical-align:middle;">■</span> UL <br><span id="leg-ul" style="font-family:var(--font-mono); font-size:1.1rem;">0.00 MB/s</span></div>
                             
@@ -2735,12 +2715,36 @@ sudo mount /mnt/ramdisk</div>
 
     <div id="add-magnet-modal" class="modal">
         <div class="modal-content" style="max-width:600px;">
-            <div class="modal-header"><h3 data-i18n="Aggiungi Magnet">Inserimento Manuale</h3><button class="modal-close" onclick="app.closeModal('add-magnet-modal')">&times;</button></div>
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-magnet" style="color:var(--primary)"></i> <span data-i18n="Aggiungi Torrent/Magnet">Aggiungi Torrent/Magnet</span></h3>
+                <button class="modal-close" onclick="app.closeModal('add-magnet-modal')">&times;</button>
+            </div>
             <div class="modal-body">
                 <form id="magnet-form" onsubmit="app.submitMagnet(event)">
-                    <div class="form-group"><label data-i18n="Magnet Link o URL (.torrent)">Magnet Link o URL</label><textarea id="magnet-input" rows="4" data-i18n-title="Inserisci qui un link fisico al file o la URI magnet. Verrà convertito e inviato al motore principale." title="Inserisci qui un link fisico al file o la URI magnet. Verrà convertito e inviato al motore principale."></textarea></div>
-                    <div class="form-group"><label>File .torrent</label><input type="file" id="torrent-file" accept=".torrent" data-i18n-title="Trascina o cerca un piccolo file .torrent locale." title="Trascina o cerca un piccolo file .torrent locale."></div>
-                    <div class="checkbox-row"><label class="toggle-switch"><input type="checkbox" id="magnet-download-now" checked data-i18n-title="Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click." title="Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click."><span class="toggle-slider"></span></label><label><span data-i18n="Scarica subito">Scarica subito</span></label></div>
+                    <div class="form-group">
+                        <label data-i18n="Magnet Link o URL (.torrent)">Magnet Link o URL (.torrent)</label>
+                        <textarea id="magnet-input" rows="3" class="search-input" style="padding: 10px; font-family:var(--font-mono); font-size:0.8rem;" data-i18n-title="Inserisci un magnet link o un URL diretto a un file .torrent" title="Inserisci un magnet link o un URL diretto a un file .torrent" placeholder="magnet:?xt=urn:btih:... oppure http://..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>File .torrent locale</label>
+                        <input type="file" id="torrent-file" accept=".torrent" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label><span data-i18n="Cartella di destinazione">Cartella di destinazione</span> <span style="color:var(--text-muted)" data-i18n="(opzionale)">(opzionale)</span></label>
+                        <div style="display:flex; gap:8px; flex:1;">
+                            <input type="text" id="add-magnet-save-path" class="search-input" style="padding-left:1rem; font-family:var(--font-mono); font-size:0.8rem; flex:1;" placeholder="/downloads" title="Lascia vuoto per usare la cartella predefinita">
+                            <button type="button" class="btn btn-secondary btn-small" title="Sfoglia cartelle" onclick="event.stopPropagation(); app.openDirBrowser('add-magnet-save-path')">
+                                <i class="fa-regular fa-folder-open"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="checkbox-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="magnet-download-now" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <label><span data-i18n="Scarica subito">Scarica subito</span></label>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="width:100%; margin-top:15px;" data-i18n="Vai">Esegui</button>
                 </form>
             </div>
@@ -2814,23 +2818,32 @@ sudo mount /mnt/ramdisk</div>
 
                     <!-- Riga 3: Limiti banda -->
                     <div style="background:var(--bg-input); padding:10px 12px; border-radius:6px; border:1px solid var(--border);">
-                        <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;"><i class="fa-solid fa-gauge-high" style="margin-right:5px;"></i><span data-i18n="Limite Banda per questo Torrent">LIMITE BANDA PER QUESTO TORRENT</span></div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:end;">
+                        <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;"><i class="fa-solid fa-sliders" style="margin-right:5px;"></i><span data-i18n="Regole per questo Torrent">REGOLE PER QUESTO TORRENT</span></div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
                             <div>
-                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:3px;" data-i18n="⬇ Download (KB/s) — 0 = nessun limite">⬇ Download (KB/s) — 0 = nessun limite</div>
-                                <input type="number" id="td-dl-limit" min="0" step="100" value="0"
-                                    style="width:100%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:5px; font-family:var(--font-mono); font-size:0.9rem;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:3px;">⬇ Download (KB/s) <span style="opacity:0.6;">(0 = illimitato)</span></div>
+                                <input type="number" id="td-dl-limit" min="0" step="100" value="0" class="form-input" style="width:100%; font-family:var(--font-mono); font-size:0.9rem; padding:6px 10px;" oninput="this.dataset.dirty='true'">
                             </div>
                             <div>
-                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:3px;" data-i18n="⬆ Upload (KB/s) — 0 = nessun limite">⬆ Upload (KB/s) — 0 = nessun limite</div>
-                                <input type="number" id="td-ul-limit" min="0" step="100" value="0"
-                                    style="width:100%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-primary); padding:6px 10px; border-radius:5px; font-family:var(--font-mono); font-size:0.9rem;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:3px;">⬆ Upload (KB/s) <span style="opacity:0.6;">(0 = illimitato)</span></div>
+                                <input type="number" id="td-ul-limit" min="0" step="100" value="0" class="form-input" style="width:100%; font-family:var(--font-mono); font-size:0.9rem; padding:6px 10px;" oninput="this.dataset.dirty='true'">
                             </div>
-                            <button onclick="app.applyTorrentLimits()" class="btn btn-primary" style="padding:6px 16px; white-space:nowrap;">
-                                <i class="fa-solid fa-check"></i> <span data-i18n="Applica">Applica</span>
+                            <div>
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:3px;" title="Lascia vuoto per usare la regola globale delle Impostazioni. Metti 0 per forzare il seeding infinito.">Ratio Massimo <span style="opacity:0.6;">(vuoto = usa globale)</span></div>
+                                <input type="number" id="td-seed-ratio" min="0" step="0.1" placeholder="Globale" class="form-input" style="width:100%; font-family:var(--font-mono); font-size:0.9rem; padding:6px 10px;" oninput="this.dataset.dirty='true'">
+                            </div>
+                            <div>
+                                <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:3px;" title="Lascia vuoto per usare la regola globale delle Impostazioni. Metti 0 per forzare il seeding infinito.">Tempo Max (Giorni) <span style="opacity:0.6;">(vuoto = usa globale)</span></div>
+                                <input type="number" id="td-seed-days" min="0" step="0.5" placeholder="Globale" class="form-input" style="width:100%; font-family:var(--font-mono); font-size:0.9rem; padding:6px 10px;" oninput="this.dataset.dirty='true'">
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div id="td-limit-msg" style="font-size:0.8rem; color:var(--success); display:none;"></div>
+                            <div style="flex:1;"></div>
+                            <button onclick="app.applyTorrentLimits()" class="btn btn-primary" style="padding:6px 16px;">
+                                <i class="fa-solid fa-check"></i> <span data-i18n="Applica Regole">Applica Regole</span>
                             </button>
                         </div>
-                        <div id="td-limit-msg" style="margin-top:6px; font-size:0.8rem; color:var(--success); display:none;"></div>
                     </div>
 
                     <!-- Riga 4: Grafico velocità -->

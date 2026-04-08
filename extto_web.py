@@ -3169,6 +3169,24 @@ def system_stats():
         ram_mb = ram_total_bytes / (1024 * 1024)
         disk = psutil.disk_usage(os.getcwd()).percent 
         
+        # Calcolo Spazio RAM Disk (se abilitato)
+        cfg = parse_series_config()
+        settings = cfg.get('settings', {})
+        ramdisk_enabled = str(settings.get('libtorrent_ramdisk_enabled', 'no')).lower() in ('yes', 'true', '1')
+        ramdisk_dir = settings.get('libtorrent_ramdisk_dir', '').strip()
+        ramdisk_pct = 0.0
+        ramdisk_used_gb = 0.0
+        ramdisk_total_gb = 0.0 # <--- Aggiunto il totale!
+
+        if ramdisk_enabled and ramdisk_dir and os.path.exists(ramdisk_dir):
+            try:
+                rd_usage = psutil.disk_usage(ramdisk_dir)
+                ramdisk_pct = rd_usage.percent
+                ramdisk_used_gb = rd_usage.used / (1024**3)
+                ramdisk_total_gb = rd_usage.total / (1024**3) # <--- Calcola il totale
+            except Exception:
+                pass
+
         # 3. Legge i totali isolati di libtorrent calcolati in background
         tot_dl_bytes = _torrent_traffic['dl']
         tot_ul_bytes = _torrent_traffic['ul']
@@ -3179,9 +3197,12 @@ def system_stats():
             'ram': round(ram_total_pct, 1), 
             'ram_mb': round(ram_mb, 1),
             'disk': round(disk, 1),
+            'ramdisk': round(ramdisk_pct, 1),
+            'ramdisk_gb': round(ramdisk_used_gb, 2),
+            'ramdisk_total_gb': round(ramdisk_total_gb, 2), # <--- Lo inviamo alla grafica
             'uptime': uptime_str,
-            'total_dl_bytes': tot_dl_bytes, # <-- Nuovo dato in uscita!
-            'total_ul_bytes': tot_ul_bytes  # <-- Nuovo dato in uscita!
+            'total_dl_bytes': tot_dl_bytes,
+            'total_ul_bytes': tot_ul_bytes
         })
     except ImportError:
         return jsonify({'success': False, 'error': 'Libreria psutil mancante'}), 500
@@ -4937,6 +4958,7 @@ def send_magnet():
     try:
         data = request.get_json(silent=True) or {}
         magnet = data.get('magnet', '')
+        save_path = data.get('save_path', '').strip()
         
         if not magnet:
             return jsonify({'success': False, 'error': 'Magnet mancante'}), 400
@@ -4950,24 +4972,19 @@ def send_magnet():
             qb_url = settings.get('qbittorrent_url', '')
             qb_user = settings.get('qbittorrent_username', '')
             qb_pass = settings.get('qbittorrent_password', '')
-            
             try:
-                # Login
                 login_url = f"{qb_url}/api/v2/auth/login"
                 session = requests.Session()
                 r = session.post(login_url, data={'username': qb_user, 'password': qb_pass}, timeout=5)
-                
                 if r.text == 'Ok.':
-                    # Aggiungi torrent
-                    add_url = f"{qb_url}/api/v2/torrents/add"
-                    r = session.post(add_url, data={'urls': magnet, 'paused': 'true'}, timeout=5)
-                    
+                    add_data = {'urls': magnet, 'paused': 'true'}
+                    if save_path: add_data['savepath'] = save_path
+                    r = session.post(f"{qb_url}/api/v2/torrents/add", data=add_data, timeout=5)
                     if r.text == 'Ok.':
                         push_notification('download', 'Scarico avviato', 'Torrent inviato a qBittorrent', {'magnet': magnet[:80]})
                         _save_tag_for_magnet(magnet, 'Manuale')
                         return jsonify({'success': True, 'message': 'Inviato a qBittorrent'})
             except Exception as e:
-                logger.warning(f"send_magnet qbt: {e}")
                 pass
         
         # Prova Transmission
@@ -4975,23 +4992,14 @@ def send_magnet():
             tr_url = settings.get('transmission_url', '')
             tr_user = settings.get('transmission_username', '')
             tr_pass = settings.get('transmission_password', '')
-            
             try:
-                # Transmission risponde 409 al primo contatto per fornire il session ID
                 auth = (tr_user, tr_pass) if tr_user else None
                 r = requests.post(tr_url, auth=auth, timeout=5)
                 session_id = r.headers.get('X-Transmission-Session-Id', '')
-                # Add torrent (con session ID ottenuto dal 409 o dal 200)
-                payload = {
-                    'method': 'torrent-add',
-                    'arguments': {
-                        'filename': magnet,
-                        'paused': True
-                    }
-                }
+                payload = {'method': 'torrent-add', 'arguments': {'filename': magnet, 'paused': True}}
+                if save_path: payload['arguments']['download-dir'] = save_path
                 headers = {'X-Transmission-Session-Id': session_id}
                 r = requests.post(tr_url, json=payload, headers=headers, auth=auth, timeout=5)
-                # Se riceviamo ancora 409 riprova con il nuovo session ID
                 if r.status_code == 409:
                     session_id = r.headers.get('X-Transmission-Session-Id', session_id)
                     headers['X-Transmission-Session-Id'] = session_id
@@ -5001,16 +5009,13 @@ def send_magnet():
                     _save_tag_for_magnet(magnet, 'Manuale')
                     return jsonify({'success': True, 'message': 'Inviato a Transmission'})
             except Exception as e:
-                logger.warning(f"send_magnet transmission: {e}")
                 pass
         
-        # Prova libtorrent (embedded) — proxia verso il server interno su porta 8889
+        # Prova libtorrent (embedded)
         if settings.get('libtorrent_enabled') == 'yes':
             try:
-                save_path = data.get('save_path', '').strip()
                 payload = {'magnet': magnet}
-                if save_path:
-                    payload['save_path'] = save_path
+                if save_path: payload['save_path'] = save_path
                 r = requests.post(
                     f'http://127.0.0.1:{get_engine_port()}/api/torrents/add',
                     json=payload,
@@ -5023,7 +5028,6 @@ def send_magnet():
                     if _h: _save_tag_for_hash(_h, 'Manuale')
                     return jsonify({'success': True, 'message': 'Inviato a libtorrent'})
             except Exception as e:
-                logger.warning(f"send_magnet libtorrent: {e}")
                 pass
 
         return jsonify({'success': False, 'error': 'Nessun client torrent configurato o disponibile'}), 500
@@ -5039,15 +5043,13 @@ def upload_torrent():
         filename = data.get('filename', 'uploaded.torrent')
         file_data = data.get('data', '')
         download_now = data.get('download_now', True)
+        save_path = data.get('save_path', '').strip()
         
         if not file_data:
             return jsonify({'success': False, 'error': 'File mancante'}), 400
         
-        # Decodifica base64
         import base64
         torrent_bytes = base64.b64decode(file_data)
-        
-        # Leggi configurazione
         config = parse_series_config()
         settings = config.get('settings', {})
         
@@ -5059,19 +5061,16 @@ def upload_torrent():
             qb_url = settings.get('qbittorrent_url', '')
             qb_user = settings.get('qbittorrent_username', '')
             qb_pass = settings.get('qbittorrent_password', '')
-            
             try:
-                # Login
                 login_url = f"{qb_url}/api/v2/auth/login"
                 session = requests.Session()
                 r = session.post(login_url, data={'username': qb_user, 'password': qb_pass}, timeout=5)
-                
                 if r.text == 'Ok.':
-                    # Upload torrent file
                     add_url = f"{qb_url}/api/v2/torrents/add"
                     files = {'torrents': (filename, torrent_bytes, 'application/x-bittorrent')}
-                    r = session.post(add_url, files=files, data={'paused': 'true'}, timeout=5)
-                    
+                    add_data = {'paused': 'true'}
+                    if save_path: add_data['savepath'] = save_path
+                    r = session.post(add_url, files=files, data=add_data, timeout=5)
                     if r.text == 'Ok.':
                         return jsonify({'success': True, 'message': 'File .torrent inviato a qBittorrent'})
             except Exception as e:
@@ -5082,39 +5081,29 @@ def upload_torrent():
             tr_url = settings.get('transmission_url', '')
             tr_user = settings.get('transmission_username', '')
             tr_pass = settings.get('transmission_password', '')
-            
             try:
-                # Get session ID
                 r = requests.post(tr_url, auth=(tr_user, tr_pass), timeout=5)
                 session_id = r.headers.get('X-Transmission-Session-Id', '')
-                
-                # Encode torrent in base64 for Transmission
                 torrent_b64 = base64.b64encode(torrent_bytes).decode('utf-8')
-                
-                # Add torrent
-                payload = {
-                    'method': 'torrent-add',
-                    'arguments': {
-                        'metainfo': torrent_b64,
-                        'paused': True
-                    }
-                }
+                payload = {'method': 'torrent-add', 'arguments': {'metainfo': torrent_b64, 'paused': True}}
+                if save_path: payload['arguments']['download-dir'] = save_path
                 headers = {'X-Transmission-Session-Id': session_id}
                 r = requests.post(tr_url, json=payload, headers=headers, auth=(tr_user, tr_pass), timeout=5)
-                
                 if r.status_code == 200:
                     return jsonify({'success': True, 'message': 'File .torrent inviato a Transmission'})
             except Exception as e:
                 pass
         
-        # Prova libtorrent (embedded) — invia il file .torrent via porta 8889
+        # Prova libtorrent (embedded)
         if settings.get('libtorrent_enabled', 'yes') in ('yes', 'true', '1'):
             try:
                 import base64 as _b64
                 logger.info(f"📤 Sending file packet to local libtorrent (Port {get_engine_port()})...")
+                payload = {'data': _b64.b64encode(torrent_bytes).decode('utf-8'), 'filename': filename}
+                if save_path: payload['save_path'] = save_path
                 r = requests.post(
                     f'http://127.0.0.1:{get_engine_port()}/api/torrents/add_torrent_file',
-                    json={'data': _b64.b64encode(torrent_bytes).decode('utf-8'), 'filename': filename},
+                    json=payload,
                     timeout=10
                 )
                 if r.status_code == 200 and r.json().get('ok'):
@@ -5124,10 +5113,8 @@ def upload_torrent():
                     return jsonify({'success': True, 'message': 'File .torrent inviato a libtorrent', 'hash': _lt_hash})
                 else:
                     err_msg = r.json().get('error', 'Sconosciuto') if r.status_code == 200 else r.text
-                    logger.error(f"❌ Failed to send to libtorrent: {err_msg}")
                     return jsonify({'success': False, 'error': f'Errore libtorrent: {err_msg}'})
             except Exception as e:
-                logger.error(f"❌ Exception while sending to port {get_engine_port()}: {str(e)}")
                 pass
 
         return jsonify({'success': False, 'error': 'Nessun client torrent configurato o disponibile'}), 500
@@ -6006,25 +5993,22 @@ def proxy_torrents_base():
 
 @app.route('/api/torrents/set_limits', methods=['POST'])
 def torrent_set_limits():
-    """Imposta i limiti DL/UL per un singolo torrent (solo libtorrent embedded)."""
+    """Inoltra i limiti DL/UL/Seeding al motore (extto3.py) che gestisce la vera sessione."""
     try:
         data = request.get_json(silent=True) or {}
-        info_hash = str(data.get('hash', '')).strip()
-        dl_kbps   = int(data.get('dl_kbps', 0))
-        ul_kbps   = int(data.get('ul_kbps', 0))
-        if not info_hash:
+        if not data.get('hash'):
             return jsonify({'ok': False, 'error': 'hash mancante'}), 400
-        # Converte KB/s → byte/s (-1 = nessun limite per libtorrent)
-        dl_bytes = dl_kbps * 1024 if dl_kbps > 0 else -1
-        ul_bytes = ul_kbps * 1024 if ul_kbps > 0 else -1
-        from core.libtorrent import LTSession
-        ok = LTSession.set_torrent_limits(info_hash, dl_bytes, ul_bytes)
-        if ok:
-            return jsonify({'ok': True})
-        return jsonify({'ok': False, 'error': 'Torrent non trovato'}), 404
+        
+        import requests
+        r = requests.post(
+            f'http://127.0.0.1:{get_engine_port()}/api/torrents/set_limits',
+            json=data,
+            timeout=10
+        )
+        return jsonify(r.json()), r.status_code
     except Exception as e:
-        logger.warning(f"torrent_set_limits: {e}")
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        logger.warning(f"torrent_set_limits proxy error: {e}")
+        return jsonify({'ok': False, 'error': 'Motore non raggiungibile'}), 500
 
 
 @app.route('/api/torrents/<path:subpath>', methods=['GET', 'POST', 'OPTIONS'])

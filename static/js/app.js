@@ -131,7 +131,7 @@ const titles = { dashboard: 'Dashboard', discovery: 'Esplora', comics: 'Fumetti'
 function viewTitle(view) { const k = titles[view] || 'Pannello di controllo'; return t(k); }
 // Alias (stessa struttura, usata per riferimento i18n keys)
 const titlesI18nKeys = titles;
-let sysData = { labels: [], cpu: [], ram: [], disk: [], dl: [], ul: [] };
+let sysData = { labels: [], cpu: [], ram: [], disk: [], ramdisk: [], dl: [], ul: [] };
 
 // ============================================================================
 // SHOW / HIDE HELPERS
@@ -285,20 +285,20 @@ const app = {
             item.classList.toggle('active', item.dataset.view === targetView);
         });
 
-        // --- IL PEZZO CHE MANCAVA: Accende e spegne le finestre HTML ---
         document.querySelectorAll('.view').forEach(v => {
             v.classList.remove('active');
             if (v.id === `view-${view}`) v.classList.add('active');
         });
-        // ---------------------------------------------------------------
         
-        { document.getElementById('view-title').textContent = viewTitle(view); }
+        const viewTitleEl = document.getElementById('view-title');
+        if (viewTitleEl) viewTitleEl.textContent = viewTitle(view);
+        
         currentView = view;
+        
         // Aggiorna quickbar e drawer active state
         this._updateQuickBar();
         this._updateDrawerActive(view);
 
-        // Avvia/ferma polling torrent
         // Avvia/ferma polling torrent
         if (view === 'torrent') {
             this.startTorrentPoll();
@@ -319,6 +319,7 @@ const app = {
             this._activityPollInterval = null;
         }
 
+        // Carica i dati specifici della view
         switch(view) {
             case 'dashboard': this.loadDashboard(); break;
             case 'discovery': this.loadDiscovery('movie'); break;
@@ -328,17 +329,17 @@ const app = {
             case 'radarr': break;
             case 'archive': this.loadArchive(); break;
             case 'torrent': 
-                // --- INIZIO MODIFICA: AUTO-POPOLA LIMITI BANDA ---
                 fetch(`${API_BASE}/api/config?_t=` + Date.now()).then(r => r.json()).then(data => {
                     const s = data.settings || {};
                     const parseLimit = (v) => { let val = parseInt(v)||0; return val > 1000000 ? Math.round(val/1024) : val; };
                     const dl = parseLimit(s.libtorrent_dl_limit);
                     const ul = parseLimit(s.libtorrent_ul_limit);
-                    document.getElementById('quick-dl-limit').value = dl;
-                    document.getElementById('quick-ul-limit').value = ul;
+                    const dlInput = document.getElementById('quick-dl-limit');
+                    const ulInput = document.getElementById('quick-ul-limit');
+                    if(dlInput) dlInput.value = dl;
+                    if(ulInput) ulInput.value = ul;
                 }).catch(()=>{});
                 break; 
-                // --- FINE MODIFICA ---
             case 'config': this.loadConfig(); break;
             case 'maintenance': this.loadDbInfo(); this.loadBackupSettings(); this.loadConfigForMaintenance(); break;
             case 'logs': this.loadLogs(); break;
@@ -945,6 +946,7 @@ const app = {
                     { label: 'CPU', data: sysData.cpu, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.5, cubicInterpolationMode: 'monotone', pointRadius: 0, yAxisID: 'y' },
                     { label: 'RAM', data: sysData.ram, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.5, cubicInterpolationMode: 'monotone', pointRadius: 0, yAxisID: 'y' },
                     { label: 'Disco', data: sysData.disk, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.5, cubicInterpolationMode: 'monotone', pointRadius: 0, borderDash: [5, 5], yAxisID: 'y' },
+                    { label: 'RAM Disk', data: sysData.ramdisk, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', tension: 0.5, cubicInterpolationMode: 'monotone', pointRadius: 0, fill: true, yAxisID: 'y' },
                     { label: 'DL', data: sysData.dl, borderColor: '#ffffff', backgroundColor: 'rgba(255, 255, 255, 0.1)', tension: 0.5, cubicInterpolationMode: 'monotone', fill: true, pointRadius: 0, yAxisID: 'ySpeed' },
                     { label: 'UL', data: sysData.ul, borderColor: '#f43f5e', backgroundColor: 'transparent', tension: 0.5, cubicInterpolationMode: 'monotone', pointRadius: 0, yAxisID: 'ySpeed' }
                 ]
@@ -997,6 +999,7 @@ const app = {
                 sysData.cpu.push(sysInfo.cpu || 0);
                 sysData.ram.push(sysInfo.ram || 0);
                 sysData.disk.push(sysInfo.disk || 0);
+                sysData.ramdisk.push(sysInfo.ramdisk || 0);
                 sysData.dl.push(dlSpeedMB.toFixed(2));
                 sysData.ul.push(ulSpeedMB.toFixed(2));
 
@@ -1014,6 +1017,18 @@ const app = {
 
                     const elDisk = document.getElementById('leg-disk');
                     if(elDisk) elDisk.textContent = `${sysInfo.disk}%`;
+
+                    const elRamDisk = document.getElementById('leg-ramdisk');
+                    if(elRamDisk) {
+                        if (sysInfo.ramdisk_gb > 0 || sysInfo.ramdisk > 0 || sysInfo.ramdisk_total_gb > 0) {
+                            // Qui formattiamo il testo: Usato GB / Totale GB
+                            elRamDisk.textContent = `${sysInfo.ramdisk}% (${sysInfo.ramdisk_gb || 0} GB / ${sysInfo.ramdisk_total_gb || 0} GB)`;
+                            elRamDisk.parentElement.style.opacity = '1';
+                        } else {
+                            elRamDisk.textContent = `0% (0 GB / 0 GB)`;
+                            elRamDisk.parentElement.style.opacity = '0.3';
+                        }
+                    }
 
                     const elDl = document.getElementById('leg-dl');
                     if(elDl) elDl.textContent = `${dlSpeedMB.toFixed(2)} MB/s`;
@@ -1618,7 +1633,7 @@ const app = {
             libtorrent_upload_slots: v('lt-upload-slots'),
             libtorrent_stop_at_ratio: v('lt-stop-at-ratio'),
             libtorrent_seed_ratio: v('lt-seed-ratio'),
-            libtorrent_seed_time: v('lt-seed-time'),
+            libtorrent_seed_time_days: v('lt-seed-time-days'),
             libtorrent_active_downloads: v('lt-active-downloads'),
             libtorrent_active_seeds: v('lt-active-seeds'),
             libtorrent_active_limit: v('lt-active-limit'),
@@ -3200,7 +3215,7 @@ const app = {
             libtorrent_upload_slots:       v('lt-upload-slots'),
             libtorrent_stop_at_ratio:      v('lt-stop-at-ratio'),
             libtorrent_seed_ratio:         v('lt-seed-ratio'),
-            libtorrent_seed_time:          v('lt-seed-time'),
+            libtorrent_seed_time_days:     v('lt-seed-time-days'),
             libtorrent_active_downloads:   v('lt-active-downloads'),
             libtorrent_active_seeds:       v('lt-active-seeds'),
             libtorrent_active_limit:       v('lt-active-limit'),
@@ -3982,58 +3997,40 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         const m = document.getElementById('magnet-input').value.trim();
         const f = document.getElementById('torrent-file').files[0];
         const dn = document.getElementById('magnet-download-now').checked;
+        const sp = document.getElementById('add-magnet-save-path') ? document.getElementById('add-magnet-save-path').value.trim() : '';
         
-        if(!m && !f) return this.showToast(t('Please enter a link or a file'), 'error');
+        if(!m && !f) return this.showToast(t('Inserisci un link o scegli un file'), 'error');
         
         if(f) {
             try {
+                this.showToast(t('Caricamento .torrent in corso...'), 'info');
                 const b64 = await this.fileToBase64(f);
-                const res = await fetch(`${API_BASE}/api/upload-torrent`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:f.name,data:b64,download_now:dn})});
-                const d = await res.json();
-                this.showToast(d.success ? t('Torrent uploaded!') : d.error, d.success?'success':'error');
-                if (d.success && this._torrentPollId !== null) await this.loadTorrents();
-            } catch(e) {}
-            
-        } else if (m.startsWith('http://') || m.startsWith('https://')) {
-            this.showToast(t('Downloading .torrent file...'), 'info');
-            try {
-                const res = await fetch(`${API_BASE}/api/fetch-url`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({url: m})
+                const res = await fetch(`${API_BASE}/api/upload-torrent`, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({filename:f.name, data:b64, download_now:dn, save_path:sp})
                 });
-                const data = await res.json();
-                
-                if (data.success) {
-                    const upRes = await fetch(`${API_BASE}/api/upload-torrent`, {
-                        method:'POST',
-                        headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({filename: data.filename, data: data.data, download_now: dn})
-                    });
-                    const upData = await upRes.json();
-                    this.showToast(upData.success ? t('Torrent added from URL!') : upData.error, upData.success ? 'success' : 'error');
-                    if (upData.success && this._torrentPollId !== null) await this.loadTorrents();
-                } else {
-                    this.showToast(data.error || t('Error downloading from URL'), 'error');
-                }
-            } catch (e) {}
-            
+                const d = await res.json();
+                this.showToast(d.success ? t('Torrent caricato!') : d.error, d.success ? 'success' : 'error');
+                if (d.success && this._torrentPollId !== null) await this.loadTorrents();
+            } catch(err) {
+                this.showToast(t('Errore caricamento file'), 'error');
+            }
         } else {
-            await this.sendMagnetToClient(m);
+            await this.sendMagnetToClient(m, sp, dn);
         }
         
         this.closeModal('add-magnet-modal');
         document.getElementById('magnet-form').reset();
     },
     
-    async sendMagnetToClient(magnet) {
+    async sendMagnetToClient(magnet, savePath = '', downloadNow = true) {
         try {
             if (!this._configData) {
                 const confRes = await fetch(`${API_BASE}/api/config`);
                 this._configData = await confRes.json();
             }
 
-            // --- MAGIA: SE E' UN LINK HTTP, SCARICA IL FILE .TORRENT ---
             if (magnet.startsWith('http://') || magnet.startsWith('https://')) {
                 this.showToast(t('Scaricamento file .torrent in corso...'), 'info');
                 const res = await fetch(`${API_BASE}/api/fetch-url`, {
@@ -4046,27 +4043,27 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                 if (data.success) {
                     const upRes = await fetch(`${API_BASE}/api/upload-torrent`, {
                         method:'POST', headers:{'Content-Type':'application/json'},
-                        body:JSON.stringify({filename: data.filename, data: data.data, download_now: true})
+                        body:JSON.stringify({filename: data.filename, data: data.data, download_now: downloadNow, save_path: savePath})
                     });
                     const upData = await upRes.json();
                     if (upData.success) {
-                        this.showToast(t('Torrent added successfully!'), 'success');
+                        this.showToast(t('Torrent aggiunto con successo!'), 'success');
                         if (upData.hash) await this._saveTag(upData.hash, 'Manuale');
                         if (this._torrentPollId !== null) await this.loadTorrents();
+                    } else {
+                        this.showToast(upData.error || t('Errore invio torrent'), 'error');
                     }
                 } else if (data.is_magnet) {
-                    // SE IL SERVER CI DICE CHE E' UN MAGNET: Lo inviamo di nuovo ma saltando il fetch-url
-                    console.log("Il link era un magnet travestito da URL, rinvio diretto...");
-                    return this.sendMagnetToClient(data.magnet); 
+                    return this.sendMagnetToClient(data.magnet, savePath, downloadNow); 
                 } else {
-                    this.showToast(data.error || t('Error downloading from URL'), 'error');
+                    this.showToast(data.error || t('Errore download URL'), 'error');
                 }
                 return; 
             }
 
             const ltEnabled = this._configData?.settings?.libtorrent_enabled === 'yes';
             if (ltEnabled) {
-                const ltDir = this._configData?.settings?.libtorrent_dir || '/downloads';
+                const ltDir = savePath || this._configData?.settings?.libtorrent_dir || '/downloads';
                 const res = await fetch(`${API_BASE}/api/torrents/add`, {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({magnet, save_path: ltDir})
@@ -4074,7 +4071,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                 if (res.ok) {
                     const d = await res.json();
                     if (d.ok) {
-                        this.showToast(t('Torrent sent to libtorrent'), 'success');
+                        this.showToast(t('Torrent inviato a libtorrent'), 'success');
                         const _h = d.hash || this._hashFromMagnet(magnet);
                         await this._saveTag(_h, 'Manuale');
                         if (this._torrentPollId !== null) await this.loadTorrents();
@@ -4082,17 +4079,21 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                     }
                 }
             }
+            
             const res = await fetch(`${API_BASE}/api/send-magnet`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({magnet})
+                body: JSON.stringify({magnet, save_path: savePath})
             });
             const d = await res.json();
             if (d.success) {
                 const _h = this._hashFromMagnet(magnet);
                 await this._saveTag(_h, 'Manuale');
+                if (this._torrentPollId !== null) await this.loadTorrents();
             }
-            this.showToast(t(d.message || d.error), d.success?'success':'error');
-        } catch(e) {}
+            this.showToast(t(d.message || d.error), d.success ? 'success' : 'error');
+        } catch(e) {
+            this.showToast(t('Errore di comunicazione col server'), 'error');
+        }
     },
 
     // Series/Movie Logic
@@ -4569,8 +4570,16 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         document.getElementById('movie-editor-modal').classList.add('active');
     },
     showAddMagnetModal() { document.getElementById('add-magnet-modal').classList.add('active'); },
-    // Alias chiamato da header, quick bar e torrent view
-    showAddMagnetTorrent() { document.getElementById('add-magnet-torrent-modal').classList.add('active'); },
+    showAddMagnetTorrent() { this.showAddMagnetModal(); },
+
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(error);
+        });
+    },
 
     async addMagnetFromFeed(magnet, title) {
         if (!magnet) { this.showToast('Magnet non disponibile', 'error'); return; }
@@ -7831,6 +7840,10 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     showTorrentDetails(hash) {
         this._tdHash = hash;
         this._speedBuf = [];  // reset buffer grafico ad ogni apertura
+        ['td-dl-limit','td-ul-limit','td-seed-ratio','td-seed-days'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.dataset.dirty = '';
+        });
         document.getElementById('torrent-details-modal').classList.add('active');
         this.switchTdTab('general');
         this.loadTorrentDetails();
@@ -7883,20 +7896,27 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     async applyTorrentLimits() {
         const dl_kbps = parseInt(document.getElementById('td-dl-limit').value) || 0;
         const ul_kbps = parseInt(document.getElementById('td-ul-limit').value) || 0;
+        const sr_val = document.getElementById('td-seed-ratio').value;
+        const sd_val = document.getElementById('td-seed-days').value;
+        const seed_ratio = sr_val !== '' ? parseFloat(sr_val) : -1;
+        const seed_days = sd_val !== '' ? parseFloat(sd_val) : -1;
         const msg = document.getElementById('td-limit-msg');
         try {
             const res = await fetch(`${API_BASE}/api/torrents/set_limits`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({hash: this._tdHash, dl_kbps, ul_kbps})
+                body: JSON.stringify({hash: this._tdHash, dl_kbps, ul_kbps, seed_ratio, seed_days})
             });
             const data = await res.json();
             msg.style.display = 'block';
             if (data.ok) {
-                const dlStr = dl_kbps > 0 ? `${dl_kbps} KB/s` : t('nessun limite');
-                const ulStr = ul_kbps > 0 ? `${ul_kbps} KB/s` : t('nessun limite');
+                document.getElementById('td-dl-limit').dataset.dirty = '';
+                document.getElementById('td-ul-limit').dataset.dirty = '';
+                document.getElementById('td-seed-ratio').dataset.dirty = '';
+                document.getElementById('td-seed-days').dataset.dirty = '';
+                
                 msg.style.color = 'var(--success)';
-                msg.textContent = `✅ ${t('Limiti applicati')} — DL: ${dlStr} / UL: ${ulStr}`;
+                msg.textContent = `✅ ${t('Regole salvate con successo')}`;
             } else {
                 msg.style.color = 'var(--danger)';
                 msg.textContent = `❌ ${t('Errore applicazione limiti')}`;
@@ -8074,8 +8094,13 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         // Mostra limiti attuali nei campi input (byte/s → KB/s, -1 = nessun limite)
         const dlInput = document.getElementById('td-dl-limit');
         const ulInput = document.getElementById('td-ul-limit');
-        if (dlInput && !dlInput.matches(':focus')) dlInput.value = (d.dl_limit > 0) ? Math.round(d.dl_limit / 1024) : 0;
-        if (ulInput && !ulInput.matches(':focus')) ulInput.value = (d.ul_limit > 0) ? Math.round(d.ul_limit / 1024) : 0;
+        const srInput = document.getElementById('td-seed-ratio');
+        const sdInput = document.getElementById('td-seed-days');
+        
+        if (dlInput && !dlInput.matches(':focus') && !dlInput.dataset.dirty) dlInput.value = (d.dl_limit > 0) ? Math.round(d.dl_limit / 1024) : 0;
+        if (ulInput && !ulInput.matches(':focus') && !ulInput.dataset.dirty) ulInput.value = (d.ul_limit > 0) ? Math.round(d.ul_limit / 1024) : 0;
+        if (srInput && !srInput.matches(':focus') && !srInput.dataset.dirty) srInput.value = (d.seed_ratio >= 0) ? d.seed_ratio : '';
+        if (sdInput && !sdInput.matches(':focus') && !sdInput.dataset.dirty) sdInput.value = (d.seed_days >= 0) ? d.seed_days : '';
 
         // --- Grafico velocità ---
         if (!this._speedBuf) this._speedBuf = [];

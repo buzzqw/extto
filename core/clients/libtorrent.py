@@ -1532,6 +1532,8 @@ class LibtorrentClient:
                 'files': files,
                 'dl_limit': h.download_limit() if hasattr(h, 'download_limit') else -1,
                 'ul_limit': h.upload_limit()   if hasattr(h, 'upload_limit')   else -1,
+                'seed_ratio': cls._get_seed_limits_db().get(info_hash, {}).get('ratio', -1),
+                'seed_days': cls._get_seed_limits_db().get(info_hash, {}).get('days', -1),
             }
         except Exception as e:
             logger.error(f"Critical error reading torrent details: {e}")
@@ -1738,19 +1740,47 @@ class LibtorrentClient:
         except Exception as e:
             logger.debug(f"apply_speed_limits: torrent propagation error: {e}")
         return True
+        
+    @classmethod
+    def _get_seed_limits_db(cls):
+        p = os.path.join(cls.STATE_DIR, 'seed_limits.json')
+        try:
+            import json
+            if os.path.exists(p):
+                with open(p, 'r') as f: return json.load(f)
+        except Exception: pass
+        return {}
 
     @classmethod
-    def set_torrent_limits(cls, info_hash: str, dl_limit: int, ul_limit: int) -> bool:
+    def _save_seed_limits_db(cls, db_dict):
+        p = os.path.join(cls.STATE_DIR, 'seed_limits.json')
+        try:
+            import json
+            with open(p, 'w') as f: json.dump(db_dict, f)
+        except Exception: pass    
+
+    @classmethod
+    def set_torrent_limits(cls, info_hash: str, dl_limit: int, ul_limit: int, seed_ratio: float = -1.0, seed_days: float = -1.0) -> bool:
         h = cls._find(info_hash)
         if h:
             h.set_download_limit(dl_limit)
             h.set_upload_limit(ul_limit)
-            # Persiste i limiti nel DB (ex torrent_limits.json)
             try:
                 import core.config_db as _cdb
                 _cdb.set_torrent_limit(info_hash, dl_bytes=dl_limit, ul_bytes=ul_limit)
             except Exception as _le:
                 logger.debug(f"set_torrent_limits: DB save failed: {_le}")
+                
+            # Salva le regole di seeding specifiche per questo torrent
+            s_db = cls._get_seed_limits_db()
+            if seed_ratio < 0 and seed_days < 0:
+                s_db.pop(info_hash, None)
+            else:
+                if info_hash not in s_db: s_db[info_hash] = {}
+                s_db[info_hash]['ratio'] = seed_ratio
+                s_db[info_hash]['days'] = seed_days
+            cls._save_seed_limits_db(s_db)
+            
             return True
         return False
 
@@ -2010,27 +2040,49 @@ class LibtorrentClient:
         if not cls.session_available() or not cfg:
             return
 
-        stop = str(cfg.get('libtorrent_stop_at_ratio', 'no')).lower() in ('yes', 'true', '1')
-        if not stop:
-            return
+        stop_global = str(cfg.get('libtorrent_stop_at_ratio', 'no')).lower() in ('yes', 'true', '1')
+        
         try:
-            seed_ratio = float(cfg.get('libtorrent_seed_ratio', 0))
-            seed_time  = int(cfg.get('libtorrent_seed_time', 0)) * 60
+            global_ratio = float(cfg.get('libtorrent_seed_ratio', 0))
+            # Supporta sia la vecchia config in minuti che la nuova in giorni
+            global_days  = float(cfg.get('libtorrent_seed_time_days', 0))
+            global_mins  = int(cfg.get('libtorrent_seed_time', 0))
+            global_time  = int(global_days * 86400) if global_days > 0 else (global_mins * 60)
         except Exception:
             return
 
+        s_db = cls._get_seed_limits_db()
+
         for h in cls._session.get_torrents():
             try:
-                s        = h.status()
+                s = h.status()
                 if s.paused or not s.is_seeding:
                     continue
+                
+                # --- CALCOLO REGOLE PER IL SINGOLO TORRENT ---
+                my_limits = s_db.get(str(h.info_hash()), {})
+                my_ratio = my_limits.get('ratio', -1)
+                my_days = my_limits.get('days', -1)
+                
+                target_ratio = my_ratio if my_ratio >= 0 else global_ratio
+                target_time = int(my_days * 86400) if my_days >= 0 else global_time
+                
+                # Se ha regole specifiche ed entrambe sono 0, significa "Seeding Illimitato" (salta il blocco)
+                if my_ratio == 0 and my_days == 0:
+                    continue
+                    
+                # Se non ha regole specifiche e le impostazioni globali dicono di NON fermare, salta
+                if not stop_global and my_ratio < 0 and my_days < 0:
+                    continue
+                # -----------------------------------------------
+
                 done     = s.total_wanted_done
                 base_ul  = getattr(s, 'all_time_upload', s.total_upload)
                 protocol_ul = s.total_upload - getattr(s, 'total_payload_upload', s.total_upload)
                 upl      = base_ul + max(0, protocol_ul)
                 
-                ratio_ok = seed_ratio > 0 and done > 0 and (upl / done) >= seed_ratio
-                time_ok  = seed_time  > 0 and s.seeding_time >= seed_time
+                ratio_ok = target_ratio > 0 and done > 0 and (upl / done) >= target_ratio
+                time_ok  = target_time  > 0 and s.seeding_time >= target_time
                 
                 if ratio_ok or time_ok:
                     # Spegne l'auto-managed così libtorrent non lo riavvia da solo
@@ -2042,42 +2094,21 @@ class LibtorrentClient:
                     h.pause()
                     logger.info(f'🔵 Seeding limit reached, torrent permanently paused: {s.name}')
 
-                    # ── Pulizia temp_dir post-seeding ──────────────────────────
-                    # Se il torrent era in temp_dir e il post-processing lo ha già
-                    # spostato (o avviato lo spostamento) sul NAS, NON fare un
-                    # secondo move_storage verso libtorrent_dir: genererebbe un
-                    # secondo storage_moved_alert che sposta il file dalla NAS
-                    # alla cartella download, duplicandolo.
-                    #
-                    # Logica di protezione a due livelli:
-                    #   1. _nas_move_pending: set di info_hash per cui è già stato
-                    #      chiamato h.move_storage(nas_path) in torrent_finished_alert.
-                    #      Viene popolato prima di ogni move verso NAS e svuotato in
-                    #      storage_moved_alert dopo la conferma.
-                    #   2. Controllo sull'archive_path configurato: se il save_path
-                    #      corrente corrisponde già alla NAS, skip sicuro.
+                    # ... Codice di spostamento nel NAS (rimane invariato) ...
                     try:
                         ramdisk_dir = cfg.get('libtorrent_ramdisk_dir', '').strip()
                         temp_dir    = cfg.get('libtorrent_temp_dir',    '').strip()
                         final_dir   = cfg.get('libtorrent_dir',         '').strip()
-                        # Considera "temporanee" sia ramdisk_dir che temp_dir
                         _tmp_candidates = [d for d in (ramdisk_dir, temp_dir) if d and d != final_dir]
                         if _tmp_candidates and final_dir:
                             curr_save = os.path.normpath(os.path.abspath(s.save_path))
-                            # Verifica se il save_path corrente è in una delle dir temporanee
-                            _in_tmp = any(
-                                curr_save.startswith(os.path.normpath(os.path.abspath(d)))
-                                for d in _tmp_candidates
-                            )
+                            _in_tmp = any(curr_save.startswith(os.path.normpath(os.path.abspath(d))) for d in _tmp_candidates)
                             if _in_tmp:
                                 ih_str = str(h.info_hash())
-                                # Livello 1: move verso NAS già avviato da torrent_finished_alert?
                                 _pending = getattr(cls, '_nas_move_pending', set())
                                 if ih_str in _pending:
                                     logger.debug(f'📦 Post-seeding: NAS move already in progress for {s.name}, skip libtorrent_dir move')
                                 else:
-                                    # Livello 2: controlla se l'archive_path della serie
-                                    # esiste e il file è già lì (move completato prima del check)
                                     _already_on_nas = False
                                     try:
                                         from ..models import Parser as _P_sl
@@ -2087,13 +2118,8 @@ class LibtorrentClient:
                                             _m_sl = _C_sl().find_series_match(_ep_sl['name'], _ep_sl['season'])
                                             if _m_sl and _m_sl.get('archive_path'):
                                                 _nas_sl = os.path.normpath(os.path.abspath(_m_sl['archive_path'].strip()))
-                                                # Se save_path punta già alla NAS, lo spostamento
-                                                # è già avvenuto (race condition: move completato
-                                                # ma _nas_move_pending già svuotato)
-                                                if curr_save.startswith(_nas_sl):
-                                                    _already_on_nas = True
-                                    except Exception:
-                                        pass
+                                                if curr_save.startswith(_nas_sl): _already_on_nas = True
+                                    except Exception: pass
                                     if not _already_on_nas:
                                         h.move_storage(final_dir)
                                         logger.info(f'📦 Post-seeding: moving from temp → libtorrent_dir: {s.name}')
