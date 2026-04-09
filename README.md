@@ -1,237 +1,122 @@
-# EXTTO — Media Automation System
+<div align="center">
+  <img src="dashboard.png" alt="EXTTO Dashboard" width="800"/>
+  <h1>EXTTO — The All-in-One Media Automation System</h1>
+  <p><em>Tired of running 5 different heavy apps to manage your media? EXTTO does it all in one lightweight Python daemon.</em></p>
+  
+  [![License](https://img.shields.io/badge/License-EUPL%201.2-blue.svg)](EUPL-1.2%20EN.txt)
+  [![Python](https://img.shields.io/badge/Python-3.10+-yellow.svg)](https://www.python.org/)
+  [![Donate](https://img.shields.io/badge/Donate-PayPal-00457C.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
+</div>
 
 > **English** | [Italiano](#italiano)
 
 ---
 
-EXTTO is a self-hosted media automation system for Linux. It monitors RSS/torrent feeds, automatically downloads TV episodes and movies, archives them, and notifies you via Telegram — all from a web interface or a full-screen TUI.
+**EXTTO** is a self-hosted media automation system for Linux. It monitors RSS feeds, searches indexers, automatically downloads TV episodes, movies, and comic books, archives them perfectly, and notifies you via Telegram. All controlled by a sleek, responsive Web UI.
 
-## Features
+## ✨ Why EXTTO? (The Killer Features)
 
-- **Multi-client torrent support**: embedded libtorrent, qBittorrent, Transmission
-- **eMule/ed2k network**: integrated aMule daemon via EC protocol
-- **Indexer support**: Jackett and Prowlarr
-- **Smart renaming**: configurable formats with technical tags (resolution, codec, HDR, audio, languages) via pymediainfo
-- **Quality scoring**: automatic upgrade of existing files when a better version is found
-- **TMDB integration**: season/episode metadata, episode titles for renaming
-- **Trakt.tv integration**: watchlist sync, calendar, scrobbling via OAuth2 Device Flow
-- **Telegram notifications**: cycle reports, download events, health alerts
-- **Web UI**: responsive Flask interface with multilingual support (IT, EN, DE, FR, ES)
-- **TUI**: full-screen terminal interface (Textual framework)
-- **Health monitor**: disk space, indexer status, system stats, folder permissions
-- **Comics support**: download from Mega.nz links
-- **Systemd ready**: ships with `.service` files for engine and aMule daemon
+- 🧠 **One App to Rule Them All**: Replaces the need for Sonarr, Radarr, Prowlarr, Mylar, and a separate Torrent Client. 
+- 🚀 **RAM Disk Downloads**: Protect your SSD from wear and tear! EXTTO can download small torrents directly to a RAM Disk (`tmpfs`) and move them to your NAS only when 100% completed.
+- 🫏 **eMule / eD2k Resurrection**: Still looking for rare, older files? EXTTO seamlessly integrates with `amuled` to fallback to the eD2k network when torrents fail.
+- 📚 **Comic Books natively supported**: Automatically monitors and downloads weekly packs and single issues directly from GetComics (using Mega.nz or torrents).
+- 🔒 **Privacy First**: Built-in VPN Killswitch (bind to `tun0`/`wg0`) and automatic **IP Blocklist updating**.
 
-## Requirements
+## 🛠️ Core Features
 
-- Linux (Debian/Ubuntu, Arch, Fedora/RHEL, openSUSE)
-- Python 3.10+
-- [uv](https://github.com/astral-sh/uv) (installed automatically by `setup.sh`)
+- **Multi-client support**: Embedded libtorrent or external qBittorrent, Transmission, aria2 client
+- **Smart Quality Scoring**: Automatically upgrades your existing media files when a better version (4K, HDR, Dolby Vision, better audio) is found.
+- **TMDB & Trakt.tv Integration**: Fetches official metadata, syncs your watchlist, and scrobbles your watched episodes via OAuth2 Device Flow.
+- **Smart Renaming**: Configurable formats with deep technical tags extraction via `pymediainfo`.
+- **Telegram & Email Alerts**: Real-time notifications for downloads, system health, and storage space warnings.
+- **Multilingual UI**: Beautiful, flat-design Web Interface available in English, Italian, German, French, and Spanish.
 
-Optional system packages:
-- `libmediainfo` — for advanced technical tag extraction
-- `amuled` — for ed2k/eMule network support
-
-## Installation
+## 📦 Installation
 
 ```bash
-git clone https://github.com/buzzqw/extto.git
+git clone [https://github.com/buzzqw/extto.git](https://github.com/buzzqw/extto.git)
 cd extto
 chmod +x setup.sh start.sh
 ./setup.sh
 ```
 
-Options:
+**Options:**
 ```bash
-./setup.sh --no-libtorrent   # skip embedded libtorrent
+./setup.sh --no-libtorrent   # skip embedded libtorrent (not recommended)
 ./setup.sh --no-mediainfo    # skip libmediainfo/pymediainfo
 ./setup.sh --no-amule        # skip amuled installation
 ./setup.sh --upgrade         # force upgrade of Python packages
 ```
 
-## Usage
+## 🚀 Usage
 
 ```bash
-./start.sh              # start engine + web UI (default port 8889)
-./start.sh --tui        # start with full-screen TUI
+./start.sh              # Start engine + Web UI (default port 8889)
+./start.sh --tui        # Start with full-screen Terminal UI (TUI)
 ```
 
-The web interface is available at `http://localhost:8889`.
-
-## Configuration
-
-On first run, configure EXTTO from the web UI:
-
-- Torrent client (libtorrent / qBittorrent / Transmission)
-- Jackett or Prowlarr URL and API key
-- Archive path(s) on your NAS
-- TMDB API key (free at [themoviedb.org](https://www.themoviedb.org/settings/api))
-- Telegram bot token and chat ID
-- Trakt.tv client credentials (optional)
-
-## Project Structure
-
-```
-extto/
-├── extto3.py           # Main engine
-├── extto_web.py        # Flask web UI
-├── extto_ui.py         # UI helpers
-├── core/
-│   ├── engine.py       # Download cycle logic
-│   ├── config.py       # Configuration parser
-│   ├── database.py     # SQLite database layer
-│   ├── models.py       # Parser, quality scoring
-│   ├── renamer.py      # File renaming logic
-│   ├── cleaner.py      # Duplicate/upgrade cleanup
-│   ├── tagger.py       # qBittorrent tag management
-│   ├── notifier.py     # Telegram notifications
-│   ├── tmdb.py         # TMDB API client
-│   ├── trakt.py        # Trakt.tv client
-│   ├── health.py       # System health monitor
-│   ├── mediainfo_helper.py  # Technical tag extraction
-│   └── clients/
-│       ├── libtorrent.py
-│       ├── qbittorrent.py
-│       ├── transmission.py
-│       ├── amule.py
-│       └── aria2.py
-├── languages/          # UI translations (it, en, de, fr, es)
-├── static/             # CSS, JS, games
-├── templates/          # HTML templates
-├── setup.sh            # Dependency installer
-├── start.sh            # Launcher
-└── requirements.txt
-```
-
-## License
-
-Licensed under the [European Union Public Licence 1.2 (EUPL-1.2)](EUPL-1.2%20EN.txt).
-
-## Support the Project
-
-If you find EXTTO useful, consider supporting its development with a donation via PayPal:
-
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
-
-Or send directly to: **azanzani@gmail.com**
-
+The Web Interface will be available at `http://localhost:8889`.
 
 ---
 
 <a name="italiano"></a>
 
-# EXTTO — Sistema di Automazione Media
-
-> [English](#extto--media-automation-system) | **Italiano**
+<div align="center">
+  <h1>EXTTO — Sistema di Automazione Media Definitivo</h1>
+  <p><em>Stanco di tenere accesi 5 programmi pesanti per gestire i tuoi media? EXTTO fa tutto in un singolo e leggerissimo servizio Python.</em></p>
+</div>
 
 ---
 
-EXTTO è un sistema di automazione media self-hosted per Linux. Monitora feed RSS e torrent, scarica automaticamente episodi TV e film, li archivia e ti notifica via Telegram — tutto dalla web interface o da una TUI a schermo intero.
+**EXTTO** è un sistema di automazione media self-hosted per Linux. Monitora i feed RSS, cerca sugli indexer, scarica automaticamente episodi TV, film e fumetti, li archivia in modo perfetto e ti avvisa su Telegram. Tutto controllato da una Web UI moderna e reattiva.
 
-## Funzionalità
+## ✨ Perché scegliere EXTTO?
 
-- **Client torrent multipli**: libtorrent integrato, qBittorrent, Transmission
-- **Rete eMule/ed2k**: integrazione con daemon aMule via protocollo EC
-- **Supporto indexer**: Jackett e Prowlarr
-- **Rinomina avanzata**: formati configurabili con tag tecnici (risoluzione, codec, HDR, audio, lingue) tramite pymediainfo
-- **Scoring qualità**: upgrade automatico dei file esistenti quando viene trovata una versione migliore
-- **Integrazione TMDB**: metadati stagioni/episodi, titoli episodi per la rinomina
-- **Integrazione Trakt.tv**: sincronizzazione watchlist, calendario, scrobbling via OAuth2 Device Flow
-- **Notifiche Telegram**: report ciclo, eventi download, alert di salute
-- **Web UI**: interfaccia Flask responsive con supporto multilingua (IT, EN, DE, FR, ES)
-- **TUI**: interfaccia terminale a schermo intero (framework Textual)
-- **Monitor salute**: spazio disco, stato indexer, statistiche sistema, permessi cartelle
-- **Supporto fumetti**: download da link Mega.nz
-- **Pronto per systemd**: include file `.service` per il motore e il daemon aMule
+- 🧠 **Tutto in Uno**: Sostituisce la necessità di avere Sonarr, Radarr, Prowlarr, Mylar e un Client Torrent separato.
+- 🚀 **Download in RAM Disk**: Proteggi il tuo SSD dall'usura! EXTTO può scaricare i torrent più piccoli direttamente in un RAM Disk (`tmpfs`) e spostarli sul NAS solo quando sono completati al 100%.
+- 🫏 **La Rinascita di eMule / eD2k**: Cerchi file vecchi o rari? EXTTO si integra perfettamente con `amuled` per usare la rete eD2k come scialuppa di salvataggio quando i torrent falliscono.
+- 📚 **Supporto Nativo Fumetti**: Monitora e scarica automaticamente i weekly pack e i numeri singoli direttamente GetComics tramite Mega.nz o torrent.
+- 🔒 **Privacy First**: VPN Killswitch integrato (vincola il traffico a `tun0`/`wg0`) e aggiornamento automatico delle **IP Blocklist**.
 
-## Requisiti
+## 🛠️ Funzionalità Principali
 
-- Linux (Debian/Ubuntu, Arch, Fedora/RHEL, openSUSE)
-- Python 3.10+
-- [uv](https://github.com/astral-sh/uv) (installato automaticamente da `setup.sh`)
+- **Client multipli**: libtorrent integrato, qBittorrent, Transmission, aria2.
+- **Scoring Qualità Intelligente**: Sostituisce automaticamente i tuoi file quando viene trovata una versione migliore (4K, HDR, Dolby Vision, audio superiore).
+- **Integrazione TMDB & Trakt.tv**: Scarica metadati ufficiali, sincronizza la tua watchlist e segna gli episodi come visti tramite OAuth2 Device Flow.
+- **Rinomina Avanzata**: Formati configurabili con estrazione di tag tecnici profondi tramite `pymediainfo`.
+- **Notifiche Telegram & Email**: Avvisi in tempo reale per download, salute del sistema e spazio su disco in esaurimento.
+- **Interfaccia Multilingua**: Web UI bellissima, in stile flat-design, disponibile in Italiano, Inglese, Tedesco, Francese e Spagnolo.
 
-Pacchetti di sistema opzionali:
-- `libmediainfo` — per l'estrazione avanzata di tag tecnici dai file video
-- `amuled` — per il supporto alla rete ed2k/eMule
-
-## Installazione
+## 📦 Installazione
 
 ```bash
-git clone https://github.com/buzzqw/extto.git
+git clone [https://github.com/buzzqw/extto.git](https://github.com/buzzqw/extto.git)
 cd extto
 chmod +x setup.sh start.sh
 ./setup.sh
 ```
 
-Opzioni disponibili:
+**Opzioni:**
 ```bash
-./setup.sh --no-libtorrent   # salta libtorrent integrato
+./setup.sh --no-libtorrent   # salta l'installazione di libtorrent (sconsigliato)
 ./setup.sh --no-mediainfo    # salta libmediainfo/pymediainfo
-./setup.sh --no-amule        # salta installazione amuled
-./setup.sh --upgrade         # forza aggiornamento pacchetti Python
+./setup.sh --no-amule        # salta l'installazione di amuled
+./setup.sh --upgrade         # forza l'aggiornamento dei pacchetti Python
 ```
 
-## Avvio
+## 🚀 Avvio
 
 ```bash
-./start.sh              # avvia motore + web UI (porta predefinita 8889)
-./start.sh --tui        # avvia con TUI a schermo intero
+./start.sh              # avvia motore + Web UI (porta predefinita 8889)
+./start.sh --tui        # avvia con l'interfaccia da Terminale a schermo intero
 ```
 
-L'interfaccia web è disponibile su `http://localhost:8889`.
+L'interfaccia Web sarà disponibile su `http://localhost:8889`.
 
-## Configurazione
+## ❤️ Supporta il Progetto
 
-Al primo avvio, configura EXTTO dalla web UI:
-
-- Client torrent (libtorrent / qBittorrent / Transmission)
-- URL e API key di Jackett o Prowlarr
-- Percorso/i archivio sul NAS
-- API key TMDB (gratuita su [themoviedb.org](https://www.themoviedb.org/settings/api))
-- Token bot Telegram e chat ID
-- Credenziali Trakt.tv (opzionale)
-
-## Struttura del Progetto
-
-```
-extto/
-├── extto3.py           # Motore principale
-├── extto_web.py        # Web UI Flask
-├── extto_ui.py         # Helper UI
-├── core/
-│   ├── engine.py       # Logica ciclo download
-│   ├── config.py       # Parser configurazione
-│   ├── database.py     # Layer SQLite
-│   ├── models.py       # Parser, scoring qualità
-│   ├── renamer.py      # Logica rinomina file
-│   ├── cleaner.py      # Pulizia duplicati/upgrade
-│   ├── tagger.py       # Gestione tag qBittorrent
-│   ├── notifier.py     # Notifiche Telegram
-│   ├── tmdb.py         # Client API TMDB
-│   ├── trakt.py        # Client Trakt.tv
-│   ├── health.py       # Monitor salute sistema
-│   ├── mediainfo_helper.py  # Estrazione tag tecnici
-│   └── clients/
-│       ├── libtorrent.py
-│       ├── qbittorrent.py
-│       ├── transmission.py
-│       ├── amule.py
-│       └── aria2.py
-├── languages/          # Traduzioni UI (it, en, de, fr, es)
-├── static/             # CSS, JS, giochi
-├── templates/          # Template HTML
-├── setup.sh            # Installatore dipendenze
-├── start.sh            # Launcher
-└── requirements.txt
-```
-
-## Licenza
-
-Rilasciato sotto [European Union Public Licence 1.2 (EUPL-1.2)](EUPL-1.2%20EN.txt).
-
-## Supporta il Progetto
-
-Se EXTTO ti è utile, considera di supportarne lo sviluppo con una donazione via PayPal:
+EXTTO è un software libero sviluppato nel tempo libero. Se ti è utile, considera di supportarne lo sviluppo con una donazione:
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
 
+Oppure invia direttamente a: **azanzani@gmail.com**
