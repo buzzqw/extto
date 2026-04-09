@@ -3051,7 +3051,7 @@ const app = {
         set('lt-upload-slots',  get('upload_slots', '4'));
         set('lt-stop-at-ratio', get('stop_at_ratio', 'no'));
         set('lt-seed-ratio',    get('seed_ratio', '0'));
-        set('lt-seed-time',     get('seed_time', '0'));
+        set('lt-seed-time-days', get('seed_time_days', get('seed_time', '0')));
         set('lt-active-downloads', get('active_downloads', '3'));
         set('lt-active-seeds',     get('active_seeds', '3'));
         set('lt-active-limit',     get('active_limit', '5'));
