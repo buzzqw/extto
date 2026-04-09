@@ -43,32 +43,6 @@
 }
 
 /* Rimuoviamo l'immagine di sfondo dal body (se c'è) e diamo il colore solido */
-body {
-    /* 1. Un font moderno, pulito e largo (se Inter non c'è, scala su quelli nativi ottimi) */
-    font-family: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    
-    /* 2. Dimensione base più generosa (di default i browser usano 14px o 16px ristretti) */
-    font-size: 16px; 
-    
-    /* 3. Più respiro tra una riga e l'altra (fondamentale per la leggibilità) */
-    line-height: 1.5; 
-    
-    /* 4. Dà letteralmente un millimetro d'aria tra una lettera e l'altra */
-    letter-spacing: 0.3px; 
-    
-    background: var(--bg-main);
-    color: var(--text-primary);
-    
-    /* 5. IL TRUCCO MAGICO: rende i font nitidi sui fondi scuri (toglie l'effetto "sgranato") */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    
-    margin: 0;
-    padding: 0;
-    display: flex;
-    min-height: 100vh;
-    overflow: hidden;
-}
 
 /* ------------------------------------------------------------------
    2. RESET E BASE
@@ -78,32 +52,40 @@ body {
 html { height: 100%; font-size: 16px; scroll-behavior: smooth; }
 
 body {
-    height: 100%; width: 100%;
-    font-family: var(--font-main);
-    background-color: var(--bg-deep);
+    /* Layout a "Gabbia" (scorre solo il contenuto interno, non l'intera pagina) */
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    overflow: hidden; 
+    margin: 0;
+    padding: 0;
+
+    /* Tipografia e Leggibilità */
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px; 
+    line-height: 1.6; 
+    letter-spacing: 0.3px; 
+    
+    /* Colori base */
+    background-color: var(--bg-main);
     color: var(--text-primary);
-    display: flex; overflow: hidden;
-    line-height: 1.6;
+    
+    /* Anti-aliasing per renderlo nitido sui monitor moderni */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
+
 /* Scrollbar sottile stile GitHub */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #6b7280; }
 
 /* ------------------------------------------------------------------
    3. SIDEBAR NAVIGATION
    ------------------------------------------------------------------ */
-.sidebar {
-    width: var(--sidebar-width);
-    background-color: var(--bg-card);
-    border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; flex-shrink: 0;
-    z-index: 100;
-}
+
 
 .logo {
     padding: 1.25rem 1.25rem 1rem;
@@ -137,22 +119,34 @@ body {
     display: flex; flex-direction: column; gap: 1px;
 }
 
+.sidebar {
+    width: 200px; /* Fissa la larghezza una volta per tutte! */
+    min-width: 200px;
+    background-color: var(--bg-card);
+    border-right: 1px solid var(--border);
+    display: flex; 
+    flex-direction: column; 
+    flex-shrink: 0;
+    z-index: 100;
+}
+
 .nav-item {
     display: flex; align-items: center; gap: 0.75rem;
     padding: 0.75rem 1.25rem;
     color: var(--text-secondary); text-decoration: none;
     font-weight: 500; font-size: 0.9375rem;
-    transition: var(--transition);
+    transition: all 0.2s ease; /* Aggiunta animazione morbida */
     border-left: 2px solid transparent;
     cursor: pointer; position: relative;
     border-radius: 0;
     white-space: nowrap;
+    overflow: hidden; /* Taglia i testi troppo lunghi invece di allargare la barra */
 }
 
 .nav-item:hover {
     background-color: var(--bg-hover);
     color: var(--text-primary);
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-radius: 0 8px 8px 0; /* Arrotonda solo gli angoli destri */
     margin-right: 0.75rem;
 }
 
@@ -160,7 +154,7 @@ body {
     background-color: var(--primary);
     color: #fff;
     border-left-color: transparent;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-radius: 0 8px 8px 0;
     margin-right: 0.75rem;
 }
 
