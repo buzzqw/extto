@@ -5677,7 +5677,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             
             const myTag = torrentTagsDb[t.hash];
             if (myTag && String(myTag).trim() !== '') {
-                sourceHtml += `<span class="badge badge-secondary" style="margin-right:8px; padding:0.2rem 0.5rem; font-size:0.65rem; background:rgba(255,255,255,0.1);"><i class="fa-solid fa-tag"></i> ${this._esc(myTag)}</span>`;
+                sourceHtml += `<span class="badge badge-secondary" style="margin-right:8px; padding:0.2rem 0.5rem; font-size:0.65rem; background:rgba(255,255,255,0.1); text-transform: none; letter-spacing: normal;"><i class="fa-solid fa-tag"></i> ${this._esc(myTag)}</span>`;
             }
             
             let sizeStr = this._fmtBytes(t.total_size);
@@ -5960,7 +5960,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const container = document.getElementById('existing-tags-container');
         if (container) {
             container.innerHTML = uniqueTags.map(tg => `
-                <span class="badge badge-secondary" style="padding: 6px 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1);">
+                <span class="badge badge-secondary" style="padding: 6px 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); text-transform: none; letter-spacing: normal;">
                     <span style="cursor:pointer; font-weight:600;" onclick="document.getElementById('set-tag-input').value='${this._esc(tg)}'">${this._esc(tg)}</span>
                     <i class="fa-solid fa-xmark" style="cursor:pointer; color: var(--danger); padding-left: 4px; border-left: 1px solid rgba(255,255,255,0.2);" title="Elimina definitivamente questo Tag" onclick="app.deleteSpecificTag('${this._esc(tg)}')"></i>
                 </span>

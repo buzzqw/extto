@@ -28,6 +28,9 @@
   --bg-hover: #1d2230;
   --border: #232838;
   
+  --bg-input: #0a0c10;  /* Nero profondo per i campi di testo */
+  --bg-raised: #1e2535; /* Grigio-bluastro per i menu e i popup */
+  
   --text-primary: #e6e9ef;
   --text-secondary: #a3abc0;
   --text-muted: #6b7280;
@@ -73,6 +76,12 @@ body {
     /* Anti-aliasing per renderlo nitido sui monitor moderni */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* Forza sempre lo sfondo scuro per le opzioni dei menu a tendina */
+select option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
 }
 
 
