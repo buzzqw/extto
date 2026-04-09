@@ -51,11 +51,11 @@ chmod +x setup.sh start.sh
 ## 🚀 Usage
 
 ```bash
-./start.sh              # Start engine + Web UI (default port 8889)
+./start.sh              # Start engine + Web UI (default port 5000)
 ./start.sh --tui        # Start with full-screen Terminal UI (TUI)
 ```
 
-The Web Interface will be available at `http://localhost:8889`.
+The Web Interface will be available at `http://localhost:5000`.
 
 ---
 
@@ -107,11 +107,11 @@ chmod +x setup.sh start.sh
 ## 🚀 Avvio
 
 ```bash
-./start.sh              # avvia motore + Web UI (porta predefinita 8889)
+./start.sh              # avvia motore + Web UI (porta predefinita 5000)
 ./start.sh --tui        # avvia con l'interfaccia da Terminale a schermo intero
 ```
 
-L'interfaccia Web sarà disponibile su `http://localhost:8889`.
+L'interfaccia Web sarà disponibile su `http://localhost:5000`.
 
 ## ❤️ Supporta il Progetto
 
