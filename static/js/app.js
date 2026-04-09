@@ -4063,10 +4063,9 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
 
             const ltEnabled = this._configData?.settings?.libtorrent_enabled === 'yes';
             if (ltEnabled) {
-                const ltDir = savePath || this._configData?.settings?.libtorrent_dir || '/downloads';
                 const res = await fetch(`${API_BASE}/api/torrents/add`, {
                     method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({magnet, save_path: ltDir})
+                    body: JSON.stringify({magnet, save_path: savePath})
                 });
                 if (res.ok) {
                     const d = await res.json();
@@ -5191,17 +5190,34 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         });
         await this.loadTorrents();
     },
-    async recheckTorrent(hash) {
-        const t = this._torrentLastData?.find(x => x.hash === hash);
-        if (!t) return;
+    async recheckTorrent(hash, btnElement) {
+        const tObj = this._torrentLastData?.find(x => x.hash === hash);
+        if (!tObj) return;
 
         if(!confirm(`${t('Recheck')}?`)) return;
         
+        let origHtml = '';
+        if (btnElement) {
+            origHtml = btnElement.innerHTML;
+            btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btnElement.disabled = true;
+        }
+
         try {
             await fetch(`${API_BASE}/api/torrents/recheck`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({hash}) });
             this.showToast(t('Controllo file avviato'), 'info');
-            await this.loadTorrents();
-        } catch(e) { this.showToast(t('Errore di rete durante il recheck'), 'error'); }
+            
+            tObj.state = 'Controllo File';
+            tObj.paused = false; 
+            this._renderTorrentRows(this._torrentLastData);
+            
+            setTimeout(() => {
+                this.loadTorrents();
+            }, 1000);
+        } catch(e) { 
+            this.showToast(t('Errore di rete durante il recheck'), 'error'); 
+            if (btnElement) { btnElement.innerHTML = origHtml; btnElement.disabled = false; }
+        }
     },
     
     async resumeTorrent(hash) {
@@ -5673,6 +5689,21 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 }
             }
             
+            // --- LOGICA COLORI BARRA PROGRESSO ---
+            let isChecking = stateStr.toLowerCase().includes('controllo');
+            let barColor = 'linear-gradient(90deg, var(--primary), var(--info))'; // Blu default
+            if (isChecking) {
+                barColor = 'linear-gradient(90deg, #8b5cf6, #d946ef)'; // Viola
+            } else if (t.error) {
+                barColor = 'linear-gradient(90deg, #ef4444, #f87171)'; // Rosso
+            } else if (t.paused) {
+                barColor = 'linear-gradient(90deg, #6b7280, #9ca3af)'; // Grigio
+            } else if (isDone) {
+                barColor = 'linear-gradient(90deg, #10b981, #34d399)'; // Verde
+            }
+            let stripeClass = (isChecking || isActiveDownload) ? ' downloading' : '';
+            // -------------------------------------
+
             row.innerHTML = `
                 <div class="torrent-name" title="${this._esc(displayName)}">
                     <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
@@ -5688,7 +5719,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                <div style="display:flex; flex-direction:column; justify-content:center; min-width:0;">
                     <div class="torrent-progress-cell" style="display:flex; align-items:center; gap:8px;">
                         <div style="flex:1; height:6px; background:var(--bg-hover); border-radius:999px; overflow:hidden;">
-                            <div class="torrent-progress-fill${t.paused?' paused':''}" style="width:${pct}%; height:100%; background:linear-gradient(90deg, var(--primary), var(--info)); border-radius:999px;"></div>
+                            <div class="torrent-progress-fill${stripeClass}" style="width:${pct}%; height:100%; background:${barColor}; border-radius:999px;"></div>
                         </div>
                         <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary); width:42px; text-align:right;">${pct.toFixed(1)}%</span>
                     </div>
@@ -5706,7 +5737,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 
                 <div class="torrent-actions" style="display:flex; gap:3px; justify-content:center;">
                     <button class="btn btn-small btn-primary" onclick="app.showTorrentDetails('${t.hash}')" title="Dettagli Torrent"><i class="fa-solid fa-circle-info"></i></button>
-                    <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${t.hash}')" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
+                    <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${t.hash}', this)" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
                     ${t.paused
                         ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${t.hash}')"><i class="fa-solid fa-play"></i></button>`
                         : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${t.hash}')"><i class="fa-solid fa-pause"></i></button>`
@@ -5775,13 +5806,32 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         if (!hashes.length) { this.showToast(t('Nessun torrent selezionato'), 'warning'); return; }
         if (!confirm(`${t('Avviare il recheck su')} ${hashes.length} ${t('torrent?')}\n(${t('Quelli attualmente in pausa verranno messi in controllo e poi ri-messi in pausa automaticamente')})`)) return;
         
+        const btn = document.querySelector('button[onclick="app.bulkRecheckTorrents()"]');
+        let origHtml = '';
+        if (btn) {
+            origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+        }
+
         try {
             await Promise.all(hashes.map(async h => {
                 await fetch(`${API_BASE}/api/torrents/recheck`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash:h}) });
+                const tObj = this._torrentLastData?.find(x => x.hash === h);
+                if (tObj) { tObj.state = 'Controllo File'; tObj.paused = false; }
             }));
+            
             this.showToast(`${t('Recheck avviato su')} ${hashes.length} torrent`, 'info');
-            await this.loadTorrents();
-        } catch(e) { this.showToast(t('Errore avvio ciclo:') + ' ' + e.message, 'error'); }
+            this._renderTorrentRows(this._torrentLastData);
+
+            setTimeout(() => {
+                this.loadTorrents();
+                if (btn) { btn.innerHTML = origHtml; btn.disabled = false; }
+            }, 1000);
+        } catch(e) { 
+            this.showToast(t('Errore avvio ciclo:') + ' ' + e.message, 'error'); 
+            if (btn) { btn.innerHTML = origHtml; btn.disabled = false; }
+        }
     },
 
     async bulkRemoveTorrents(withFiles = false) {

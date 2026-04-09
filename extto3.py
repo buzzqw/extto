@@ -459,12 +459,39 @@ def web_task():
                         cfg       = LibtorrentClient._cfg_snapshot
                         final_dir = cfg.get('libtorrent_dir', '/downloads').strip()
                         temp_dir  = cfg.get('libtorrent_temp_dir', '').strip()
-                        save_path = temp_dir if temp_dir else final_dir
+                        
+                        target = payload.get('save_path', '').strip()
+                        _norm = os.path.normpath
+                        _is_default = (
+                            not target or
+                            _norm(target) == _norm(final_dir) or
+                            (temp_dir and _norm(target) == _norm(temp_dir))
+                        )
+                        
+                        if _is_default:
+                            # Usa la logica intelligente (RAM Disk -> Temp -> Final)
+                            save_path = LibtorrentClient._resolve_initial_save_path(cfg)
+                            
+                            # Disabilita prealloca temporaneamente se il target è il RAM disk
+                            _going_to_ramdisk = LibtorrentClient._ramdisk_enabled(cfg) and save_path == cfg.get('libtorrent_ramdisk_dir', '').strip()
+                            _global_preallocate = str(cfg.get('libtorrent_preallocate', 'no')).lower() in ('yes', 'true', '1')
+                            if _going_to_ramdisk and _global_preallocate:
+                                LibtorrentClient._set_preallocate(False)
+                        else:
+                            save_path = target
+                            _going_to_ramdisk = False
+                            _global_preallocate = False
+                        
                         ti        = lt.torrent_info(lt.bdecode(torrent_bytes))
                         params    = lt.add_torrent_params()
                         params.ti = ti
                         params.save_path = save_path
                         s.add_torrent(params)
+                        
+                        # Ripristina la prealloca se era stata disabilitata
+                        if _going_to_ramdisk and _global_preallocate:
+                            LibtorrentClient._set_preallocate(True)
+
                         self._json_response({'ok': True})
                     except Exception as e:
                         self._json_response({'ok': False, 'error': str(e)}, 500)
