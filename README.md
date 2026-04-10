@@ -42,15 +42,17 @@ chmod +x setup.sh start.sh
 
 **Options:**
 ```bash
-./setup.sh --no-libtorrent   # skip embedded libtorrent (not recommended)
-./setup.sh --no-mediainfo    # skip libmediainfo/pymediainfo
-./setup.sh --no-amule        # skip amuled installation
 ./setup.sh --upgrade         # force upgrade of Python packages
 ```
 
 ## 🚀 Usage
 
 ```bash
+sudo systemctl enable extto.service
+sudo systemctl start extto.service
+
+or
+
 ./start.sh              # Start engine + Web UI (default port 5000)
 ./start.sh --tui        # Start with full-screen Terminal UI (TUI)
 ```
@@ -98,15 +100,20 @@ chmod +x setup.sh start.sh
 
 **Opzioni:**
 ```bash
-./setup.sh --no-libtorrent   # salta l'installazione di libtorrent (sconsigliato)
-./setup.sh --no-mediainfo    # salta libmediainfo/pymediainfo
-./setup.sh --no-amule        # salta l'installazione di amuled
 ./setup.sh --upgrade         # forza l'aggiornamento dei pacchetti Python
 ```
 
 ## 🚀 Avvio
 
+in fase di setup potrete installare il servizio systemd di extto
+
 ```bash
+
+sudo systemctl enable extto.service
+sudo systemctl start extto.service
+
+oppure
+
 ./start.sh              # avvia motore + Web UI (porta predefinita 5000)
 ./start.sh --tui        # avvia con l'interfaccia da Terminale a schermo intero
 ```
