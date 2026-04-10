@@ -580,10 +580,22 @@ def web_task():
                         can_remove = (pr >= 1.0 or is_finished_state or physical_found)
                         
                         if can_remove:
-                            if is_paused and not (is_finished_state or physical_found):
-                                continue
-                                
-                            # ---> SALVA DIMENSIONE PRIMA DI PULIRE <---
+                        # ---> INIZIO PROTEZIONE SEED INFINITO <---
+	                        try:
+	                            t_details = LibtorrentClient.get_torrent_details(t['hash'])
+	                            if t_details:
+	                                my_ratio = t_details.get('seed_ratio', -1)
+	                                my_days = t_details.get('seed_days', -1)
+	                                if my_ratio == 0 or my_days == 0:
+	                                    continue # Il torrent è infinito, salta la pulizia!
+	                        except Exception:
+	                            pass
+                        # ---> FINE PROTEZIONE SEED INFINITO <---
+
+                        if is_paused and not (is_finished_state or physical_found):
+                            continue
+
+                        # ---> SALVA DIMENSIONE PRIMA DI PULIRE <---
                             try:
                                 total_b = t.get('total_size', 0)
                                 t_hash = t.get('hash', '')

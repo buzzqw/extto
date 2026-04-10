@@ -239,7 +239,9 @@ class LibtorrentClient:
         if not cls.session_available():
             return
         try:
-            snapshot = {}
+            result = []
+            s_db = cls._get_seed_limits_db()
+            if not isinstance(s_db, dict): s_db = {}
             for h in cls._session.get_torrents():
                 try:
                     s = h.status()
@@ -1335,6 +1337,11 @@ class LibtorrentClient:
             return []
         try:
             result = []
+            # 1. Carica il file dei limiti una sola volta per sicurezza
+            s_db = cls._get_seed_limits_db()
+            if not isinstance(s_db, dict): 
+                s_db = {}
+                
             for h in cls._session.get_torrents():
                 try:
                     s = h.status()
@@ -1416,10 +1423,16 @@ class LibtorrentClient:
                     if save_p and n and float(getattr(s, 'progress', 0)) >= 1.0:
                         physical_file = os.path.exists(os.path.join(save_p, n))
                     
+                    # 2. Estrazione a prova di crash dei limiti di questo specifico torrent
+                    my_lim = s_db.get(str(h.info_hash()))
+                    if not isinstance(my_lim, dict): 
+                        my_lim = {}
+                    infinito = (my_lim.get('ratio', -1) == 0) or (my_lim.get('days', -1) == 0)
+                    
                     result.append({
                         'hash':           str(h.info_hash()),
                         'name':           str(n) if n else '(metadata...)',
-                        'state':          ui_state,  # <--- Passiamo il nuovo stato pulito!
+                        'state':          ui_state,
                         'progress':       float(getattr(s, 'progress', 0)),
                         'dl_rate':        int(getattr(s, 'download_rate', 0)),
                         'ul_rate':        int(getattr(s, 'upload_rate', 0)),
@@ -1438,7 +1451,8 @@ class LibtorrentClient:
                         'active_time':    int(getattr(s, 'active_time', 0)),
                         'seeding_time':   int(getattr(s, 'seeding_time', 0)),
                         'tracker':        str(getattr(s, 'current_tracker', '')),
-                        'physical_file_found': physical_file
+                        'physical_file_found': physical_file,
+                        'is_infinite':    infinito
                     })
                 except Exception:
                     continue # Se un torrent crasha, salta solo quello e non distrugge l'intera lista
@@ -2068,7 +2082,7 @@ class LibtorrentClient:
                 target_time = int(my_days * 86400) if my_days >= 0 else global_time
                 
                 # Se ha regole specifiche ed entrambe sono 0, significa "Seeding Illimitato" (salta il blocco)
-                if my_ratio == 0 and my_days == 0:
+                if my_ratio == 0 or my_days == 0:
                     continue
                     
                 # Se non ha regole specifiche e le impostazioni globali dicono di NON fermare, salta

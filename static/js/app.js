@@ -5601,157 +5601,171 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             }
         });
         
+        // Assicurati che torrents sia un array valido prima di continuare
+        if (!Array.isArray(torrents)) torrents = [];
+        
         showIf(empty, torrents.length === 0);
         
         let filteredTorrents = torrents;
         if (currentTagFilter !== 'all') {
             if (currentTagFilter === 'untagged') {
-                filteredTorrents = torrents.filter(t => !torrentTagsDb[t.hash] || String(torrentTagsDb[t.hash]).trim() === '');
+                filteredTorrents = torrents.filter(torr => !torrentTagsDb[torr.hash] || String(torrentTagsDb[torr.hash]).trim() === '');
             } else {
-                filteredTorrents = torrents.filter(t => torrentTagsDb[t.hash] === currentTagFilter);
+                filteredTorrents = torrents.filter(torr => torrentTagsDb[torr.hash] === currentTagFilter);
             }
         }
         
         const sorted = this._sortTorrents(filteredTorrents);
-        sorted.forEach(t => {
-            const row = document.createElement('div');
-            row.className = 'table-row torrent-row';
-            row.dataset.hash = t.hash;
-            
-            const fileOnDisk = t.physical_file_found === true;
-            const rawPct = Math.min(100, Math.max(0, t.progress * 100));
-            
-            const stateStr = t.state || '';
-            const terminalState = stateStr.includes('seeding') || stateStr.includes('finished');
-            
-            const isActiveDownload = rawPct > 0 && rawPct < 100 && !terminalState && !t.paused;
-            const fileOnDiskFinal  = fileOnDisk && !isActiveDownload;
-            const pct    = fileOnDiskFinal ? 100 : rawPct;
-            const isDone = pct >= 100 || terminalState
-                        || (t.paused && t.total_size > 0 && t.downloaded >= t.total_size)
-                        || fileOnDiskFinal;
-
-            let displayState = stateStr;
-            if (fileOnDiskFinal) {
-                const keepStates = ['in pausa', 'in coda (dl)', 'in coda (seeding)', 'errore'];
-                const isExplicitState = keepStates.some(k => stateStr.toLowerCase().includes(k));
-                const finalStates = ['seeding', 'finished', 'finished_t', 'terminato', 'salvato',
-                                     'in seeding', 'seeding (fermo)', 'in coda (seeding)'];
-                if (!isExplicitState && !finalStates.includes(stateStr)) {
-                    displayState = 'salvato';
-                }
-            }
-            
-            let etaStr = '—';
-            if (fileOnDiskFinal) {
-                etaStr = this._fmtEta(-2);
-            } else if (t.eta > 0) {
-                etaStr = this._fmtEta(t.eta);
-            } else if (isDone) {
-                etaStr = fileOnDiskFinal 
-                    ? `<span style="cursor:help;" title="${t('File Archiviato')}"><i class="fa-solid fa-check-double"></i></span>` 
-                    : `<span style="cursor:help;" title="${t('File presente sul NAS')}"><i class="fa-solid fa-check"></i></span>`;
-            }
-
-            const etaStyle = isDone && t.eta <= 0
-                ? 'color:var(--success); font-size:1.1rem; font-weight:700;'
-                : 'color:var(--text-secondary);';
+        
+        sorted.forEach(torr => {
+            try { 
+                const row = document.createElement('div');
+                row.className = 'table-row torrent-row';
+                row.dataset.hash = torr.hash || '';
                 
-            let ratio  = (typeof t.ratio === 'number') ? t.ratio : (t.total_done > 0 ? (t.total_uploaded / t.total_done) : 0);
-            if (ratio > 999) ratio = 999.99;
-            if (isNaN(ratio) || !isFinite(ratio)) ratio = 0.0;
-            
-            const wasSel = prevSelected.has(t.hash);
+                const fileOnDisk = torr.physical_file_found === true;
+                const rawPct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
+                
+                const stateStr = torr.state || '';
+                const terminalState = stateStr.includes('seeding') || stateStr.includes('finished');
+                
+                const isActiveDownload = rawPct > 0 && rawPct < 100 && !terminalState && !torr.paused;
+                const fileOnDiskFinal  = fileOnDisk && !isActiveDownload;
+                const pct    = fileOnDiskFinal ? 100 : rawPct;
+                
+                const total_s = torr.total_size || 0;
+                const down_s = torr.downloaded || 0;
+                
+                const isDone = pct >= 100 || terminalState
+                            || (torr.paused && total_s > 0 && down_s >= total_s)
+                            || fileOnDiskFinal;
 
-            let displayName = t.name || '';
-            let sourceHtml = '';
-            
-            const tagMatch = displayName.match(/\s+\[(ExtTo[^\]]*|Corsaro[^\]]*|Jackett[^\]]*)\]$/i);
-            
-            if (tagMatch) {
-                sourceHtml = `<span style="color:var(--info); font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid fa-satellite-dish"></i> ${this._esc(tagMatch[1])}</span>`;
-                displayName = displayName.replace(tagMatch[0], ''); 
-            } else {
-                sourceHtml = `<span style="color:var(--text-muted); font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid fa-hand-pointer"></i> Manuale</span>`;
-            }
-            
-            const myTag = torrentTagsDb[t.hash];
-            if (myTag && String(myTag).trim() !== '') {
-                sourceHtml += `<span class="badge badge-secondary" style="margin-right:8px; padding:0.2rem 0.5rem; font-size:0.65rem; background:rgba(255,255,255,0.1); text-transform: none; letter-spacing: normal;"><i class="fa-solid fa-tag"></i> ${this._esc(myTag)}</span>`;
-            }
-            
-            let sizeStr = this._fmtBytes(t.total_size);
-            if (!t.total_size || t.total_size === 0 || sizeStr === '—') {
+                let displayState = stateStr;
                 if (fileOnDiskFinal) {
-                    sizeStr = '<span style="opacity:0.8; color:var(--success);"><i class="fa-solid fa-file-circle-check"></i> File archiviato e rinominato</span>';
-                } else {
-                    sizeStr = '<span style="opacity:0.6;"><i class="fa-solid fa-spinner fa-spin"></i> Metadati in attesa...</span>';
-                }
-            }
-            
-            // --- LOGICA COLORI BARRA PROGRESSO ---
-            let isChecking = stateStr.toLowerCase().includes('controllo');
-            let barColor = 'linear-gradient(90deg, var(--primary), var(--info))'; // Blu default
-            if (isChecking) {
-                barColor = 'linear-gradient(90deg, #8b5cf6, #d946ef)'; // Viola
-            } else if (t.error) {
-                barColor = 'linear-gradient(90deg, #ef4444, #f87171)'; // Rosso
-            } else if (t.paused) {
-                barColor = 'linear-gradient(90deg, #6b7280, #9ca3af)'; // Grigio
-            } else if (isDone) {
-                barColor = 'linear-gradient(90deg, #10b981, #34d399)'; // Verde
-            }
-            let stripeClass = (isChecking || isActiveDownload) ? ' downloading' : '';
-            // -------------------------------------
-
-            row.innerHTML = `
-                <div class="torrent-name" title="${this._esc(displayName)}">
-                    <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
-                        <input type="checkbox" class="torrent-checkbox" data-hash="${t.hash}" style="margin-top:3px;width:1rem;height:1rem;cursor:pointer;flex-shrink:0;" onchange="app._onTorrentCheckChange()">
-                        <span style="display:flex;flex-direction:column;gap:0.15rem;min-width:0;">
-                            <span class="torrent-name-text">${this._esc(displayName)}</span>
-                            <span class="torrent-size" style="display:flex; align-items:center;">${sourceHtml}${sizeStr}</span>
-                        </span>
-                    </label>
-                </div>
-                <div style="display:flex; align-items:center; justify-content:center; overflow:hidden; min-width:0;">${this._torrentStateBadge(displayState, t.paused, t.error, isDone)}</div>
-                
-               <div style="display:flex; flex-direction:column; justify-content:center; min-width:0;">
-                    <div class="torrent-progress-cell" style="display:flex; align-items:center; gap:8px;">
-                        <div style="flex:1; height:6px; background:var(--bg-hover); border-radius:999px; overflow:hidden;">
-                            <div class="torrent-progress-fill${stripeClass}" style="width:${pct}%; height:100%; background:${barColor}; border-radius:999px;"></div>
-                        </div>
-                        <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary); width:42px; text-align:right;">${pct.toFixed(1)}%</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); opacity:1; padding-right:50px; margin-top:3px;">
-                        <span title="Dati scaricati fisicamente finora"><i class="fa-solid fa-arrow-down" style="color:var(--success); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(t._dlBytes)}</span>
-                        <span title="Dati inviati (Seeding) finora"><i class="fa-solid fa-arrow-up" style="color:var(--warning); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(t._ulBytes)}</span>
-                    </div>
-                </div>
-                
-               <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success);">${this._fmtRate(t.dl_rate)}</div>
-                <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning);">${this._fmtRate(t.ul_rate)}</div>
-                <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; ${etaStyle}">${etaStr}</div>
-                <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${t.num_seeds}S/${t.num_peers}P</div>
-                <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.85rem; font-weight:600; color:var(--text-primary);">${ratio.toFixed(2)}</div>
-                
-                <div class="torrent-actions" style="display:flex; gap:3px; justify-content:center;">
-                    <button class="btn btn-small btn-primary" onclick="app.showTorrentDetails('${t.hash}')" title="Dettagli Torrent"><i class="fa-solid fa-circle-info"></i></button>
-                    <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${t.hash}', this)" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
-                    ${t.paused
-                        ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${t.hash}')"><i class="fa-solid fa-play"></i></button>`
-                        : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${t.hash}')"><i class="fa-solid fa-pause"></i></button>`
+                    const keepStates = ['in pausa', 'in coda (dl)', 'in coda (seeding)', 'errore'];
+                    const isExplicitState = keepStates.some(k => stateStr.toLowerCase().includes(k));
+                    const finalStates = ['seeding', 'finished', 'finished_t', 'terminato', 'salvato',
+                                         'in seeding', 'seeding (fermo)', 'in coda (seeding)'];
+                    if (!isExplicitState && !finalStates.includes(stateStr)) {
+                        displayState = 'salvato';
                     }
-                    <div style="position:relative;display:inline-flex;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--danger);flex-shrink:0;min-width:max-content;" class="single-remove-wrap">
-                        <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.directRemoveTorrent('${t.hash}', false)" title="Rimuovi (mantiene i file)"><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${t.hash}')"><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>
+                }
+                
+                let etaStr = '—';
+                if (fileOnDiskFinal) {
+                    etaStr = this._fmtEta(-2);
+                } else if (torr.eta > 0) {
+                    etaStr = this._fmtEta(torr.eta);
+                } else if (isDone) {
+                    etaStr = fileOnDiskFinal 
+                        ? `<span style="cursor:help;" title="${t('File Archiviato')}"><i class="fa-solid fa-check-double"></i></span>` 
+                        : `<span style="cursor:help;" title="${t('File presente sul NAS')}"><i class="fa-solid fa-check"></i></span>`;
+                }
+
+                const etaStyle = isDone && (torr.eta || 0) <= 0
+                    ? 'color:var(--success); font-size:1.1rem; font-weight:700;'
+                    : 'color:var(--text-secondary);';
+                    
+                let ratio  = (typeof torr.ratio === 'number') ? torr.ratio : ((torr.total_done || 0) > 0 ? ((torr.total_uploaded || 0) / torr.total_done) : 0);
+                if (ratio > 999) ratio = 999.99;
+                if (isNaN(ratio) || !isFinite(ratio)) ratio = 0.0;
+                let ratioHtml = ratio.toFixed(2);
+                if (torr.is_infinite) ratioHtml += ' <i class="fa-solid fa-infinity" style="color:var(--primary-light); font-size:0.75rem; margin-left:3px;" title="Seeding Infinito"></i>';
+                
+                const wasSel = prevSelected.has(torr.hash);
+
+                let displayName = torr.name || '';
+                let sourceHtml = '';
+                
+                const tagMatch = displayName.match(/\s+\[(ExtTo[^\]]*|Corsaro[^\]]*|Jackett[^\]]*)\]$/i);
+                
+                if (tagMatch) {
+                    sourceHtml = `<span style="color:var(--info); font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid fa-satellite-dish"></i> ${this._esc(tagMatch[1])}</span>`;
+                    displayName = displayName.replace(tagMatch[0], ''); 
+                } else {
+                    sourceHtml = `<span style="color:var(--text-muted); font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid fa-hand-pointer"></i> Manuale</span>`;
+                }
+                
+                const myTag = torrentTagsDb[torr.hash];
+                if (myTag && String(myTag).trim() !== '') {
+                    sourceHtml += `<span class="badge badge-secondary" style="margin-right:8px; padding:0.2rem 0.5rem; font-size:0.65rem; background:rgba(255,255,255,0.1); text-transform: none; letter-spacing: normal;"><i class="fa-solid fa-tag"></i> ${this._esc(myTag)}</span>`;
+                }
+                
+                let sizeStr = this._fmtBytes(torr.total_size);
+                if (!torr.total_size || torr.total_size === 0 || sizeStr === '—') {
+                    if (fileOnDiskFinal) {
+                        sizeStr = '<span style="opacity:0.8; color:var(--success);"><i class="fa-solid fa-file-circle-check"></i> File archiviato e rinominato</span>';
+                    } else {
+                        sizeStr = '<span style="opacity:0.6;"><i class="fa-solid fa-spinner fa-spin"></i> Metadati in attesa...</span>';
+                    }
+                }
+                
+                // --- LOGICA COLORI BARRA PROGRESSO ---
+                let isChecking = stateStr.toLowerCase().includes('controllo');
+                let barColor = 'linear-gradient(90deg, var(--primary), var(--info))'; // Blu default
+                if (isChecking) {
+                    barColor = 'linear-gradient(90deg, #8b5cf6, #d946ef)'; // Viola
+                } else if (torr.error) {
+                    barColor = 'linear-gradient(90deg, #ef4444, #f87171)'; // Rosso
+                } else if (torr.paused) {
+                    barColor = 'linear-gradient(90deg, #6b7280, #9ca3af)'; // Grigio
+                } else if (isDone) {
+                    barColor = 'linear-gradient(90deg, #10b981, #34d399)'; // Verde
+                }
+                let stripeClass = (isChecking || isActiveDownload) ? ' downloading' : '';
+                // -------------------------------------
+
+                row.innerHTML = `
+                    <div class="torrent-name" title="${this._esc(displayName)}">
+                        <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
+                            <input type="checkbox" class="torrent-checkbox" data-hash="${torr.hash || ''}" style="margin-top:3px;width:1rem;height:1rem;cursor:pointer;flex-shrink:0;" onchange="app._onTorrentCheckChange()">
+                            <span style="display:flex;flex-direction:column;gap:0.15rem;min-width:0;">
+                                <span class="torrent-name-text">${this._esc(displayName)}</span>
+                                <span class="torrent-size" style="display:flex; align-items:center;">${sourceHtml}${sizeStr}</span>
+                            </span>
+                        </label>
                     </div>
-                </div>`;
-            
-            if (wasSel) {
-                row.querySelector('.torrent-checkbox').checked = true;
+                    <div style="display:flex; align-items:center; justify-content:center; overflow:hidden; min-width:0;">${this._torrentStateBadge(displayState, torr.paused, torr.error, isDone)}</div>
+                    
+                <div style="display:flex; flex-direction:column; justify-content:center; min-width:0;">
+                        <div class="torrent-progress-cell" style="display:flex; align-items:center; gap:8px;">
+                            <div style="flex:1; height:6px; background:var(--bg-hover); border-radius:999px; overflow:hidden;">
+                                <div class="torrent-progress-fill${stripeClass}" style="width:${pct}%; height:100%; background:${barColor}; border-radius:999px;"></div>
+                            </div>
+                            <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary); width:42px; text-align:right;">${pct.toFixed(1)}%</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); opacity:1; padding-right:50px; margin-top:3px;">
+                            <span title="Dati scaricati fisicamente finora"><i class="fa-solid fa-arrow-down" style="color:var(--success); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(torr._dlBytes)}</span>
+                            <span title="Dati inviati (Seeding) finora"><i class="fa-solid fa-arrow-up" style="color:var(--warning); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(torr._ulBytes)}</span>
+                        </div>
+                    </div>
+                    
+                <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success);">${this._fmtRate(torr.dl_rate)}</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning);">${this._fmtRate(torr.ul_rate)}</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; ${etaStyle}">${etaStr}</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${torr.num_seeds || 0}S/${torr.num_peers || 0}P</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.85rem; font-weight:600; color:var(--text-primary);">${ratioHtml}</div>
+                    
+                    <div class="torrent-actions" style="display:flex; gap:3px; justify-content:center;">
+                        <button class="btn btn-small btn-primary" onclick="app.showTorrentDetails('${torr.hash}')" title="Dettagli Torrent"><i class="fa-solid fa-circle-info"></i></button>
+                        <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${torr.hash}', this)" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
+                        ${torr.paused
+                            ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${torr.hash}')"><i class="fa-solid fa-play"></i></button>`
+                            : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${torr.hash}')"><i class="fa-solid fa-pause"></i></button>`
+                        }
+                        <div style="position:relative;display:inline-flex;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--danger);flex-shrink:0;min-width:max-content;" class="single-remove-wrap">
+                            <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.directRemoveTorrent('${torr.hash}', false)" title="Rimuovi (mantiene i file)"><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${torr.hash}')"><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>
+                        </div>
+                    </div>`;
+                
+                if (wasSel) {
+                    row.querySelector('.torrent-checkbox').checked = true;
+                }
+                
+                list.appendChild(row);
+            } catch(e) {
+                console.error("Errore renderizzazione riga torrent:", e, torr);
             }
-            
-            list.appendChild(row);
         });
         
         showIf(document.getElementById('torrent-bulk-bar'), torrents.length > 0);
