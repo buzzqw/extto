@@ -125,5 +125,3 @@ L'interfaccia Web sarà disponibile su `http://localhost:5000`.
 EXTTO è un software libero sviluppato nel tempo libero. Se ti è utile, considera di supportarne lo sviluppo con una donazione:
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
-
-Oppure invia direttamente a: **azanzani@gmail.com**
