@@ -5703,6 +5703,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 // --- LOGICA COLORI BARRA PROGRESSO ---
                 let isChecking = stateStr.toLowerCase().includes('controllo');
                 let barColor = 'linear-gradient(90deg, var(--primary), var(--info))'; // Blu default
+                
                 if (isChecking) {
                     barColor = 'linear-gradient(90deg, #8b5cf6, #d946ef)'; // Viola
                 } else if (torr.error) {
@@ -5711,7 +5712,15 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     barColor = 'linear-gradient(90deg, #6b7280, #9ca3af)'; // Grigio
                 } else if (isDone) {
                     barColor = 'linear-gradient(90deg, #10b981, #34d399)'; // Verde
+                } else if (isActiveDownload) {
+                    // --- EFFETTO DINAMICO PERCENTUALE ---
+                    const hueStart = Math.floor((pct / 100) * 120); 
+                    const hueEnd = Math.min(hueStart + 25, 120); 
+                    
+                    // Luminosità abbassata al 35/45% per far risaltare le onde bianche del CSS
+                    barColor = `linear-gradient(90deg, hsl(${hueStart}, 90%, 35%), hsl(${hueEnd}, 100%, 45%))`;
                 }
+                
                 let stripeClass = (isChecking || isActiveDownload) ? ' downloading' : '';
                 // -------------------------------------
 
