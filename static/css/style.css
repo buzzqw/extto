@@ -265,7 +265,7 @@ select option {
 #view-license {
     position: fixed;
     top: 0; bottom: 0;
-    left: var(--sidebar-width);
+    left: 200px;
     right: 0;
     overflow-y: auto;
     overflow-x: hidden;
@@ -276,6 +276,12 @@ select option {
 }
 #view-license.active {
     display: block;
+}
+#view-license > div {
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
 }
 /* Su mobile la sidebar diventa bottom bar, quindi left:0 */
 @media (max-width: 992px) {

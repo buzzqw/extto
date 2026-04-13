@@ -5145,10 +5145,17 @@ def _torrent_meta_db():
             total_size  INTEGER DEFAULT 0,
             downloaded  INTEGER DEFAULT 0,
             name        TEXT DEFAULT '',
-            updated_at  INTEGER DEFAULT 0
+            updated_at  INTEGER DEFAULT 0,
+            no_rename   INTEGER DEFAULT 0
         )
     """)
     conn.commit()
+    # Migration: aggiunge no_rename se il DB è precedente
+    try:
+        conn.execute("ALTER TABLE torrent_meta ADD COLUMN no_rename INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception:
+        pass  # Colonna già esistente
     # Migrazione una-tantum da torrent_tags.json
     _migrate_tags_json(conn)
     return conn
@@ -5277,6 +5284,37 @@ def set_torrent_tags():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
+
+@app.route('/api/torrent-no-rename', methods=['GET'])
+def get_torrent_no_rename():
+    """Restituisce il dizionario {hash: no_rename} per tutti i torrent con il flag attivo."""
+    try:
+        with _torrent_meta_db() as conn:
+            rows = conn.execute("SELECT hash, no_rename FROM torrent_meta WHERE no_rename=1").fetchall()
+        return jsonify({r[0]: bool(r[1]) for r in rows})
+    except Exception as e:
+        logger.debug(f"get_no_rename: {e}")
+        return jsonify({})
+
+@app.route('/api/torrent-no-rename', methods=['POST'])
+def set_torrent_no_rename():
+    """Imposta/rimuove il flag no_rename. Riceve { \"hash1\": true/false, ... }."""
+    try:
+        data = request.json or {}
+        with _torrent_meta_db() as conn:
+            for h, val in data.items():
+                h = h.lower()
+                flag = 1 if val else 0
+                conn.execute("""
+                    INSERT INTO torrent_meta (hash, no_rename, updated_at)
+                    VALUES (?, ?, strftime('%s','now'))
+                    ON CONFLICT(hash) DO UPDATE SET no_rename=excluded.no_rename, updated_at=excluded.updated_at
+                """, (h, flag))
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.warning(f"set_no_rename: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/maintenance/clean-trash', methods=['POST'])

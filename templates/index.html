@@ -2747,6 +2747,13 @@ sudo mount /mnt/ramdisk</div>
                         </label>
                         <label><span data-i18n="Scarica subito">Scarica subito</span></label>
                     </div>
+                    <div class="checkbox-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="magnet-no-rename">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <label><span data-i18n="Non rinominare">Non rinominare</span> <span style="color:var(--text-muted); font-size:0.82em;" data-i18n="(salta TMDB e rinomina automatica)">(salta TMDB e rinomina automatica)</span></label>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="width:100%; margin-top:15px;" data-i18n="Vai">Esegui</button>
                 </form>
             </div>
@@ -2902,7 +2909,7 @@ sudo mount /mnt/ramdisk</div>
 
         <!-- VIEW LICENZA -->
         <div id="view-license" class="view">
-            <div style="max-width:100%; margin:0; padding:2rem 1.5rem;">
+            <div>
 
                 <!-- Autore -->
                 <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding:1.25rem; background:var(--bg-secondary); border-radius:10px; border:1px solid var(--border);">
@@ -3043,6 +3050,35 @@ sudo mount /mnt/ramdisk</div>
         .dir-browser-item { display:flex; align-items:center; gap:10px; padding:8px 16px; cursor:pointer; border-radius:4px; }
         .dir-browser-item:hover { background:var(--bg-hover, rgba(255,255,255,0.06)); }
     </style>
+    <!-- Mini-modal conferma download con opzione no-rename (usato da archivio, feed, episodi) -->
+    <div id="no-rename-confirm-modal" class="modal">
+        <div class="modal-content" style="max-width:560px; width:90%;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-download" style="color:var(--primary)"></i> <span data-i18n="Conferma download">Conferma download</span></h3>
+                <button class="modal-close" onclick="app.closeModal('no-rename-confirm-modal')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:20px 24px;">
+                <div id="no-rename-confirm-title" style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:20px; word-break:break-word; line-height:1.5;"></div>
+                <div style="margin-bottom:24px; padding:12px 16px; background:var(--bg-input); border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:14px;">
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                        <input type="checkbox" id="no-rename-confirm-flag">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                        <span data-i18n="Non rinominare" style="font-weight:600;">Non rinominare</span>
+                        <span style="color:var(--text-muted); font-size:0.8em;">Salta la ricerca TMDB e la rinomina automatica del file</span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" style="flex:1; padding:10px;" onclick="app._noRenameConfirmOk()">
+                        <i class="fa-solid fa-download"></i> <span data-i18n="Scarica">Scarica</span>
+                    </button>
+                    <button class="btn btn-secondary" style="padding:10px 20px;" onclick="app.closeModal('no-rename-confirm-modal')" data-i18n="Annulla">Annulla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="dir-browser-modal" class="modal">
         <div class="modal-content" style="max-width:560px; height:70vh; display:flex; flex-direction:column; padding:0;">
             <div class="modal-header" style="padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0;">

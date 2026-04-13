@@ -2520,7 +2520,7 @@ const app = {
                                 onclick="app.searchArchiveOnTMDB('${this.escapeJs(item.title)}')"
                                 title="Cerca info su TMDB"><i class="fa-solid fa-magnifying-glass"></i> TMDB</button>
                         <button class="btn btn-small btn-success"
-                                onclick="app.sendMagnetToClient(document.querySelector('.archive-row[data-id=\\'${item.id}\\']').dataset.magnet)"
+                                onclick="app._promptNoRename(document.querySelector('.archive-row[data-id=\\'${item.id}\\']').dataset.magnet, '', true, '${this.escapeJs(item.title)}')"
                                 title="Scarica"><i class="fa-solid fa-download"></i></button>
                         <button class="btn btn-small btn-secondary"
                                 onclick="app.copyMagnet(document.querySelector('.archive-row[data-id=\\'${item.id}\\']').dataset.magnet)"
@@ -2596,8 +2596,20 @@ const app = {
             const data = await res.json();
             if (!data.success) { this.showToast(t('Errore:') + ' ' + data.error, 'error'); return; }
             let ok = 0;
+            // Chiedi no_rename una volta sola per tutto il batch
+            const noRenameBatch = data.items.length > 0
+                ? await new Promise(resolve => {
+                    this._nrPending = null;
+                    const cb = document.getElementById('no-rename-confirm-flag');
+                    if (cb) cb.checked = false;
+                    const el = document.getElementById('no-rename-confirm-title');
+                    if (el) el.textContent = `${data.items.length} torrent selezionati`;
+                    document.getElementById('no-rename-confirm-modal').classList.add('active');
+                    this._nrBatchResolve = resolve;
+                })
+                : false;
             for (const item of data.items) {
-                if (item.magnet) { await this.sendMagnetToClient(item.magnet); ok++; }
+                if (item.magnet) { await this.sendMagnetToClient(item.magnet, '', true, noRenameBatch); ok++; }
             }
             this.showToast(`${t('Sent')} ${ok} ${t('magnets to client')}`, 'success');
         } catch(e) { this.showToast(t('Batch download error'), 'error'); }
@@ -2823,7 +2835,7 @@ const app = {
         }
     },
 
-    async downloadManual(magnet) { await this.sendMagnetToClient(magnet); this.closeModal('manual-search-modal'); },
+    async downloadManual(magnet, noRename = false) { await this.sendMagnetToClient(magnet, '', true, noRename); this.closeModal('manual-search-modal'); },
 
     async loadWanted() {
         const tbody = document.getElementById('wanted-table-body');
@@ -3998,6 +4010,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         const f = document.getElementById('torrent-file').files[0];
         const dn = document.getElementById('magnet-download-now').checked;
         const sp = document.getElementById('add-magnet-save-path') ? document.getElementById('add-magnet-save-path').value.trim() : '';
+        const noRename = document.getElementById('magnet-no-rename')?.checked || false;
         
         if(!m && !f) return this.showToast(t('Inserisci un link o scegli un file'), 'error');
         
@@ -4012,19 +4025,22 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                 });
                 const d = await res.json();
                 this.showToast(d.success ? t('Torrent caricato!') : d.error, d.success ? 'success' : 'error');
-                if (d.success && this._torrentPollId !== null) await this.loadTorrents();
+                if (d.success) {
+                    if (d.hash && noRename) await this._saveNoRename(d.hash, true);
+                    if (this._torrentPollId !== null) await this.loadTorrents();
+                }
             } catch(err) {
                 this.showToast(t('Errore caricamento file'), 'error');
             }
         } else {
-            await this.sendMagnetToClient(m, sp, dn);
+            await this.sendMagnetToClient(m, sp, dn, noRename);
         }
         
         this.closeModal('add-magnet-modal');
         document.getElementById('magnet-form').reset();
     },
     
-    async sendMagnetToClient(magnet, savePath = '', downloadNow = true) {
+    async sendMagnetToClient(magnet, savePath = '', downloadNow = true, noRename = false) {
         try {
             if (!this._configData) {
                 const confRes = await fetch(`${API_BASE}/api/config`);
@@ -4049,12 +4065,13 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                     if (upData.success) {
                         this.showToast(t('Torrent aggiunto con successo!'), 'success');
                         if (upData.hash) await this._saveTag(upData.hash, 'Manuale');
+                        if (upData.hash && noRename) await this._saveNoRename(upData.hash, true);
                         if (this._torrentPollId !== null) await this.loadTorrents();
                     } else {
                         this.showToast(upData.error || t('Errore invio torrent'), 'error');
                     }
                 } else if (data.is_magnet) {
-                    return this.sendMagnetToClient(data.magnet, savePath, downloadNow); 
+                    return this.sendMagnetToClient(data.magnet, savePath, downloadNow, noRename); 
                 } else {
                     this.showToast(data.error || t('Errore download URL'), 'error');
                 }
@@ -4073,6 +4090,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                         this.showToast(t('Torrent inviato a libtorrent'), 'success');
                         const _h = d.hash || this._hashFromMagnet(magnet);
                         await this._saveTag(_h, 'Manuale');
+                        if (_h && noRename) await this._saveNoRename(_h, true);
                         if (this._torrentPollId !== null) await this.loadTorrents();
                         return;
                     }
@@ -4087,6 +4105,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             if (d.success) {
                 const _h = this._hashFromMagnet(magnet);
                 await this._saveTag(_h, 'Manuale');
+                if (_h && noRename) await this._saveNoRename(_h, true);
                 if (this._torrentPollId !== null) await this.loadTorrents();
             }
             this.showToast(t(d.message || d.error), d.success ? 'success' : 'error');
@@ -4134,7 +4153,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
     async deleteMovie(id) { if(confirm(t('Eliminare?'))) { await fetch(`${API_BASE}/api/movies/${id}`, {method:'DELETE'}); this.loadMovies(); } },
     
     // Episode actions
-    async downloadEpisode(id) { const ep=this.currentEpisodes.find(e=>e.id===id); if(ep?.magnet_link) this.sendMagnetToClient(ep.magnet_link); },
+    async downloadEpisode(id) { const ep=this.currentEpisodes.find(e=>e.id===id); if(ep?.magnet_link) this._promptNoRename(ep.magnet_link, '', true, ep.title || ep.magnet_link.substring(0,60)); },
     async copyEpisodeMagnet(id) { const ep=this.currentEpisodes.find(e=>e.id===id); if(ep?.magnet_link) this.copyMagnet(ep.magnet_link); },
     async redownloadEpisode(id) {
         if (!confirm(t('Riscaricare?'))) return;
@@ -4582,8 +4601,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
 
     async addMagnetFromFeed(magnet, title) {
         if (!magnet) { this.showToast('Magnet non disponibile', 'error'); return; }
-        this.showToast(`${t('Sending in progress')}: ${title.substring(0, 60)}…`, 'info');
-        await this.sendMagnetToClient(magnet);
+        this._promptNoRename(magnet, '', true, title || '');
     },
     handleLanguageChange(prefix) {
         // Mappa prefix → id select e id input custom
@@ -5343,6 +5361,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     async submitAddMagnetTorrent() {
         const inputStr  = document.getElementById('add-magnet-torrent-input').value.trim();
         const save_path = document.getElementById('add-magnet-torrent-path').value.trim();
+        const noRename  = document.getElementById('add-magnet-torrent-no-rename')?.checked || false;
         
         if (!inputStr) { this.showToast(t('Inserisci un link o URL'), 'error'); return; }
 
@@ -5368,6 +5387,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                         this.showToast(t('Torrent added from URL!'), 'success');
                         this.closeModal('add-magnet-torrent-modal');
                         if (upData.hash) await this._saveTag(upData.hash, 'Manuale');
+                        if (upData.hash && noRename) await this._saveNoRename(upData.hash, true);
                         await this.loadTorrents();
                     } else {
                         this.showToast(upData.error || t('Errore invio torrent'), 'error');
@@ -5388,6 +5408,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 this.closeModal('add-magnet-torrent-modal');
                 const _h = data.hash || this._hashFromMagnet(inputStr);
                 await this._saveTag(_h, 'Manuale');
+                if (_h && noRename) await this._saveNoRename(_h, true);
                 await this.loadTorrents();
             } else {
                 this.showToast(t('Errore aggiunta torrent'), 'error');
@@ -5438,8 +5459,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         let colorClass = 'badge-secondary'; // Default Grigio
 
         // Colori per la logica avanzata (stile qBittorrent) — usa sempre stringhe italiane del backend
-        if (s.includes('terminato') || s.includes('salvato')) {
-            return `<span class="badge" style="background:rgba(16,185,129,.15);color:var(--success);border:1px solid var(--success);${_bs}" title="${this._esc(translatedState)}"><i class="fa-solid fa-check-double"></i> ${this._esc(_stateShort)}</span>`;
+        if (s.includes('terminato') || s.includes('salvato') || s.includes('saved')) {
+            // Sfondo con gradiente verde pieno, testo bianco e una leggera ombra per leggibilità
+            return `<span class="badge" style="background: linear-gradient(90deg, #10b981, #34d399); color: #ffffff; border: 1px solid #059669; text-shadow: 0 1px 1px rgba(0,0,0,0.3); ${_bs}" title="${this._esc(translatedState)}"><i class="fa-solid fa-check-double"></i> ${this._esc(_stateShort)}</span>`;
         } else if (s.includes('scarico') && !s.includes('fermo')) {
             colorClass = 'badge-info';         // Azzurro — In Scarico attivo
         } else if (s.includes('seeding') && !s.includes('fermo')) {
@@ -5716,13 +5738,22 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     // --- EFFETTO DINAMICO PERCENTUALE ---
                     const hueStart = Math.floor((pct / 100) * 120); 
                     const hueEnd = Math.min(hueStart + 25, 120); 
-                    
-                    // Luminosità abbassata al 35/45% per far risaltare le onde bianche del CSS
                     barColor = `linear-gradient(90deg, hsl(${hueStart}, 90%, 35%), hsl(${hueEnd}, 100%, 45%))`;
                 }
                 
                 let stripeClass = (isChecking || isActiveDownload) ? ' downloading' : '';
                 // -------------------------------------
+
+                // --- PROTEZIONE AZIONI CRITICHE ---
+                // Calcoliamo isBusy PRIMA di aprire la stringa HTML
+                let isBusy = stateStr.toLowerCase().includes('controllo') || 
+                             stateStr.toLowerCase().includes('allocazione') || 
+                             stateStr.toLowerCase().includes('spostamento') || 
+                             stateStr.toLowerCase().includes('mov');
+                             
+                let disableTrash = isBusy ? 'disabled style="opacity:0.4; cursor:not-allowed; box-shadow:none;"' : '';
+                let trashTitle = isBusy ? 'Operazione su disco in corso...' : 'Rimuovi (mantiene i file)';
+                // ----------------------------------
 
                 row.innerHTML = `
                     <div class="torrent-name" title="${this._esc(displayName)}">
@@ -5736,7 +5767,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     </div>
                     <div style="display:flex; align-items:center; justify-content:center; overflow:hidden; min-width:0;">${this._torrentStateBadge(displayState, torr.paused, torr.error, isDone)}</div>
                     
-                <div style="display:flex; flex-direction:column; justify-content:center; min-width:0;">
+                    <div style="display:flex; flex-direction:column; justify-content:center; min-width:0;">
                         <div class="torrent-progress-cell" style="display:flex; align-items:center; gap:8px;">
                             <div style="flex:1; height:6px; background:var(--bg-hover); border-radius:999px; overflow:hidden;">
                                 <div class="torrent-progress-fill${stripeClass}" style="width:${pct}%; height:100%; background:${barColor}; border-radius:999px;"></div>
@@ -5749,7 +5780,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                         </div>
                     </div>
                     
-                <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success);">${this._fmtRate(torr.dl_rate)}</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success);">${this._fmtRate(torr.dl_rate)}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning);">${this._fmtRate(torr.ul_rate)}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; ${etaStyle}">${etaStr}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${torr.num_seeds || 0}S/${torr.num_peers || 0}P</div>
@@ -5763,7 +5794,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                             : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${torr.hash}')"><i class="fa-solid fa-pause"></i></button>`
                         }
                         <div style="position:relative;display:inline-flex;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--danger);flex-shrink:0;min-width:max-content;" class="single-remove-wrap">
-                            <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.directRemoveTorrent('${torr.hash}', false)" title="Rimuovi (mantiene i file)"><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${torr.hash}')"><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>
+                            <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.directRemoveTorrent('${torr.hash}', false)" title="${trashTitle}" ${disableTrash}><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${torr.hash}')" ${disableTrash}><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>
                         </div>
                     </div>`;
                 
@@ -6064,6 +6095,44 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 body: JSON.stringify({ [hash]: tag })
             });
         } catch (_) {}
+    },
+
+    async _saveNoRename(hash, value) {
+        if (!hash) return;
+        try {
+            await fetch(`${API_BASE}/api/torrent-no-rename`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ [hash]: !!value })
+            });
+        } catch (_) {}
+    },
+
+    // Mostra il mini-modal di conferma con checkbox no-rename per flussi senza modal proprio
+    _promptNoRename(magnet, savePath = '', downloadNow = true, title = '') {
+        this._nrPending = { magnet, savePath, downloadNow };
+        const el = document.getElementById('no-rename-confirm-title');
+        if (el) el.textContent = title || magnet.substring(0, 80) + '…';
+        const cb = document.getElementById('no-rename-confirm-flag');
+        if (cb) cb.checked = false;
+        document.getElementById('no-rename-confirm-modal').classList.add('active');
+    },
+
+    async _noRenameConfirmOk() {
+        const noRename = document.getElementById('no-rename-confirm-flag')?.checked || false;
+        this.closeModal('no-rename-confirm-modal');
+        // Caso batch: risolve la Promise
+        if (this._nrBatchResolve) {
+            const resolve = this._nrBatchResolve;
+            this._nrBatchResolve = null;
+            resolve(noRename);
+            return;
+        }
+        // Caso singolo
+        if (!this._nrPending) return;
+        const { magnet, savePath, downloadNow } = this._nrPending;
+        this._nrPending = null;
+        await this.sendMagnetToClient(magnet, savePath, downloadNow, noRename);
     },
 
     async confirmSetTorrentTags() {

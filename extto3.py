@@ -1102,6 +1102,25 @@ def main():
         except Exception as _e:
             logger.debug(f"_pp_mark_notified: {_e}")
 
+    def _pp_get_no_rename(hash_str: str) -> bool:
+        """Restituisce True se il torrent ha il flag no_rename nel DB."""
+        if not hash_str:
+            return False
+        try:
+            import sqlite3 as _sq3
+            from core.constants import DB_FILE as _DBF
+            with _sq3.connect(_DBF, timeout=5) as _c:
+                try:
+                    _c.execute("ALTER TABLE torrent_meta ADD COLUMN no_rename INTEGER DEFAULT 0")
+                except Exception:
+                    pass  # Colonna già esistente
+                row = _c.execute(
+                    "SELECT no_rename FROM torrent_meta WHERE hash=?", (hash_str.lower(),)
+                ).fetchone()
+                return bool(row and row[0])
+        except Exception:
+            return False
+
     while True:
         error_catcher.captured_errors.clear() # Svuota la memoria errori del ciclo precedente
         start_server_watchdog()
@@ -2139,7 +2158,7 @@ def main():
                         # ANTI-DOPPIONE: Se la cartella non c'è più, controlla se il file
                         # è già arrivato sul NAS (libtorrent lo sposta autonomamente).
                         if not os.path.exists(t_path):
-                            if do_rename and api_key:
+                            if do_rename and api_key and not _pp_get_no_rename(t_hash):
                                 ep = Parser.parse_series_episode(t_name)
                                 match = cfg.find_series_match(ep['name'], ep['season']) if ep else None
                                 if match:
@@ -2150,6 +2169,8 @@ def main():
                                                     ['rename_episodes','rename_format','rename_template',
                                                      'tmdb_api_key','tmdb_language','tmdb_cache_days']}
                                         rename_completed_torrent(t_name, dest_dir, cfg_dict, db)
+                            elif do_rename and _pp_get_no_rename(t_hash):
+                                logger.info(f"⏭️ [no_rename] Skip rename per '{t_name}' (flag impostato)")
                             if getattr(cfg, 'auto_remove_completed', False):
                                 LibtorrentClient.remove_torrent(t_hash, delete_files=False)
                             continue
@@ -2198,7 +2219,10 @@ def main():
                                         final_name = os.path.basename(src_file)
 
                                         renamed_to = None   # nome file rinominato (solo basename)
-                                        if do_rename and api_key:
+                                        _skip_rename = _pp_get_no_rename(t_hash)
+                                        if _skip_rename:
+                                            logger.info(f"⏭️ [no_rename] Skip rename+TMDB per '{t_name}' (flag impostato)")
+                                        if do_rename and api_key and not _skip_rename:
                                             try:
                                                 tmdb = TMDBClient(api_key, cache_days=7)
                                                 t_id = match.get('tmdb_id') or tmdb.resolve_series_id(match['name'])
