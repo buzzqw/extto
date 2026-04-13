@@ -637,61 +637,144 @@ const app = {
             const res = await fetch(`${API_BASE}/api/recent-downloads`);
             const data = await res.json();
             const container = document.getElementById('dashboard-logs');
-            
-            // Funzione di utilità per costruire la singola riga
-            const buildItemHTML = (item) => {
-                let iconHtml = '<i class="fa-solid fa-satellite-dish" style="color:var(--text-muted);"></i>';
-                if (item.type === 'episode') iconHtml = '<i class="fa-solid fa-tv" style="color:var(--primary-light);"></i>';
-                else if (item.type === 'movie') iconHtml = '<i class="fa-solid fa-film" style="color:var(--warning);"></i>';
-                else if (item.type === 'comic') iconHtml = '<i class="fa-solid fa-book-open" style="color:var(--success);"></i>';
-                const removedBadge = item.removed
-                    ? `<span style="display:inline-block; margin-left:.4rem; font-size:.7rem; padding:1px 6px; border-radius:4px; background:var(--danger); color:#fff; opacity:.8;"><i class="fa-solid fa-box-archive"></i> Rimosso dall'archivio</span>`
+
+            const TYPE_META = {
+                episode: { icon: 'fa-tv',            color: '#3b82f6', label: t('Serie TV')  },
+                movie:   { icon: 'fa-film',           color: '#f59e0b', label: t('Film')      },
+                comic:   { icon: 'fa-book-open-reader', color: '#10b981', label: t('Fumetto') },
+                default: { icon: 'fa-satellite-dish', color: '#6b7280', label: t('Altro')    },
+            };
+
+            // Pattern geometrici unici per tipo — simula un "poster" senza immagine
+            const PATTERNS = {
+                episode: (c) => `
+                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;">
+                        <defs>
+                            <linearGradient id="ge${c}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#0f1115;stop-opacity:1"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#ge${c})"/>
+                        <circle cx="80%" cy="20%" r="60" fill="#3b82f6" opacity="0.12"/>
+                        <circle cx="10%" cy="80%" r="40" fill="#1d4ed8" opacity="0.15"/>
+                        <line x1="0" y1="40%" x2="100%" y2="60%" stroke="#3b82f6" stroke-width="0.5" opacity="0.2"/>
+                        <line x1="0" y1="60%" x2="100%" y2="40%" stroke="#3b82f6" stroke-width="0.5" opacity="0.15"/>
+                    </svg>`,
+                movie: (c) => `
+                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;">
+                        <defs>
+                            <linearGradient id="gm${c}" x1="0%" y1="100%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#3b1a00;stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#0f1115;stop-opacity:1"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#gm${c})"/>
+                        <rect x="15%" y="15%" width="70%" height="70%" rx="2" fill="none" stroke="#f59e0b" stroke-width="0.5" opacity="0.2"/>
+                        <rect x="25%" y="25%" width="50%" height="50%" rx="1" fill="none" stroke="#f59e0b" stroke-width="0.5" opacity="0.15"/>
+                        <circle cx="50%" cy="50%" r="30" fill="#f59e0b" opacity="0.06"/>
+                    </svg>`,
+                comic: (c) => `
+                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;">
+                        <defs>
+                            <linearGradient id="gc${c}" x1="100%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#064e3b;stop-opacity:1"/>
+                                <stop offset="100%" style="stop-color:#0f1115;stop-opacity:1"/>
+                            </linearGradient>
+                            <pattern id="dots${c}" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+                                <circle cx="6" cy="6" r="1" fill="#10b981" opacity="0.2"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#gc${c})"/>
+                        <rect width="100%" height="100%" fill="url(#dots${c})"/>
+                    </svg>`,
+                default: (c) => `
+                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;">
+                        <rect width="100%" height="100%" fill="#151922"/>
+                        <circle cx="50%" cy="50%" r="40" fill="#6b7280" opacity="0.08"/>
+                    </svg>`,
+            };
+
+            const buildCard = (item, idx) => {
+                const meta = TYPE_META[item.type] || TYPE_META.default;
+                const pat  = (PATTERNS[item.type] || PATTERNS.default)(idx);
+                const safeMag = item.magnet ? this.escapeJs(item.magnet) : '';
+                const safeTitle = this.escapeHtml(item.title);
+                const safeJs = this.escapeJs(item.title);
+                const posterUrl = item.poster_url || '';
+
+                // Navigazione al click sulla card
+                let navAction = '';
+                if (item.type === 'episode' || item.type === 'pack') {
+                    const sid  = item.series_id  || 0;
+                    const sname = this.escapeJs(item.series_name || item.title.split(' — ')[0]);
+                    navAction = `app.showEpisodes(${sid}, '${sname}')`;
+                } else if (item.type === 'movie') {
+                    navAction = `app.switchView('radarr')`;
+                } else if (item.type === 'comic') {
+                    navAction = `app.switchView('comics')`;
+                }
+
+                const scoreHtml = item.quality_score
+                    ? `<span style="background:rgba(0,0,0,.4);padding:1px 7px;border-radius:4px;font-size:.72rem;color:#fbbf24;white-space:nowrap;">★ ${item.quality_score}</span>`
+                    : '';
+                const removedHtml = item.removed
+                    ? `<span style="font-size:.68rem;padding:2px 6px;border-radius:4px;background:var(--danger);color:#fff;"><i class="fa-solid fa-box-archive"></i> ${t('Rimosso')}</span>`
+                    : '';
+                const dlBtn = safeMag
+                    ? `<button onclick="event.stopPropagation();app._promptNoRename('${safeMag}','',true,'${this.escapeJs(item.title)}')" title="${t('Scarica')}" style="background:rgba(59,130,246,.9);border:none;color:#fff;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:.78rem;flex-shrink:0;"><i class="fa-solid fa-download"></i></button>`
+                    : '';
+                const cpBtn = safeMag
+                    ? `<button onclick="event.stopPropagation();app.copyMagnet('${safeMag}')" title="${t('Copia Magnet')}" style="background:rgba(255,255,255,.1);border:none;color:#fff;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:.78rem;flex-shrink:0;"><i class="fa-regular fa-copy"></i></button>`
                     : '';
 
-                const safeMag = item.magnet ? this.escapeJs(item.magnet) : '';
-                const copyBtn = safeMag 
-                    ? `<button class="btn btn-secondary btn-small" style="padding: 4px 8px; flex-shrink: 0;" title="Copia Magnet Link" onclick="app.copyMagnet('${safeMag}')"><i class="fa-regular fa-copy"></i></button>` 
-                    : `<button class="btn btn-secondary btn-small" style="padding: 4px 8px; flex-shrink: 0; opacity: 0.3; cursor: not-allowed;" title="Nessun Magnet disponibile"><i class="fa-solid fa-link-slash"></i></button>`;
+                // Poster: immagine reale o pattern SVG
+                const posterHtml = posterUrl
+                    ? `<img src="${posterUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                       <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;">${pat}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><i class="fa-solid ${meta.icon}" style="font-size:1.4rem;color:${meta.color};opacity:.5;"></i></div></div>`
+                    : `${pat}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><i class="fa-solid ${meta.icon}" style="font-size:1.4rem;color:${meta.color};opacity:.5;"></i></div>`;
 
-                return `
-                <div class="download-item" style="display:flex; justify-content:space-between; align-items:center;" title="${this.escapeHtml(item.title)}">
-                    <div style="display:flex; align-items:center; gap:1rem; min-width:0; flex:1;">
-                        <div class="download-icon" style="font-size: 1.2rem;">${iconHtml}</div>
-                        <div class="download-info" style="display:flex; flex-direction:column; min-width:0; overflow:hidden; padding-right:10px;">
-                            <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.escapeHtml(item.title)}${removedBadge}</strong>
-                            <small style="color:var(--text-muted); margin-top:3px; font-size:0.8rem;">
-                                ${this.formatDate(item.date)} 
-                                ${item.quality_score ? `<span style="opacity:0.3; margin:0 6px;">|</span> Score: <span style="color:var(--info); font-weight:bold;">${item.quality_score}</span>` : ''}
-                            </small>
-                        </div>
+                return `<div onclick="${navAction}" style="position:relative;display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);cursor:${navAction ? 'pointer' : 'default'};transition:transform .15s,border-color .15s;margin-bottom:6px;" onmouseenter="this.style.borderColor='${meta.color}55';this.style.background='var(--bg-hover)'" onmouseleave="this.style.borderColor='var(--border)';this.style.background='var(--bg-card)'">
+                    <!-- Poster laterale -->
+                    <div style="position:relative;width:70px;min-height:95px;flex-shrink:0;overflow:hidden;background:var(--bg-input);">
+                        ${posterHtml}
                     </div>
-                    ${copyBtn}
+                    <!-- Info -->
+                    <div style="flex:1;padding:10px 12px;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;">
+                        <div style="font-size:.88rem;font-weight:700;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;" title="${safeTitle}">${safeTitle}</div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <span style="font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid ${meta.color}60;color:${meta.color};text-transform:uppercase;letter-spacing:.04em;">${meta.label}</span>
+                            ${scoreHtml}
+                            ${removedHtml}
+                            <span style="font-size:.72rem;color:var(--text-muted);">${this.formatDate(item.date)}</span>
+                        </div>
+                        ${navAction ? `<div style="font-size:.68rem;color:var(--text-muted);opacity:.6;"><i class="fa-solid fa-arrow-right" style="font-size:.6rem;"></i> ${item.type === 'comic' ? t('Fumetti') : item.type === 'movie' ? t('Film') : t('TV Series')}</div>` : ''}
+                    </div>
+                    <!-- Azioni -->
+                    <div style="display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0;">
+                        ${dlBtn}${cpBtn}
+                    </div>
                 </div>`;
             };
 
-            let html = '';
+            const renderSection = (label, icon, items, emptyMsg) => {
+                let html = `<div style="font-size:.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid ${icon}"></i>${label}</div>`;
+                if (items && items.length > 0) {
+                    html += `<div style="margin-bottom:16px;">`;
+                    items.forEach((item, i) => html += buildCard(item, i));
+                    html += `</div>`;
+                } else {
+                    html += `<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px;">${emptyMsg}</p>`;
+                }
+                return html;
+            };
 
-            // --- SEZIONE 1: Aggiunti al Client ---
-            html += `<h4 style="margin: 0 0 10px 0; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;"><i class="fa-solid fa-cloud-arrow-down"></i> ${t('Aggiunti al Client')}</h4>`;
-            
-            if (data.downloads && data.downloads.length > 0) {
-                data.downloads.forEach(item => html += buildItemHTML(item));
-            } else {
-                html += `<p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">${t('Nessun download recente.')}</p>`;
-            }
+            container.innerHTML =
+                renderSection(t('Aggiunti al Client'),         'fa-cloud-arrow-down', data.downloads, t('Nessun download recente.')) +
+                renderSection(t('Ultimi rilevamenti (Archivio)'), 'fa-radar',           data.found,     t('Nessuna release trovata di recente.'));
 
-            // --- SEZIONE 2: Trovati in Archivio ---
-            html += `<h4 style="margin: 20px 0 10px 0; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;"><i class="fa-solid fa-radar"></i> ${t('Ultimi rilevamenti (Archivio)')}</h4>`;
-            
-            if (data.found && data.found.length > 0) {
-                data.found.forEach(item => html += buildItemHTML(item));
-            } else {
-                html += `<p style="color:var(--text-muted); font-size:0.9rem;">${t('Nessuna release trovata di recente.')}</p>`;
-            }
-
-            container.innerHTML = html;
-        } catch (e) { 
-            console.error(e); 
+        } catch (e) {
+            console.error(e);
             document.getElementById('dashboard-logs').innerHTML = `<p style="color:var(--danger);">${t('Errore caricamento dati.')}</p>`;
         }
     },
@@ -1859,7 +1942,7 @@ const app = {
                 if (series) {
                     document.getElementById('extto-title').textContent = series.name;
                     document.getElementById('extto-year').innerHTML = `<i class="fa-regular fa-calendar"></i> —`;
-                    document.getElementById('extto-network').innerHTML = `<i class="fa-solid fa-tv"></i> —`;
+                    document.getElementById('extto-network').style.display = 'none';
                     document.getElementById('extto-path').textContent = series.archive_path || '';
                 }
             } catch(_) {}
@@ -1917,7 +2000,14 @@ const app = {
                 document.getElementById('extto-backdrop').style.backgroundImage = `url('https://image.tmdb.org/t/p/w1280${meta.backdrop}')`;
             }
             document.getElementById('extto-year').innerHTML = `<i class="fa-regular fa-calendar"></i> ${meta.year || 'N/A'}`;
-            document.getElementById('extto-network').innerHTML = `<i class="fa-solid fa-tv"></i> ${this.escapeHtml(meta.network || 'N/A')}`;
+            const _network = meta.network || '';
+            const _netEl = document.getElementById('extto-network');
+            if (_network) {
+                _netEl.innerHTML = `<i class="fa-solid fa-tv"></i> ${this.escapeHtml(_network)}`;
+                _netEl.style.display = '';
+            } else {
+                _netEl.style.display = 'none';
+            }
             
             // Pulisce i vecchi badge ID rimasti appesi dai click precedenti
             const badgeContainer = document.getElementById('extto-network').parentNode;
@@ -1931,6 +2021,14 @@ const app = {
                 badgeContainer.appendChild(idBadge);
             }
             document.getElementById('extto-plot').textContent = meta.overview || t('Nessuna trama disponibile.');
+            const _pathEl = document.getElementById('extto-path');
+            const _archivePath = data.archive_path || '';
+            if (_archivePath) {
+                _pathEl.textContent = _archivePath;
+                _pathEl.style.display = '';
+            } else {
+                _pathEl.style.display = 'none';
+            }
             // --- NUOVO: Disabilita il pulsante Cerca Mancanti se non serve ---
             let hasMissing = false;
             data.seasons.forEach(season => {

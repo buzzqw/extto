@@ -1627,6 +1627,21 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
 
+.dashboard-run-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+}
+.dashboard-run-actions .btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
 /* ============================================================================
    MOBILE PATCH — dashboard, header, azioni
    ============================================================================ */

@@ -69,6 +69,49 @@ MOVIES_FILE  = os.path.join(BASE_DIR, "movies.txt")
 LOG_FILE     = os.path.join(BASE_DIR, "extto.log")
 _LEGACY_FILE = os.path.join(BASE_DIR, "series_config.txt")
 LANGUAGES_DIR = os.path.join(BASE_DIR, "languages")
+POSTERS_DIR  = os.path.join(BASE_DIR, "static", "posters")
+
+TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w300"
+
+def _poster_file(item_type: str, item_id: int) -> str:
+    """Restituisce il path assoluto del file poster su disco."""
+    prefix = {'series': 's', 'movie': 'm', 'comic': 'c'}.get(item_type, 'x')
+    return os.path.join(POSTERS_DIR, f"{prefix}_{item_id}.jpg")
+
+def _poster_url(item_type: str, item_id: int) -> str:
+    """Restituisce l'URL relativo del poster da servire al browser."""
+    prefix = {'series': 's', 'movie': 'm', 'comic': 'c'}.get(item_type, 'x')
+    return f"/static/posters/{prefix}_{item_id}.jpg"
+
+def _save_poster(item_type: str, item_id: int, tmdb_poster_path: str) -> bool:
+    """Scarica e salva il poster da TMDB se non esiste già. Ritorna True se salvato."""
+    if not tmdb_poster_path or not item_id:
+        return False
+    dest = _poster_file(item_type, item_id)
+    if os.path.exists(dest):
+        return True  # già presente, non riscaricare
+    try:
+        os.makedirs(POSTERS_DIR, exist_ok=True)
+        url = f"{TMDB_IMAGE_BASE}{tmdb_poster_path}"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200 and resp.content:
+            with open(dest, 'wb') as f:
+                f.write(resp.content)
+            logger.debug(f"🖼️ Poster salvato: {dest}")
+            return True
+    except Exception as e:
+        logger.debug(f"_save_poster {item_type}/{item_id}: {e}")
+    return False
+
+def _delete_poster(item_type: str, item_id: int) -> None:
+    """Elimina il poster dal disco quando si cancella la serie/film."""
+    dest = _poster_file(item_type, item_id)
+    try:
+        if os.path.exists(dest):
+            os.remove(dest)
+            logger.debug(f"🗑️ Poster eliminato: {dest}")
+    except Exception as e:
+        logger.debug(f"_delete_poster {item_type}/{item_id}: {e}")
 
 def _default_lang() -> str:
     """
@@ -2411,6 +2454,7 @@ def get_extto_details(series_id):
                     meta['year'] = details.get('first_air_date', '')[:4]
                     networks = details.get('networks', [])
                     meta['network'] = networks[0]['name'] if networks else ''
+                    _save_poster('series', series_id, meta['poster'])
                     meta['status'] = details.get('status', '') # <-- Aggiunto per sapere se è 'Ended'
                     
                     for s in details.get('seasons', []):
@@ -2725,6 +2769,7 @@ def delete_series(series_id):
 
         # 2. Elimina da extto_series.db (episodi + serie)
         db.delete_series(series_id)
+        _delete_poster('series', series_id)
 
         # 3. Elimina anche da extto_config.db (tabella interna serie config)
         if series_name:
@@ -2864,6 +2909,8 @@ def get_radarr_details(movie_name):
                     meta['overview'] = first.get('overview', meta['overview'])
                     meta['year'] = first.get('release_date', '')[:4] if first.get('release_date') else year
                     meta['title'] = first.get('title', movie_name)
+                    if mov_db and mov_db.get('id'):
+                        _save_poster('movie', mov_db['id'], meta['poster'])
             except Exception as e:
                 _l.debug(f"File check error: {e}")
         
@@ -2908,6 +2955,7 @@ def delete_movie(movie_id):
     """Elimina un film"""
     try:
         db.delete_movie(movie_id)
+        _delete_poster('movie', movie_id)
         return jsonify({'success': True})
     except Exception as e:
         logger.exception(f"❌ Error delete_movie {movie_id}: {e}")
@@ -3416,7 +3464,7 @@ def get_recent_downloads():
             try:
                 c = db.conn.cursor()
                 c.execute("""
-                    SELECT e.season, e.episode, e.quality_score, e.downloaded_at, s.name as series_name
+                    SELECT e.season, e.episode, e.quality_score, e.downloaded_at, s.name as series_name, s.id as series_id
                     FROM episodes e
                     JOIN series s ON e.series_id = s.id
                     WHERE e.downloaded_at IS NOT NULL AND e.episode >= 0
@@ -3434,6 +3482,9 @@ def get_recent_downloads():
                         'kind':  'download',
                         'type':  ep_type,
                         'title': f"{row['series_name']} — {ep_str}" if ep_str else row['series_name'],
+                        'series_name': row['series_name'],
+                        'series_id': row['series_id'],
+                        'poster_url': _poster_url('series', row['series_id']) if os.path.exists(_poster_file('series', row['series_id'])) else '',
                         'quality_score': row['quality_score'],
                         'date':  row['downloaded_at'],
                     })
@@ -3445,7 +3496,7 @@ def get_recent_downloads():
             try:
                 c = db.conn.cursor()
                 c.execute("""
-                    SELECT name, year, quality_score, downloaded_at, removed_at
+                    SELECT id, name, year, quality_score, downloaded_at, removed_at
                     FROM movies
                     WHERE downloaded_at IS NOT NULL
                     ORDER BY downloaded_at DESC
@@ -3454,12 +3505,14 @@ def get_recent_downloads():
                 for row in c.fetchall():
                     year_str = f" ({row['year']})" if row['year'] else ''
                     events.append({
-                        'kind':    'download',
-                        'type':    'movie',
-                        'title':   f"{row['name']}{year_str}",
+                        'kind':       'download',
+                        'type':       'movie',
+                        'title':      f"{row['name']}{year_str}",
+                        'movie_id':   row['id'],
+                        'poster_url': _poster_url('movie', row['id']) if os.path.exists(_poster_file('movie', row['id'])) else '',
                         'quality_score': row['quality_score'],
-                        'date':    row['downloaded_at'],
-                        'removed': bool(row['removed_at']),
+                        'date':       row['downloaded_at'],
+                        'removed':    bool(row['removed_at']),
                     })
             except Exception as e:
                 logger.error(f"Recent movies DB error: {e}")
@@ -3468,6 +3521,20 @@ def get_recent_downloads():
         try:
             from core.comics import ComicsDB
             _cdb_c = ComicsDB(os.path.join(BASE_DIR, 'comics.db'))
+
+            # Carica mappa comic_title -> (id, cover_url) per il poster
+            import sqlite3 as _sq_cm
+            _comics_db_path = os.path.join(BASE_DIR, 'comics.db')
+            _comic_cover_map = {}  # title.lower() -> (id, cover_url)
+            if os.path.exists(_comics_db_path):
+                try:
+                    _cm_conn = _sq_cm.connect(_comics_db_path)
+                    _cm_conn.row_factory = _sq_cm.Row
+                    for _cm_row in _cm_conn.execute("SELECT id, title, cover_url FROM comics_monitored WHERE cover_url != ''").fetchall():
+                        _comic_cover_map[_cm_row['title'].lower()] = (_cm_row['id'], _cm_row['cover_url'])
+                    _cm_conn.close()
+                except Exception as _cme:
+                    logger.debug(f"comics cover_map: {_cme}")
 
             # 3a. Singoli fumetti monitorati
             for ch in _cdb_c.get_history(limit=8):
@@ -3481,10 +3548,30 @@ def get_recent_downloads():
                     display = ep
                 else:
                     display = series or 'Fumetto'
+
+                # Recupera poster dal fumetto monitorato
+                _comic_poster_url = ''
+                _cm_key = series.lower() if series else ''
+                if _cm_key and _cm_key in _comic_cover_map:
+                    _cm_id, _cm_cover = _comic_cover_map[_cm_key]
+                    _cm_poster_file = _poster_file('comic', _cm_id)
+                    if not os.path.exists(_cm_poster_file) and _cm_cover:
+                        try:
+                            os.makedirs(POSTERS_DIR, exist_ok=True)
+                            _cm_resp = requests.get(_cm_cover, timeout=10)
+                            if _cm_resp.status_code == 200:
+                                with open(_cm_poster_file, 'wb') as _cmf:
+                                    _cmf.write(_cm_resp.content)
+                        except Exception as _cme2:
+                            logger.debug(f"comic poster download: {_cme2}")
+                    if os.path.exists(_cm_poster_file):
+                        _comic_poster_url = _poster_url('comic', _cm_id)
+
                 events.append({
                     'kind':          'download',
                     'type':          'comic',
                     'title':         display,
+                    'poster_url':    _comic_poster_url,
                     'quality_score': None,
                     'date':          ch['sent_at'],
                 })
@@ -7445,6 +7532,7 @@ def comics_delete(comic_id):
     try:
         comics_db = _comics_db()
         ok        = comics_db.delete_comic(comic_id)
+        _delete_poster('comic', comic_id)
         return jsonify({'success': ok})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})

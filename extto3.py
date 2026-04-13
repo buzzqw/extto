@@ -2351,6 +2351,23 @@ def main():
                         details = tmdb_client.fetch_series_details(tmdb_id)
                         if not details: continue
                         
+                        # Salva poster su disco se non già presente
+                        try:
+                            import os as _os
+                            _posters_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'static', 'posters')
+                            _poster_file = _os.path.join(_posters_dir, f's_{s_id}.jpg')
+                            if not _os.path.exists(_poster_file):
+                                _poster_path = details.get('poster_path', '')
+                                if _poster_path:
+                                    import requests as _req
+                                    _resp = _req.get(f'https://image.tmdb.org/t/p/w300{_poster_path}', timeout=10)
+                                    if _resp.status_code == 200:
+                                        _os.makedirs(_posters_dir, exist_ok=True)
+                                        with open(_poster_file, 'wb') as _f:
+                                            _f.write(_resp.content)
+                        except Exception as _pe:
+                            logger.debug(f"poster extto3: {_pe}")
+                        
                         # 🛡️ SELF-HEALING 1: Controllo anti-corruzione per vecchi ID TVDB
                         tmdb_name = details.get('name') or details.get('original_name') or ''
                         if not _series_name_matches(normalize_series_name(s_name), normalize_series_name(tmdb_name)):

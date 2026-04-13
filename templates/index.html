@@ -134,7 +134,7 @@
                     </a>
                 </div>
                 <span id="next-run-timer" data-i18n-title="Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett)." title="Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett)." style="font-weight:600; font-size:0.9em; opacity:0.8; display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                    <i class="fa-regular fa-clock"></i> <span data-i18n="Prossima">Prossima</span>: <span id="timer-text">--:--</span>
+                    <i class="fa-regular fa-clock"></i> <span data-i18n="Prossima">Prossima</span>: <span id="timer-text" style="min-width:7ch; display:inline-block; text-align:right; font-family:var(--font-mono, monospace);">--:--</span>
                 </span>
                 <span class="status-indicator" id="status-indicator" data-i18n-title="Stato del demone in background. Se è 'Offline', assicurati che il servizio extto.service sia in esecuzione." title="Stato del demone in background. Se è 'Offline', assicurati che il servizio extto.service sia in esecuzione."><span class="dot"></span><span>Live</span></span>
                 
@@ -175,22 +175,22 @@
                 <div class="dashboard-run-actions" style="display:flex; justify-content:flex-end; margin-bottom:1rem; gap:0.5rem; flex-wrap:wrap;">
                     <button class="btn btn-secondary"
                         data-i18n-title="Forza immediatamente un ciclo completo: cerca nuovi episodi, film e fumetti, riempie i gap e aggiorna i metadati TMDB. Equivale ad aspettare il prossimo ciclo programmato ma senza attendere." title="Forza immediatamente un ciclo completo: cerca nuovi episodi, film e fumetti, riempie i gap e aggiorna i metadati TMDB. Equivale ad aspettare il prossimo ciclo programmato ma senza attendere."
-                        onclick="app.runNow('all')">
+                        onclick="app.runNow('all')" style="padding:0.45rem 1rem; gap:0.5rem;">
                         <i class="fa-solid fa-arrows-rotate"></i><span class="btn-run-label"><span data-i18n="Ricontrolla Tutto"> Ricontrolla Tutto</span></span>
                     </button>
                     <button class="btn btn-secondary"
                         data-i18n-title="Cerca subito nuovi episodi per tutte le serie TV abilitate e tenta di riempire i gap mancanti. Non tocca film né fumetti." title="Cerca subito nuovi episodi per tutte le serie TV abilitate e tenta di riempire i gap mancanti. Non tocca film né fumetti."
-                        onclick="app.runNow('series')">
+                        onclick="app.runNow('series')" style="padding:0.45rem 1rem; gap:0.5rem;">
                         <i class="fa-solid fa-tv"></i><span class="btn-run-label"><span data-i18n="Serie"> Serie</span></span>
                     </button>
                     <button class="btn btn-secondary"
                         data-i18n-title="Cerca subito i film presenti in lista che non sono ancora stati scaricati. Non tocca serie TV né fumetti." title="Cerca subito i film presenti in lista che non sono ancora stati scaricati. Non tocca serie TV né fumetti."
-                        onclick="app.runNow('movies')">
+                        onclick="app.runNow('movies')" style="padding:0.45rem 1rem; gap:0.5rem;">
                         <i class="fa-solid fa-film"></i><span class="btn-run-label"><span data-i18n="Film"> Film</span></span>
                     </button>
                     <button class="btn btn-secondary"
                         data-i18n-title="Controlla subito getcomics.org per nuovi fumetti monitorati e weekly pack, ignorando il timer settimanale. Non tocca serie TV né film." title="Controlla subito getcomics.org per nuovi fumetti monitorati e weekly pack, ignorando il timer settimanale. Non tocca serie TV né film."
-                        onclick="app.runNow('comics')">
+                        onclick="app.runNow('comics')" style="padding:0.45rem 1rem; gap:0.5rem;">
                         <i class="fa-solid fa-book-open-reader"></i><span class="btn-run-label"><span data-i18n="Fumetti"> Fumetti</span></span>
                     </button>
                 </div>
@@ -208,7 +208,7 @@
                     </div>
                     <div class="dashboard-card">
                         <h3><i class="fa-solid fa-file-arrow-down"></i> <span data-i18n="Ultimi Download">Ultimi Download</span></h3>
-                        <div id="dashboard-logs" class="log-preview" data-i18n-title="Gli ultimi 10 download avviati con successo" title="Gli ultimi 10 download avviati con successo"></div>
+                        <div id="dashboard-logs" data-i18n-title="Gli ultimi download avviati con successo" title="Gli ultimi download avviati con successo"></div>
                     </div>
                 </div>
             </div>          
@@ -2244,8 +2244,8 @@ sudo mount /mnt/ramdisk</div>
                         <h1 id="extto-title" style="margin: 0 0 10px 0; font-size: 2.5rem; letter-spacing: -1px;"><span data-i18n="Caricamento...">Caricamento...</span></h1>
                         <div style="display:flex; gap: 10px; margin-bottom: 15px; font-size: 0.85rem;">
                             <span class="badge badge-secondary" id="extto-year"><i class="fa-regular fa-calendar"></i> ----</span>
-                            <span class="badge badge-secondary" id="extto-network"><i class="fa-solid fa-tv"></i> ---</span>
-                            <span class="badge badge-info" id="extto-path" style="font-family: monospace;">---</span>
+                            <span class="badge badge-secondary" id="extto-network" style="display:none;"><i class="fa-solid fa-tv"></i> ---</span>
+                            <span class="badge badge-info" id="extto-path" style="font-family: monospace; display:none;">---</span>
                         </div>
                         <p id="extto-plot" style="opacity: 0.8; font-size: 0.95rem; line-height: 1.6; max-width: 800px; margin-bottom: 15px;"><span data-i18n="Recupero trama da TMDB in corso...">Recupero trama da TMDB in corso...</span></p>
                         <div style="display:flex; gap:10px; margin-top: 10px; flex-wrap:wrap;">
@@ -2740,19 +2740,22 @@ sudo mount /mnt/ramdisk</div>
                             </button>
                         </div>
                     </div>
-                    <div class="checkbox-row">
-                        <label class="toggle-switch">
+                    <div style="margin-bottom:10px; padding:10px 14px; background:var(--bg-input); border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:14px;">
+                        <label class="toggle-switch" style="flex-shrink:0;">
                             <input type="checkbox" id="magnet-download-now" checked>
                             <span class="toggle-slider"></span>
                         </label>
-                        <label><span data-i18n="Scarica subito">Scarica subito</span></label>
+                        <span data-i18n="Scarica subito">Scarica subito</span>
                     </div>
-                    <div class="checkbox-row">
-                        <label class="toggle-switch">
+                    <div style="margin-bottom:10px; padding:10px 14px; background:var(--bg-input); border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:14px;">
+                        <label class="toggle-switch" style="flex-shrink:0;">
                             <input type="checkbox" id="magnet-no-rename">
                             <span class="toggle-slider"></span>
                         </label>
-                        <label><span data-i18n="Non rinominare">Non rinominare</span> <span style="color:var(--text-muted); font-size:0.82em;" data-i18n="(salta TMDB e rinomina automatica)">(salta TMDB e rinomina automatica)</span></label>
+                        <div>
+                            <div style="font-weight:600;" data-i18n="Non rinominare">Non rinominare</div>
+                            <div style="font-size:0.8em; color:var(--text-muted);" data-i18n="Salta la ricerca TMDB e la rinomina automatica del file">Salta la ricerca TMDB e la rinomina automatica del file</div>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width:100%; margin-top:15px;" data-i18n="Vai">Esegui</button>
                 </form>
@@ -3064,9 +3067,9 @@ sudo mount /mnt/ramdisk</div>
                         <input type="checkbox" id="no-rename-confirm-flag">
                         <span class="toggle-slider"></span>
                     </label>
-                    <div style="display:flex; flex-direction:column; gap:3px;">
-                        <span data-i18n="Non rinominare" style="font-weight:600;">Non rinominare</span>
-                        <span style="color:var(--text-muted); font-size:0.8em;">Salta la ricerca TMDB e la rinomina automatica del file</span>
+                    <div>
+                        <div style="font-weight:600;" data-i18n="Non rinominare">Non rinominare</div>
+                        <div style="font-size:0.8em; color:var(--text-muted);" data-i18n="Salta la ricerca TMDB e la rinomina automatica del file">Salta la ricerca TMDB e la rinomina automatica del file</div>
                     </div>
                 </div>
                 <div style="display:flex; gap:10px;">
