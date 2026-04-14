@@ -24,6 +24,10 @@
 /* Trova la tua sezione :root in style.css e Sostituisci i colori */
 :root {
   --bg-main: #0f1115;
+  /* Altezze mobile — usate da sidebar, quick bar, drawer, log, toast */
+  --mobile-nav-height: 60px;
+  --mobile-qbar-height: 60px;
+  --mobile-touch-min: 44px;
   --bg-card: #151922;
   --bg-hover: #1d2230;
   --border: #232838;
@@ -880,9 +884,9 @@ select option {
 
     .nav-item {
         flex-direction: column; justify-content: center; align-items: center;
-        flex: 1; padding: 5px 2px; gap: 2px;
+        flex: 1; padding: 6px 3px; gap: 3px;
         border-left: none; border-top: 2px solid transparent;
-        font-size: 0.6rem; font-weight: 600; text-align: center;
+        font-size: 0.65rem; font-weight: 600; text-align: center;
         min-height: var(--mobile-touch-min);
         white-space: nowrap; overflow: hidden;
     }
@@ -895,7 +899,7 @@ select option {
         margin-right: 0;
     }
 
-    .nav-item .icon { font-size: 1.2rem; width: auto; height: auto; }
+    .nav-item .icon { font-size: 1.4rem; width: auto; height: auto; }
     .nav-item > span:not(.icon) { display: block; }
 
     .main-content {
@@ -907,6 +911,7 @@ select option {
     .header-title h2 { font-size: 0.95rem; }
     .header-actions { gap: 0.5rem; }
     .header-actions #next-run-timer { display: none !important; }
+    .header-actions .btn-donate { display: none !important; }
     .status-indicator { padding: 0.3rem 0.6rem; font-size: 0.72rem; }
 
     .content {
@@ -1219,15 +1224,17 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
     position: relative;
 }
 
-/* Strisce animate durante download (Rese molto più visibili) */
+/* Strisce animate durante download */
 .torrent-progress-fill.downloading::after {
     content: '';
     position: absolute; inset: 0;
     background: repeating-linear-gradient(
-        45deg, transparent, transparent 6px,
-        rgba(255,255,255,0.40) 6px, rgba(255,255,255,0.40) 12px
+        -45deg,
+        transparent,          transparent 6px,
+        rgba(255,255,255,0.22) 6px, rgba(255,255,255,0.22) 12px
     );
-    animation: stripes 0.9s linear infinite;
+    background-size: 17px 17px;
+    animation: stripes 0.6s linear infinite;
 }
 
 .torrent-progress-fill.paused   { background: linear-gradient(90deg, #6b7280, #9ca3af); }
@@ -1237,7 +1244,7 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 
 @keyframes stripes {
     from { background-position: 0 0; }
-    to   { background-position: 24px 0; }
+    to   { background-position: 17px 17px; }
 }
 
 /* % sovrapposto DENTRO la barra, centrato — stile aMuTorrent */
@@ -1725,14 +1732,19 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 .mobile-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
 
 .mobile-drawer {
-    display: block; position: fixed;
-    bottom: var(--mobile-nav-height); left: 0; right: 0;
+    display: flex; flex-direction: column; position: fixed;
+    left: 0; right: 0;
+    bottom: calc(var(--mobile-nav-height) + var(--mobile-qbar-height));
+    /* Altezza massima: dallo schermo al punto bottom */
+    max-height: calc(100vh - var(--mobile-nav-height) - var(--mobile-qbar-height) - 60px);
     background: var(--bg-card); border-top: 1px solid var(--border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    z-index: 301; transform: translateY(110%);
+    z-index: 301;
+    /* Nascosto sotto le barre; translateY positivo spinge GIÙ fuori schermo */
+    transform: translateY(calc(100% + var(--mobile-nav-height) + var(--mobile-qbar-height)));
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     padding-bottom: env(safe-area-inset-bottom);
-    max-height: 70vh; overflow-y: auto; pointer-events: none;
+    overflow: hidden; pointer-events: none;
 }
 .mobile-drawer.open { transform: translateY(0); pointer-events: auto; }
 
@@ -1741,6 +1753,7 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
     padding: 0.875rem 1.25rem 0.65rem; font-weight: 700; font-size: 0.82rem;
     color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .mobile-drawer-close {
@@ -1749,15 +1762,17 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 }
 .mobile-drawer-close:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.mobile-drawer-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 0.4rem; }
+.mobile-drawer-nav { display: flex; flex-direction: column; gap: 0; padding: 0.25rem 0.5rem 0.75rem; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 .mobile-drawer-item {
-    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-    padding: 0.875rem 0.4rem; text-decoration: none;
-    color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
-    border-radius: var(--radius-md); transition: var(--transition); text-align: center;
+    display: flex; flex-direction: row; align-items: center; gap: 0.875rem;
+    padding: 0.875rem 1rem; text-decoration: none;
+    color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;
+    border-radius: var(--radius-md); transition: var(--transition); text-align: left;
+    min-height: 52px; border-bottom: 1px solid rgba(255,255,255,0.03);
 }
-.mobile-drawer-item i { font-size: 1.3rem; }
+.mobile-drawer-item:last-child { border-bottom: none; }
+.mobile-drawer-item i { font-size: 1.15rem; width: 22px; text-align: center; flex-shrink: 0; }
 .mobile-drawer-item:hover, .mobile-drawer-item.active {
     background: rgba(59,130,246,0.1); color: var(--primary-light);
 }
@@ -1772,22 +1787,22 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
         display: flex; position: fixed;
         bottom: var(--mobile-nav-height); left: 0; right: 0;
         background: var(--bg-card); border-top: 1px solid var(--border);
-        z-index: 150; padding: 0.35rem 0.4rem;
-        padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
-        gap: 0.3rem; box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+        z-index: 150; padding: 0.4rem 0.5rem;
+        padding-bottom: calc(0.4rem + env(safe-area-inset-bottom, 0px));
+        gap: 0.4rem; box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
     }
 
     .content { padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-qbar-height)); }
 
     .mqb-btn {
         flex: 1; display: flex; flex-direction: column; align-items: center;
-        justify-content: center; gap: 0.15rem; padding: 0.35rem 0.2rem;
+        justify-content: center; gap: 0.2rem; padding: 0.45rem 0.25rem;
         background: var(--bg-raised); border: 1px solid var(--border);
         border-radius: var(--radius-md); color: var(--text-muted);
-        font-size: 0.62rem; font-weight: 700; cursor: pointer;
-        transition: var(--transition); min-height: 44px; line-height: 1;
+        font-size: 0.67rem; font-weight: 700; cursor: pointer;
+        transition: var(--transition); min-height: 52px; line-height: 1;
     }
-    .mqb-btn i { font-size: 0.95rem; }
+    .mqb-btn i { font-size: 1.05rem; }
     .mqb-btn:hover, .mqb-btn:active { background: var(--bg-main); color: var(--primary-light); border-color: var(--primary); }
 
     .mqb-magnet {
