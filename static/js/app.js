@@ -5828,10 +5828,10 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     barColor = 'linear-gradient(90deg, #8b5cf6, #d946ef)'; // Viola
                 } else if (torr.error) {
                     barColor = 'linear-gradient(90deg, #ef4444, #f87171)'; // Rosso
+                } else if (isDone) {
+                    barColor = 'linear-gradient(90deg, #10b981, #34d399)'; // Verde — prima di paused!
                 } else if (torr.paused) {
                     barColor = 'linear-gradient(90deg, #6b7280, #9ca3af)'; // Grigio
-                } else if (isDone) {
-                    barColor = 'linear-gradient(90deg, #10b981, #34d399)'; // Verde
                 } else if (isActiveDownload) {
                     // --- EFFETTO DINAMICO PERCENTUALE ---
                     const hueStart = Math.floor((pct / 100) * 120); 
