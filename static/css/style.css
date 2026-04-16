@@ -1692,8 +1692,10 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
         display: flex !important; align-items: center; gap: 4px;
         background: var(--bg-input); padding: 3px 7px;
         border-radius: var(--radius-sm); border: 1px solid var(--border);
-        flex: 1 1 80px; min-width: 0;
+        flex: 0 0 auto; min-width: 0; overflow: visible;
     }
+    /* Assicura che il bottone check non venga mai tagliato */
+    .torrent-toolbar-speed > button { flex-shrink: 0; }
     .torrent-toolbar-actions { display: contents; }
 }
 
@@ -1703,7 +1705,8 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
     .torrent-toolbar-stats { flex-wrap: wrap; gap: 4px; }
     .torrent-toolbar-stats .torrent-band-stats { flex: 1 1 180px; min-width: 0; overflow: hidden; white-space: nowrap; margin: 0; }
     .torrent-toolbar-stats .torrent-tag-select { flex: 0 0 auto; width: auto; min-width: 110px; max-width: 170px; padding: 4px 6px; border-radius: var(--radius-sm); font-size: 0.8rem; }
-    .torrent-toolbar-speed { background: var(--bg-input); padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); gap: 5px; }
+    .torrent-toolbar-speed { display: flex; align-items: center; background: var(--bg-input); padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); gap: 5px; overflow: visible; }
+    .torrent-toolbar-speed > button { flex-shrink: 0; }
     .torrent-speed-input { flex: 0 0 5rem; min-width: 5rem; width: 5rem; padding: 3px 4px; text-align: center; font-size: 0.8rem; }
     .torrent-toolbar-actions .btn:first-child { flex: 1; }
     .torrent-toolbar-actions .btn { min-height: 36px; }

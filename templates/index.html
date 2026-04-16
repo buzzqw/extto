@@ -8,8 +8,8 @@
     <meta name="theme-color" content="#0f172a">
     <title>EXTTO Web Interface | Control Panel</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ9wVEzpRpt7SS5OiLN2oc4Yo" crossorigin="anonymous" referrerpolicy="no-referrer">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><circle cx='256' cy='256' r='256' fill='%232563eb'/><polygon points='190,145 370,256 190,367' fill='white'/></svg>">
     <style>
         .btn-donate {
@@ -420,10 +420,10 @@
                     <div class="torrent-toolbar-row torrent-toolbar-speed" data-i18n-title="Imposta limiti globali (KB/s). 0 = Illimitato." title="Imposta limiti globali (KB/s). 0 = Illimitato.">
     <i class="fa-solid fa-gauge-high" style="color:var(--text-muted); font-size:0.8rem; flex-shrink:0;"></i>
     
-    <input type="number" id="quick-dl-limit" class="form-input torrent-speed-input" placeholder="DL" data-i18n-placeholder="DL" min="0" style="height:38px; padding:2px 8px; width:105px; text-align:center; box-sizing:border-box;">
+    <input type="number" id="quick-dl-limit" class="form-input torrent-speed-input" placeholder="DL" data-i18n-placeholder="DL" min="0" style="height:38px; padding:2px 8px; text-align:center; box-sizing:border-box;">
     <span style="color:var(--text-muted); font-size:0.78rem; flex-shrink:0;">↓</span>
     
-    <input type="number" id="quick-ul-limit" class="form-input torrent-speed-input" placeholder="UL" data-i18n-placeholder="UL" min="0" style="height:38px; padding:2px 8px; width:105px; text-align:center; box-sizing:border-box;">
+    <input type="number" id="quick-ul-limit" class="form-input torrent-speed-input" placeholder="UL" data-i18n-placeholder="UL" min="0" style="height:38px; padding:2px 8px; text-align:center; box-sizing:border-box;">
     <span style="color:var(--text-muted); font-size:0.78rem; flex-shrink:0;">↑</span>
     <span style="color:var(--text-muted); font-size:0.7rem; flex-shrink:0;">KB/s</span>
     
