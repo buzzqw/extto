@@ -5438,34 +5438,43 @@ def set_torrent_no_rename():
 
 @app.route('/api/maintenance/clean-trash', methods=['POST'])
 def clean_trash():
-    """Elimina i file nel cestino più vecchi di trash_retention_days giorni."""
+    """Elimina i file nel cestino.
+    Se trash_retention_days è configurato, rimuove solo i file più vecchi di N giorni.
+    Se non configurato, il pulsante manuale svuota TUTTO il cestino.
+    """
     try:
+        import core.config_db as _cdb_tr
+        # trash_path: Config lo legge correttamente
         from core.config import Config as _Cfg
         cfg = _Cfg()
-        trash_path = str(getattr(cfg, 'trash_path', '')).strip()
+        trash_path = str(getattr(cfg, 'trash_path', '') or
+                         _cdb_tr.get_setting('trash_path', '')).strip()
         if not trash_path:
             return jsonify({'success': False, 'error': 'Cartella cestino non configurata'})
         if not os.path.exists(trash_path):
             return jsonify({'success': False, 'error': f'Cartella cestino non trovata: {trash_path}'})
 
-        # days può essere stringa vuota → non cancellare mai
-        days_raw = str(getattr(cfg, 'trash_retention_days', '')).strip()
+        # trash_retention_days non è in Config — leggi da config_db
+        days_raw = str(_cdb_tr.get_setting('trash_retention_days', '') or '').strip()
         if not days_raw:
-            return jsonify({'success': True, 'deleted': 0, 'freed_mb': 0,
-                            'message': 'Pulizia automatica disabilitata (giorni non configurati)'})
-        try:
-            days = int(days_raw)
-            if days <= 0:
-                return jsonify({'success': False, 'error': 'Il numero di giorni deve essere > 0'})
-        except ValueError:
-            return jsonify({'success': False, 'error': f'Valore giorni non valido: {days_raw}'})
+            # Nessun limite configurato: il pulsante manuale svuota tutto
+            days = None
+        else:
+            try:
+                days = int(days_raw)
+                if days < 0:
+                    return jsonify({'success': False, 'error': 'Il numero di giorni deve essere >= 0'})
+            except ValueError:
+                return jsonify({'success': False, 'error': f'Valore giorni non valido: {days_raw}'})
 
         import time
-        cutoff = time.time() - days * 86400
+        # cutoff: se days=None elimina tutto (cutoff=inf), se days=0 elimina tutto
+        cutoff = (time.time() - days * 86400) if (days is not None and days > 0) else float('inf')
         deleted = 0
         freed = 0
 
-        log_maintenance(f"🗑️ Pulizia cestino: file più vecchi di {days} giorni in {trash_path}...")
+        age_desc = f"più vecchi di {days} giorni" if (days is not None and days > 0) else "tutti"
+        log_maintenance(f"🗑️ Pulizia cestino: file {age_desc} in {trash_path}...")
         for fname in os.listdir(trash_path):
             fpath = os.path.join(trash_path, fname)
             if not os.path.isfile(fpath):
@@ -5481,7 +5490,8 @@ def clean_trash():
                 log_maintenance(f"⚠️ Errore rimozione {fname}: {e}")
 
         freed_mb = round(freed / 1024 / 1024, 2)
-        msg = f"Rimossi {deleted} file ({freed_mb} MB liberati)"
+        age_label = f" più vecchi di {days} giorni" if (days is not None and days > 0) else ""
+        msg = f"Rimossi {deleted} file ({freed_mb} MB liberati){age_label}"
         log_maintenance(f"✅ Pulizia cestino completata: {msg}")
         return jsonify({'success': True, 'deleted': deleted, 'freed_mb': freed_mb, 'message': msg})
 

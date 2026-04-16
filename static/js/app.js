@@ -4765,6 +4765,36 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         this.closeDirBrowser();
     },
 
+    async createDirBrowser() {
+        const input = document.getElementById('dir-browser-newname');
+        const name  = (input?.value || '').trim();
+        if (!name) {
+            this.showToast(t('Inserisci un nome per la nuova cartella'), 'warning');
+            return;
+        }
+        const btn = document.getElementById('dir-browser-mkdir-btn');
+        if (btn) btn.disabled = true;
+        try {
+            const res  = await fetch('/api/mkdir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ parent: this._dirBrowserPath, name })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (input) input.value = '';
+                await this._loadDirBrowser(data.path);
+                this.showToast('📁 ' + t('Cartella creata') + ': ' + name, 'success');
+            } else {
+                this.showToast('❌ ' + data.error, 'error');
+            }
+        } catch(e) {
+            this.showToast(t('Errore di rete'), 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    },
+
     async _loadDirBrowser(path) {
         const listEl = document.getElementById('dir-browser-list');
         const pathEl = document.getElementById('dir-browser-path');
