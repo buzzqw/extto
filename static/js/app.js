@@ -6788,15 +6788,18 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                             body: JSON.stringify({ path: j.path })
                         });
                         const tgJ = await tgRes.json();
-                        if (tgJ.success) {
-                            if (status) status.textContent = msg + ` — 📤 ${t('Inviato su Telegram!')}`;
-                            this.showToast(t('Backup inviato su Telegram!'), 'success');
-                        } else {
+                        if (!tgJ.success) {
                             if (status) status.textContent = msg + ` — ⚠️ ${t('Errore Telegram')}: ` + tgJ.error;
                             this.showToast(t('Errore invio Telegram') + ': ' + tgJ.error, 'error');
+                        } else if (tgJ.job_id) {
+                            if (status) status.textContent = msg + ' — 📤 ' + t('Invio Telegram in corso...');
+                            this._pollTelegramJob(
+                                tgJ.job_id,
+                                m => { if (status) status.textContent = msg + ' — ✅ ' + t('Inviato su Telegram!'); this.showToast('✅ ' + t(m), 'success'); },
+                                e => { if (status) status.textContent = msg + ' — ⚠️ ' + e; this.showToast('❌ ' + e, 'error'); }
+                            );
                         }
                     } catch(tgE) {
-                        if (status) status.textContent = msg + ` — ⚠️ ${t('Errore rete Telegram')}: ` + tgE.message;
                         this.showToast(t('Errore rete Telegram'), 'error');
                     }
                 }
@@ -6837,23 +6840,50 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         } catch(e) { console.error('loadBackupList', e); }
     },
 
+
+    // Polling helper per job upload Telegram asincrono
+    async _pollTelegramJob(jobId, onSuccess, onError) {
+        const MAX_POLLS = 100;  // 100 x 3s = 5 minuti massimo
+        for (let i = 0; i < MAX_POLLS; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            try {
+                const r = await fetch(`${API_BASE}/api/backup/send-telegram/status?job=${jobId}`);
+                const d = await r.json();
+                if (!d.success) { onError(d.error || 'Errore polling'); return; }
+                if (d.status === 'ok')    { onSuccess(d.message); return; }
+                if (d.status === 'error') { onError(d.message);   return; }
+                // status === 'pending': continua polling
+            } catch(e) {
+                onError(e.message);
+                return;
+            }
+        }
+        onError("Timeout: l'upload ha impiegato troppo tempo");
+    },
+
     async sendBackupToTelegram(path) {
         if(!confirm(t('Vuoi inviare questo backup di EXTTO al gruppo Telegram configurato?'))) return;
-        this.showToast(t('Upload su Telegram in corso... (potrebbe volerci qualche decina di secondi)'), 'info');
+        this.showToast(t('Upload su Telegram avviato in background...'), 'info');
         try {
             const res = await fetch(`${API_BASE}/api/backup/send-telegram`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: path })
+                body: JSON.stringify({ path })
             });
             const data = await res.json();
-            if (data.success) {
-                this.showToast(t(data.message), 'success');
-            } else {
-                this.showToast(t('Errore:') + ' ' + data.error, 'error');
+            if (!data.success) {
+                this.showToast(data.error || t('Errore'), 'error');
+                return;
             }
+            // Upload asincrono: fai polling finché non completa
+            this.showToast(t('Upload in corso... riceverai una notifica al termine'), 'info');
+            this._pollTelegramJob(
+                data.job_id,
+                msg => this.showToast('✅ ' + t(msg), 'success'),
+                err => this.showToast('❌ ' + err,    'error')
+            );
         } catch(e) {
-            this.showToast(t('Errore di rete durante l\'invio'), 'error');
+            this.showToast(t("Errore di rete durante l'invio"), 'error');
         }
     },
 

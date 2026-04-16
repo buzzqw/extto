@@ -374,15 +374,31 @@ class Parser:
         # Lingua — usa t_norm_lang (già calcolato sopra, parentesi quadre rimosse)
         # per evitare falsi positivi e per coprire il formato [IT] dei file rinominati.
         # \bita\b copre i torrent normali; \bit\b copre [IT] → " it " dopo la normalizzazione.
-        # La lista di esclusioni evita falsi positivi su parole inglesi comuni con "it".
-        if re.search(r'\bita\b|\bitalian\b|\bitaliano\b', t_norm_lang):
+        #
+        # IMPORTANTE: rimuove prima i tag sorgente streaming noti che contengono
+        # 'it' come sigla (iT = iTunes, WEBRip, ecc.) per evitare falsi positivi.
+        # Esempio: '2160p.iT.WEB-DL' → 'iT' non è italiano, è iTunes.
+        _STREAMING_TAGS = (
+            r'\bit\b(?=\s+web)'    # .iT.WEB-DL / .iT.WEBRip  (iTunes)
+            r'|\biTunes\b'          # iTunes esplicito
+            r'|\bamzn\b'           # Amazon
+            r'|\bdsnp\b'           # Disney+
+            r'|\bnf\b(?=\s+web)'  # .NF.WEB (Netflix)
+            r'|\bhmax\b'           # HBO Max
+            r'|\bparamount\b'
+        )
+        # Rimuove i tag sorgente prima del check lingua
+        t_norm_lang_nostream = re.sub(_STREAMING_TAGS, ' ', t_norm_lang)
+
+        if re.search(r'\bita\b|\bitalian\b|\bitaliano\b', t_norm_lang_nostream):
             q.is_ita = True
-        elif re.search(r'\bit\b', t_norm_lang) and not re.search(
+        elif re.search(r'\bit\b', t_norm_lang_nostream) and not re.search(
                 r'\bwith\b|\bbit\b|\bsplit\b|\bedit\b|\bunit\b|\bvisit\b|'
                 r'\blimit\b|\bexit\b|\bprofit\b|\bsubmit\b|\bcommit\b|'
                 r'\bpermit\b|\badmit\b|\bomit\b|\bhit\b|\bkit\b|\bpit\b|'
-                r'\bsit\b|\bfit\b|\bwit\b|\bknit\b|\bspit\b|\bslit\b',
-                t_norm_lang):
+                r'\bsit\b|\bfit\b|\bwit\b|\bknit\b|\bspit\b|\bslit\b|'
+                r'\bitunes\b',   # iTunes esplicito come parola intera
+                t_norm_lang_nostream):
             q.is_ita = True
 
         # Revisioni

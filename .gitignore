@@ -16,3 +16,4 @@ __pycache__/
 .venv/
 backup.sh
 static/posters/*
+extto_mappa.md

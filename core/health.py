@@ -42,8 +42,8 @@ class HealthMonitor:
                     cmd = " ".join(p.info['cmdline']) if p.info['cmdline'] else p.info['name']
                     if cmd:
                         running_cmds.append(cmd.lower())
-                except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
-                    pass  # processo terminato o senza permessi — normale
+                except:
+                    pass
             
             for label, keyword in services.items():
                 is_active = any(keyword.lower() in cmd for cmd in running_cmds)
@@ -66,8 +66,8 @@ class HealthMonitor:
                     'status': status_text,
                     'ok': is_active
                 })
-        except Exception as e:
-            logger.debug(f'health get_service_status: {e}')
+        except Exception:
+            pass
             
         return results
 
@@ -101,6 +101,23 @@ class HealthMonitor:
         if trash and isinstance(trash, str):
             paths_to_check['Cestino (Trash)'] = trash
 
+        # Calcola la dimensione effettiva dei file nel cestino
+        trash_content_gb = None
+        trash_file_count = None
+        if trash and isinstance(trash, str) and os.path.isdir(trash):
+            try:
+                total_bytes = 0
+                count = 0
+                for fname in os.listdir(trash):
+                    fpath = os.path.join(trash, fname)
+                    if os.path.isfile(fpath):
+                        total_bytes += os.path.getsize(fpath)
+                        count += 1
+                trash_content_gb = round(total_bytes / (1024**3), 2)
+                trash_file_count = count
+            except Exception as e:
+                logger.debug(f'health trash content size: {e}')
+
         results = []
         for label, path in paths_to_check.items():
             if not path or not os.path.exists(path):
@@ -110,14 +127,19 @@ class HealthMonitor:
                 free_gb = usage.free / (1024**3)
                 total_gb = usage.total / (1024**3)
                 percent = (usage.used / usage.total * 100) if usage.total > 0 else 0
-                results.append({
+                entry = {
                     'label': label,
                     'path': path,
                     'total_gb': round(total_gb, 2),
                     'free_gb': round(free_gb, 2),
                     'percent': round(percent, 1),
                     'status': 'warning' if percent > 90 else 'ok'
-                })
+                }
+                # Aggiunge dati contenuto cestino solo per la voce Trash
+                if label == 'Cestino (Trash)' and trash_content_gb is not None:
+                    entry['trash_content_gb'] = trash_content_gb
+                    entry['trash_file_count'] = trash_file_count
+                results.append(entry)
             except Exception as e:
                 logger.debug(f'health disk check {path}: {e}')
         return results
@@ -183,8 +205,8 @@ class HealthMonitor:
             try:
                 if not os.path.exists(f):
                     os.makedirs(f, exist_ok=True)
-            except Exception as e:
-                logger.debug(f'health makedirs {f}: {e}')
+            except Exception:
+                pass
                 
             if not os.path.exists(f):
                 continue

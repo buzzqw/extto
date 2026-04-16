@@ -2362,53 +2362,104 @@ def list_backups():
     except Exception as e:
         return jsonify({'backups': [], 'dir': '', 'error': str(e)})
 
+# Dizionario condiviso per lo stato degli upload Telegram in background
+# { job_id: {'status': 'pending'|'ok'|'error', 'message': str} }
+_tg_upload_jobs: dict = {}
+_tg_upload_lock = __import__('threading').Lock()
+
+
+def _do_telegram_upload(job_id: str, file_path: str, token: str, chat_id: str):
+    """Esegue l'upload verso Telegram in un thread separato."""
+    import requests as _req
+    try:
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        fname = os.path.basename(file_path)
+        log_maintenance(f"📤 Upload backup {fname} su Telegram ({file_size_mb:.1f} MB)...")
+        url = f"https://api.telegram.org/bot{token}/sendDocument"
+        caption = f"📦 *Backup EXTTO*\n`{fname}` — {file_size_mb:.1f} MB"
+        with open(file_path, 'rb') as doc:
+            r = _req.post(
+                url,
+                data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'Markdown'},
+                files={'document': (fname, doc, 'application/zip')},
+                timeout=300,   # 5 minuti: abbondante anche per connessioni lente
+                stream=False,
+            )
+        if r.status_code == 200:
+            log_maintenance("✅ Backup inviato su Telegram.")
+            with _tg_upload_lock:
+                _tg_upload_jobs[job_id] = {'status': 'ok', 'message': 'Backup inviato su Telegram!'}
+        else:
+            desc = r.json().get('description', 'Errore sconosciuto')
+            log_maintenance(f"❌ Telegram API error: {desc}")
+            with _tg_upload_lock:
+                _tg_upload_jobs[job_id] = {'status': 'error', 'message': f'Errore API Telegram: {desc}'}
+    except Exception as e:
+        log_maintenance(f"❌ Errore upload Telegram: {e}")
+        with _tg_upload_lock:
+            _tg_upload_jobs[job_id] = {'status': 'error', 'message': str(e)}
+
+
 @app.route('/api/backup/send-telegram', methods=['POST'])
 def send_backup_telegram():
-    """Invia un file ZIP di backup al gruppo Telegram configurato."""
+    """Avvia l'upload del backup su Telegram in background e ritorna subito un job_id.
+    Il client fa polling su /api/backup/send-telegram/status?job=<id> per il risultato.
+    """
+    import threading, uuid
+    data      = request.get_json(silent=True) or {}
+    file_path = data.get('path', '').strip()
+
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({'success': False, 'error': 'File di backup non trovato sul disco.'})
+
+    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    if file_size_mb > 49.9:
+        return jsonify({'success': False,
+                        'error': f'File troppo grande ({file_size_mb:.1f} MB). Limite bot Telegram: 50 MB.'})
+
     try:
-        data = request.get_json(silent=True) or {}
-        file_path = data.get('path', '').strip()
-        
-        if not file_path or not os.path.exists(file_path):
-            return jsonify({'success': False, 'error': 'File di backup non trovato sul disco.'})
+        import core.config_db as _cdb_tg
+        token   = str(_cdb_tg.get_setting('telegram_bot_token', '') or '').strip()
+        chat_id = str(_cdb_tg.get_setting('telegram_chat_id',   '') or '').strip()
+    except Exception:
+        cfg     = parse_series_config()
+        s       = cfg.get('settings', {})
+        token   = str(s.get('telegram_bot_token', '')).strip()
+        chat_id = str(s.get('telegram_chat_id',   '')).strip()
 
-        # Telegram Bot API ha un limite rigoroso di 50 MB per i file in upload
-        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
-        if file_size_mb > 49.9:
-            return jsonify({'success': False, 'error': f'File troppo grande ({file_size_mb:.1f} MB). Il limite dei bot Telegram è 50 MB.'})
+    if not token or not chat_id:
+        return jsonify({'success': False,
+                        'error': 'Token Bot o Chat ID Telegram non configurati.'})
 
-        # Leggi configurazione Telegram
-        cfg = parse_series_config()
-        settings = cfg.get('settings', {})
-        token = str(settings.get('telegram_bot_token', '')).strip()
-        chat_id = str(settings.get('telegram_chat_id', '')).strip()
-        
-        if not token or not chat_id:
-            return jsonify({'success': False, 'error': 'Token Bot o Chat ID di Telegram non configurati nelle impostazioni.'})
+    job_id = str(uuid.uuid4())
+    with _tg_upload_lock:
+        _tg_upload_jobs[job_id] = {'status': 'pending', 'message': 'Upload in corso...'}
 
-        # Invia il file usando le API ufficiali di Telegram
-        import requests
-        url = f"https://api.telegram.org/bot{token}/sendDocument"
-        
-        log_maintenance(f"📤 Avvio upload del backup {os.path.basename(file_path)} su Telegram ({file_size_mb:.1f} MB)...")
-        
-        with open(file_path, 'rb') as doc:
-            files = {'document': (os.path.basename(file_path), doc)}
-            payload = {'chat_id': chat_id, 'caption': '📦 *Backup Manuale EXTTO*\nEcco l\'archivio richiesto.', 'parse_mode': 'Markdown'}
-            # Usiamo un timeout lungo perché l'upload di 40MB può richiedere tempo
-            r = requests.post(url, data=payload, files=files, timeout=120)
-        
-        if r.status_code == 200:
-            log_maintenance("✅ Backup inviato con successo su Telegram.")
-            return jsonify({'success': True, 'message': 'Backup inviato su Telegram con successo!'})
-        else:
-            err_desc = r.json().get('description', 'Errore sconosciuto')
-            log_maintenance(f"❌ Errore API Telegram durante l'upload: {err_desc}")
-            return jsonify({'success': False, 'error': f'Errore API Telegram: {err_desc}'})
-            
-    except Exception as e:
-        log_maintenance(f"❌ Errore interno upload Telegram: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+    t = threading.Thread(
+        target=_do_telegram_upload,
+        args=(job_id, file_path, token, chat_id),
+        daemon=True,
+        name=f'tg-upload-{job_id[:8]}'
+    )
+    t.start()
+    return jsonify({'success': True, 'job_id': job_id, 'async': True})
+
+
+@app.route('/api/backup/send-telegram/status', methods=['GET'])
+def send_backup_telegram_status():
+    """Ritorna lo stato di un job di upload Telegram avviato in background."""
+    job_id = request.args.get('job', '').strip()
+    if not job_id:
+        return jsonify({'success': False, 'error': 'job_id mancante'})
+    with _tg_upload_lock:
+        job = _tg_upload_jobs.get(job_id)
+    if job is None:
+        return jsonify({'success': False, 'error': 'Job non trovato'})
+    # Pulizia job completati dopo la lettura (evita accumulo in memoria)
+    if job['status'] in ('ok', 'error'):
+        with _tg_upload_lock:
+            _tg_upload_jobs.pop(job_id, None)
+    return jsonify({'success': True, **job})
 
 
 @app.route('/api/series/<int:series_id>/extto-details')
@@ -5438,43 +5489,34 @@ def set_torrent_no_rename():
 
 @app.route('/api/maintenance/clean-trash', methods=['POST'])
 def clean_trash():
-    """Elimina i file nel cestino.
-    Se trash_retention_days è configurato, rimuove solo i file più vecchi di N giorni.
-    Se non configurato, il pulsante manuale svuota TUTTO il cestino.
-    """
+    """Elimina i file nel cestino più vecchi di trash_retention_days giorni."""
     try:
-        import core.config_db as _cdb_tr
-        # trash_path: Config lo legge correttamente
         from core.config import Config as _Cfg
         cfg = _Cfg()
-        trash_path = str(getattr(cfg, 'trash_path', '') or
-                         _cdb_tr.get_setting('trash_path', '')).strip()
+        trash_path = str(getattr(cfg, 'trash_path', '')).strip()
         if not trash_path:
             return jsonify({'success': False, 'error': 'Cartella cestino non configurata'})
         if not os.path.exists(trash_path):
             return jsonify({'success': False, 'error': f'Cartella cestino non trovata: {trash_path}'})
 
-        # trash_retention_days non è in Config — leggi da config_db
-        days_raw = str(_cdb_tr.get_setting('trash_retention_days', '') or '').strip()
+        # days può essere stringa vuota → non cancellare mai
+        days_raw = str(getattr(cfg, 'trash_retention_days', '')).strip()
         if not days_raw:
-            # Nessun limite configurato: il pulsante manuale svuota tutto
-            days = None
-        else:
-            try:
-                days = int(days_raw)
-                if days < 0:
-                    return jsonify({'success': False, 'error': 'Il numero di giorni deve essere >= 0'})
-            except ValueError:
-                return jsonify({'success': False, 'error': f'Valore giorni non valido: {days_raw}'})
+            return jsonify({'success': True, 'deleted': 0, 'freed_mb': 0,
+                            'message': 'Pulizia automatica disabilitata (giorni non configurati)'})
+        try:
+            days = int(days_raw)
+            if days <= 0:
+                return jsonify({'success': False, 'error': 'Il numero di giorni deve essere > 0'})
+        except ValueError:
+            return jsonify({'success': False, 'error': f'Valore giorni non valido: {days_raw}'})
 
         import time
-        # cutoff: se days=None elimina tutto (cutoff=inf), se days=0 elimina tutto
-        cutoff = (time.time() - days * 86400) if (days is not None and days > 0) else float('inf')
+        cutoff = time.time() - days * 86400
         deleted = 0
         freed = 0
 
-        age_desc = f"più vecchi di {days} giorni" if (days is not None and days > 0) else "tutti"
-        log_maintenance(f"🗑️ Pulizia cestino: file {age_desc} in {trash_path}...")
+        log_maintenance(f"🗑️ Pulizia cestino: file più vecchi di {days} giorni in {trash_path}...")
         for fname in os.listdir(trash_path):
             fpath = os.path.join(trash_path, fname)
             if not os.path.isfile(fpath):
@@ -5490,8 +5532,7 @@ def clean_trash():
                 log_maintenance(f"⚠️ Errore rimozione {fname}: {e}")
 
         freed_mb = round(freed / 1024 / 1024, 2)
-        age_label = f" più vecchi di {days} giorni" if (days is not None and days > 0) else ""
-        msg = f"Rimossi {deleted} file ({freed_mb} MB liberati){age_label}"
+        msg = f"Rimossi {deleted} file ({freed_mb} MB liberati)"
         log_maintenance(f"✅ Pulizia cestino completata: {msg}")
         return jsonify({'success': True, 'deleted': deleted, 'freed_mb': freed_mb, 'message': msg})
 

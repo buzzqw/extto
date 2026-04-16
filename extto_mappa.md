@@ -2,12 +2,12 @@
 
 Mappa Architetturale del Codice
 
-*Documento di riferimento tecnico per AI e sviluppatori — v43*
+*Documento di riferimento tecnico per AI e sviluppatori — v46*
 
 | | |
 |---|---|
-| **Versione** | v45 — Integrazione aMule/eD2k completa |
-| **Data** | 28 Marzo 2026 |
+| **Versione** | v46 — Fix robustezza, performance e sicurezza |
+| **Data** | 16 Aprile 2026 |
 | **Status** | STABILE |
 
 **Devi trattarmi come un non programmatore. dammi sempre file completi e parla semplice**
@@ -65,7 +65,14 @@ client torrent supportati.
                                                  set_log_level(), utility
 
   core/config.py             Config              Lettura extto.conf,
-                                                 series.txt, movies.txt
+                                                 series.txt, movies.txt.
+                                                 ★ v46: Singleton con TTL
+                                                 60s via __new__; Config.
+                                                 invalidate() per reset
+                                                 post-salvataggio. 16
+                                                 istanziazioni in extto3
+                                                 ora riusano la stessa
+                                                 istanza nel minuto.
 
   core/config_db.py          ---                 Gestione extto_config.db:
                                                  settings (chiave/valore) +
@@ -93,7 +100,10 @@ client torrent supportati.
                                                  (metadati stagioni, titoli)
 
   core/renamer.py            ---                 Rinomina file video dopo
-                                                 download (via TMDB)
+                                                 download (via TMDB).
+                                                 ★ v46: os.rename con
+                                                 fallback shutil.move per
+                                                 cross-device (Errno 18).
 
   core/trakt.py              TraktClient         Integrazione Trakt.tv:
                                                   OAuth2 Device Flow,
@@ -115,6 +125,11 @@ client torrent supportati.
                                                  gestisce season pack (E00):
                                                  label "S02 Season Pack",
                                                  motivo "Season Pack" invece
+                                                 ★ v46: throttling Telegram
+                                                 1s min tra messaggi (class
+                                                 var _tg_last_sent); retry
+                                                 429 con Retry-After; SMTP
+                                                 SSL su porta 465.
                                                  di "Missing Episode".
                                                  notify_post_processing
                                                  accetta final_path: mostra
@@ -352,6 +367,12 @@ self.gap_filling.*
   group                  str        "MIRCREW", "NOVRIP", "PITTY", ... ★ v32
 
   is_ita                 bool       True se audio italiano presente ★ v32
+                                    ★ v46: FIX falso positivo `.iT.WEB-DL`
+                                    (iT = iTunes, non italiano). Ora
+                                    `parse_quality()` rimuove i tag
+                                    streaming noti (iT, AMZN, DSNP, NF,
+                                    HMAX) da `t_norm_lang` prima di
+                                    cercare `\bita\b` / `\bit\b`.
 
   is_dv                  bool       True se Dolby Vision presente ★ v33
 
@@ -795,6 +816,15 @@ UI: tab **Peers** nel modal dettagli torrent, caricata on-demand al click (non n
 **Spostamenti UI (Manutenzione)**
 
 La sezione **Porte di Rete** (web_port / engine_port) è stata spostata dalla tab Avanzate alla vista **Manutenzione**, insieme al pulsante **Riavvia Servizio**. Generata dinamicamente da `renderNetworkPorts(settings)` chiamata da `loadConfigForMaintenance()` al caricamento della vista.
+
+**Note architetturali libtorrent v46**
+
+- **_trigger_renamer asincrono:** il rename non blocca più il thread `lt-alerts`. Usa `ThreadPoolExecutor(max_workers=2)` inizializzato in `_ensure_session()`. Il nome del torrent viene letto dall'handle PRIMA di cedere al thread (handle invalido dopo `remove_torrent`).
+- **_nas_move_pending thread-safe:** protetto da `_nas_move_lock` (threading.Lock) in add/discard/read.
+- **storico_ul corretto:** `all_time_upload` usato direttamente senza sommare `protocol_ul` (doppio conteggio rimosso in 3 punti).
+- **Database() chiuso:** i 3 punti che creavano istanze senza `close()` ora usano `try/finally`.
+- **auto_remove_completed:** dopo rename+move riusciti, il torrent viene rimosso dalla sessione (senza cancellare file) così al riavvio non fa recheck inutile su file rinominati. Richiede `auto_remove_completed = yes` in configurazione.
+- **Ramo no-move:** quando `curr_save == target_norm`, `_trigger_renamer` riceve il path diretto al file (non la directory). Viene anche chiamata `notify_post_processing` (prima mancante).
 
 **Note API libtorrent importanti**
 
@@ -1757,6 +1787,23 @@ web, senza riavvio del servizio.
   solo durante la migrazione, poi diventano inutili. L'utente li rinomina
   in .old dalla UI quando vuole.
 
+**Fix e ottimizzazioni v46 (Aprile 2026)**
+
+- **libtorrent.py:** `_trigger_renamer` asincrono via `ThreadPoolExecutor`; `_nas_move_pending` thread-safe; `storico_ul` senza doppio conteggio; `Database()` chiuso con `try/finally`; ramo no-move invia `notify_post_processing`; `auto_remove_completed` rimuove torrent post-rename per evitare recheck al riavvio.
+- **mediainfo_helper.py:** sleep condizionale (solo se `mtime < 10s`); errori alzati da `debug` a `warning`.
+- **renamer.py:** `os.rename` con fallback `shutil.move` cross-device.
+- **tmdb.py:** retry automatico su HTTP 429 con `Retry-After`.
+- **notifier.py:** throttling Telegram 1s; retry 429; `SMTP_SSL` su porta 465.
+- **database.py:** 3 indici aggiunti (`idx_pending_status`, `idx_episodes_magnet`, `idx_movies_magnet`).
+- **config.py:** singleton `Config` con TTL 60s; `Config.invalidate()` chiamato nelle 9 route POST di salvataggio in `extto_web.py`.
+- **health.py:** `get_disk_status()` aggiunge `trash_content_gb` e `trash_file_count` per la voce Cestino; `except` silenziosi sostituiti con `logger.debug`.
+- **extto3.py:** Config riusata nel loop RSS se fresca (< 5 min); `pathlib.Path.touch()`.
+- **extto_web.py:** `clean_trash()` legge `trash_retention_days` da `config_db` (prima cercato su `Config` dove non esiste → non svuotava mai); nuova route `POST /api/mkdir` per creare cartelle dal file browser; upload Telegram backup asincrono con job_id e polling (`/api/backup/send-telegram/status`).
+- **models.py:** `parse_quality()` rimuove tag streaming (iT, AMZN, DSNP, NF) prima del check `\bit\b` — evita falso positivo iT=iTunes.
+- **app.js:** debounce 300ms su ricerca serie/archivio; `AbortController` su `loadSeries/loadArchive/loadTorrents`; catch vuoti con `console.warn/error`; `_pollTelegramJob()` helper per polling upload asincrono.
+- **style.css:** `.btn` base ora ha `padding: 0.5rem 1.1rem`, `font-size: 0.9rem`, `display: inline-flex` — fix bottoni primari piccoli.
+- **index.html:** folder browser con footer per creare cartella inline; Font Awesome con `integrity` SHA384; Chart.js versione fissa `4.4.3`.
+
 **Quando caricare i file in una nuova sessione AI**
 
 *Per sessioni di modifica, caricare sempre il file di produzione
@@ -1802,6 +1849,23 @@ minimi da caricare per task comuni:*
 
   Modifiche alla            renamer.py + cleaner.py (produzione)
   rinomina/pulizia          
+
+  Modifiche al client       core/clients/libtorrent.py +
+  libtorrent / post-        core/mediainfo_helper.py (produzione)
+  processing rename         
+
+  Modifiche alle notifiche  core/notifier.py (produzione)
+  Telegram/Email            
+
+  Modifiche al parsing      core/models.py (produzione)
+  lingua / falsi positivi   
+
+  Modifiche alla UI /       index.html + app.js + style.css
+  stile bottoni / browser   (produzione)
+  cartelle                  
+
+  Modifiche al cestino /    extto_web.py + core/health.py
+  health / backup Telegram  (produzione)
 
   Modifiche al tagging /    tagger.py + utils.py (produzione)
   I/O JSON thread-safe      
