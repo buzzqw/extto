@@ -570,24 +570,29 @@ class LibtorrentClient:
                 _db = Database()
             except Exception:
                 pass
-            
-            # Tenta prima con la logica Serie TV
-            is_renamed = rename_completed_torrent(
-                torrent_name = h.name() or '',
-                save_path    = save_path,
-                cfg          = full_cfg,  # <--- ORA E' CORRETTO!
-                db           = _db
-            )
-            
-            # Se fallisce, tenta come Film
-            if not is_renamed:
-                rename_completed_movie(
+            try:
+                # Tenta prima con la logica Serie TV
+                is_renamed = rename_completed_torrent(
                     torrent_name = h.name() or '',
                     save_path    = save_path,
-                    cfg          = full_cfg   # <--- ORA E' CORRETTO!
+                    cfg          = full_cfg,
+                    db           = _db
                 )
+                # Se fallisce, tenta come Film
+                if not is_renamed:
+                    rename_completed_movie(
+                        torrent_name = h.name() or '',
+                        save_path    = save_path,
+                        cfg          = full_cfg
+                    )
+            finally:
+                if _db:
+                    try:
+                        _db.close()
+                    except Exception:
+                        pass
         except Exception as _re:
-            logger.warning(f"⚠️ Rename failed: {_re}")   
+            logger.warning(f"⚠️ Rename failed: {_re}")
             
     @classmethod
     def _trigger_folder_scan(cls, h):
@@ -601,9 +606,15 @@ class LibtorrentClient:
             series_name = ep_info['name']
             from ..database import Database
             db = Database()
-            c = db.conn.cursor()
-            c.execute("SELECT id FROM series WHERE name LIKE ?", (f"%{series_name}%",))
-            row = c.fetchone()
+            try:
+                c = db.conn.cursor()
+                c.execute("SELECT id FROM series WHERE name LIKE ?", (f"%{series_name}%",))
+                row = c.fetchone()
+            finally:
+                try:
+                    db.close()
+                except Exception:
+                    pass
             if not row: return
             
             s_id = row['id']
@@ -769,12 +780,19 @@ class LibtorrentClient:
                             _db_inst = Database()
                         except Exception:
                             pass
-                        renamed = rename_completed_torrent(
-                            torrent_name = fname,
-                            save_path    = nas_path,
-                            cfg          = full_cfg,
-                            db           = _db_inst,
-                        )
+                        try:
+                            renamed = rename_completed_torrent(
+                                torrent_name = fname,
+                                save_path    = nas_path,
+                                cfg          = full_cfg,
+                                db           = _db_inst,
+                            )
+                        finally:
+                            if _db_inst:
+                                try:
+                                    _db_inst.close()
+                                except Exception:
+                                    pass
                         if renamed:
                             logger.info(f"   \u270f\ufe0f  pack rename: '{fname}'")
                             if Parser and ep_info:
@@ -1079,8 +1097,69 @@ class LibtorrentClient:
                                     # Già nella dir giusta, o move disabilitato.
                                     if not move_enabled and curr_save != target_norm:
                                         logger.info(f"🛑 Moving disabled. File in: '{curr_save}'")
-                                    cls._trigger_renamer(h, curr_save)
+                                    # Passa il path diretto al file se possibile, così
+                                    # rename_completed_torrent non fa listdir sull'intera
+                                    # cartella e get_media_tags riceve il path esatto.
+                                    _torrent_file = os.path.join(curr_save, h.name()) if h.name() else curr_save
+                                    _rename_path  = _torrent_file if os.path.isfile(_torrent_file) else curr_save
+                                    cls._trigger_renamer(h, _rename_path)
                                     cls._trigger_folder_scan(h)
+                                    # ── NOTIFICA POST-PROCESSING (ramo no-move) ───────────
+                                    try:
+                                        _s2 = h.status()
+                                        try:
+                                            import core.config_db as _cdb4
+                                            _pp_cfg2 = _cdb4.get_all_settings()
+                                        except Exception:
+                                            _pp_cfg2 = dict(full_cfg)
+                                        from ..notifier import Notifier as _Notif2
+                                        _notif2 = _Notif2(_pp_cfg2)
+                                        # Cerca il file rinominato nella directory
+                                        _renamed_to2 = None
+                                        try:
+                                            import time as _time3
+                                            _video_exts3 = {'.mkv', '.mp4', '.avi', '.m4v', '.ts', '.mov', '.wmv', '.webm'}
+                                            _now3 = _time3.time()
+                                            _RECENT_SECS3 = 300
+                                            _scan_dir = curr_save if os.path.isdir(curr_save) else os.path.dirname(curr_save)
+                                            _candidates2 = []
+                                            for _fn2 in os.listdir(_scan_dir):
+                                                if os.path.splitext(_fn2)[1].lower() not in _video_exts3:
+                                                    continue
+                                                _fp2 = os.path.join(_scan_dir, _fn2)
+                                                try:
+                                                    _mtime2 = os.path.getmtime(_fp2)
+                                                except Exception:
+                                                    continue
+                                                if (_now3 - _mtime2) <= _RECENT_SECS3:
+                                                    _candidates2.append((_mtime2, _fn2))
+                                            if _candidates2:
+                                                _candidates2.sort(key=lambda x: x[0], reverse=True)
+                                                _renamed_to2 = _candidates2[0][1]
+                                        except Exception:
+                                            pass
+                                        _notif2.notify_post_processing(
+                                            title_name   = h.name() or 'Sconosciuto',
+                                            size_bytes   = _s2.total_wanted_done,
+                                            time_sec     = _s2.active_time,
+                                            action_log   = [],
+                                            is_series    = True,
+                                            is_processed = True,
+                                            final_path   = curr_save,
+                                            renamed_to   = _renamed_to2,
+                                        )
+                                    except Exception as _ne2:
+                                        logger.warning(f"⚠️ Post-processing notification error (no-move): {_ne2}")
+                                    # --- AUTO-REMOVE POST-RENAME (no-move) ---
+                                    try:
+                                        _ar_cfg2 = cls._cfg_snapshot or {}
+                                        _do_ar2 = str(_ar_cfg2.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
+                                        if _do_ar2:
+                                            _ih_ar2 = str(h.info_hash())
+                                            cls.remove_torrent(_ih_ar2, delete_files=False)
+                                            logger.info(f"🗑️ Auto-removed (post-rename, no-move): '{h.name() or _ih_ar2}'")
+                                    except Exception as _are2:
+                                        logger.debug(f"auto_remove post-rename no-move: {_are2}")
 
                             except Exception as e:
                                 logger.error(f"❌ Post-processing error '{h.name()}': {e}")
@@ -1160,6 +1239,19 @@ class LibtorrentClient:
                                     )
                                 except Exception as _ne:
                                     logger.warning(f"⚠️ Post-processing notification error: {_ne}")
+                                # --- 5. AUTO-REMOVE POST-RENAME ---
+                                # Se auto_remove_completed=yes, rimuove il torrent dalla sessione
+                                # (senza cancellare i file) così al prossimo avvio non fa recheck
+                                # inutile su file rinominati/spostati.
+                                try:
+                                    _ar_cfg = cls._cfg_snapshot or {}
+                                    _do_ar = str(_ar_cfg.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
+                                    if _do_ar:
+                                        _ih_ar = str(h.info_hash())
+                                        cls.remove_torrent(_ih_ar, delete_files=False)
+                                        logger.info(f"🗑️ Auto-removed (post-rename, NAS move): '{h.name() or _ih_ar}'")
+                                except Exception as _are:
+                                    logger.debug(f"auto_remove post-rename: {_are}")
                             except Exception as e:
                                 logger.error(f"❌ Post-move error: {e}")
 

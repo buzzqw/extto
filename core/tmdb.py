@@ -35,20 +35,32 @@ class TMDBClient:
         # non serve token JWT né refresh — molto più semplice di TVDB.
         self.sess.headers.update({'Accept': 'application/json'})
 
-    def _get(self, path: str, params: dict = None) -> Optional[dict]:
-        """Esegue una GET autenticata verso TMDB. Ritorna il JSON o None."""
+    def _get(self, path: str, params: dict = None, _retries: int = 3) -> Optional[dict]:
+        """Esegue una GET autenticata verso TMDB. Ritorna il JSON o None.
+        Gestisce il rate limit HTTP 429 rispettando l'header Retry-After.
+        """
+        import time as _time
         url = f"{TMDB_BASE}{path}"
         p   = {'api_key': self.api_key, **(params or {})}
-        try:
-            resp = self.sess.get(url, params=p, timeout=10)
-            resp.raise_for_status()
-            return resp.json()
-        except requests.exceptions.HTTPError as e:
-            logger.warning(f"⚠️ TMDB HTTP {resp.status_code} per {path}: {e}")
-            return None
-        except Exception as e:
-            logger.warning(f"⚠️ TMDB error for {path}: {e}")
-            return None
+        for attempt in range(1, _retries + 1):
+            try:
+                resp = self.sess.get(url, params=p, timeout=10)
+                if resp.status_code == 429:
+                    # TMDB rate limit: rispetta Retry-After (default 5s)
+                    retry_after = int(resp.headers.get('Retry-After', 5))
+                    logger.warning(f"⚠️ TMDB rate limit su {path}, attendo {retry_after}s (attempt {attempt}/{_retries})")
+                    _time.sleep(retry_after)
+                    continue
+                resp.raise_for_status()
+                return resp.json()
+            except requests.exceptions.HTTPError as e:
+                logger.warning(f"⚠️ TMDB HTTP {resp.status_code} per {path}: {e}")
+                return None
+            except Exception as e:
+                logger.warning(f"⚠️ TMDB error for {path}: {e}")
+                return None
+        logger.warning(f"⚠️ TMDB: {path} fallito dopo {_retries} tentativi (rate limit)")
+        return None
 
     # ------------------------------------------------------------------
     # SEARCH

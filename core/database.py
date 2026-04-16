@@ -248,6 +248,10 @@ class Database:
         c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series_id, season, episode)')
         # Indice su archive_path: usato da _best_quality_in_path
         c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_archive_path ON episodes(archive_path)')
+        # Indici aggiuntivi: pending_downloads e magnet_hash
+        c.execute('CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_downloads(status, series_id, season, episode)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_magnet ON episodes(magnet_hash)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_movies_magnet ON movies(magnet_hash)')
 
         self.conn.commit()
 

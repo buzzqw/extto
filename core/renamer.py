@@ -17,6 +17,7 @@ Opzioni in extto.conf:
 
 import os
 import re
+import shutil
 from typing import Optional
 from .constants import logger
 
@@ -248,7 +249,11 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
                 continue
             
         try:
-            os.rename(src, dst)
+            try:
+                os.rename(src, dst)
+            except OSError:
+                # Fallback cross-device (es. libtorrent_dir e NAS su mount diversi)
+                shutil.move(src, dst)
             logger.info(f"✏️  Renamed: '{fname}' → '{new_name}'")
             renamed += 1
             renamed_video_fname = new_name
@@ -394,7 +399,10 @@ def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool
                 logger.warning(f"⚠️  rename_movie conflict error: {e}")
                 continue
         try:
-            os.rename(src, dst)
+            try:
+                os.rename(src, dst)
+            except OSError:
+                shutil.move(src, dst)
             logger.info(f"🎬 Movie Renamed: '{fname}' → '{new_name}'")
             renamed += 1
         except Exception as e:

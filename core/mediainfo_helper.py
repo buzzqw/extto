@@ -39,18 +39,21 @@ def get_media_tags(filepath: str, retries: int = 3, retry_delay: float = 2.0) ->
 
     for attempt in range(1, retries + 1):
         try:
-            # Controlla che il file abbia una dimensione stabile (non ancora in scrittura)
-            size1 = os.path.getsize(filepath)
-            _time.sleep(0.3)
-            size2 = os.path.getsize(filepath)
-            if size1 != size2:
-                logger.debug(f"mediainfo: file still being written '{filepath}' (attempt {attempt}/{retries}), waiting...")
-                _time.sleep(retry_delay)
-                continue
+            # Controlla stabilità dimensione solo se il file è recente (< 10s):
+            # evita sleep inutili su file già stabili sul NAS post-move.
+            _mtime_age = _time.time() - os.path.getmtime(filepath)
+            if _mtime_age < 10:
+                size1 = os.path.getsize(filepath)
+                _time.sleep(0.3)
+                size2 = os.path.getsize(filepath)
+                if size1 != size2:
+                    logger.debug(f"mediainfo: file still being written '{filepath}' (attempt {attempt}/{retries}), waiting...")
+                    _time.sleep(retry_delay)
+                    continue
 
             mi = MediaInfo.parse(filepath)
         except Exception as e:
-            logger.debug(f"mediainfo parse error su '{filepath}' (attempt {attempt}/{retries}): {e}")
+            logger.warning(f"⚠️ mediainfo parse error '{filepath}' (attempt {attempt}/{retries}): {e}")
             if attempt < retries:
                 _time.sleep(retry_delay)
             continue
@@ -106,7 +109,7 @@ def get_media_tags(filepath: str, retries: int = 3, retry_delay: float = 2.0) ->
         if result:
             return result
 
-    logger.debug(f"mediainfo: failed to extract tags from '{filepath}' after {retries} attempts")
+    logger.warning(f"⚠️ mediainfo: failed to extract tags from '{filepath}' after {retries} attempts — rename will use base format")
     return {}
 
 

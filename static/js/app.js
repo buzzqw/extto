@@ -245,7 +245,7 @@ const app = {
         this.startLogStream();
         this.startSystemStatsPoll(); 
         
-        setInterval(() => {
+        this._dashboardInterval = setInterval(() => {
             if (currentView === 'dashboard') {
                 this.loadStats();
                 this.updateNextRunTimer();
@@ -360,10 +360,16 @@ const app = {
 
     setupSearchHandlers() {
         const seriesInput = document.getElementById('series-search');
-        if (seriesInput) seriesInput.addEventListener('input', (e) => this.loadSeries(e.target.value));
+        if (seriesInput) seriesInput.addEventListener('input', (e) => {
+            clearTimeout(this._seriesSearchTimer);
+            this._seriesSearchTimer = setTimeout(() => this.loadSeries(e.target.value), 300);
+        });
 
         const archiveInput = document.getElementById('archive-search');
-        if (archiveInput) archiveInput.addEventListener('input', (e) => this.loadArchive(0, e.target.value));
+        if (archiveInput) archiveInput.addEventListener('input', (e) => {
+            clearTimeout(this._archiveSearchTimer);
+            this._archiveSearchTimer = setTimeout(() => this.loadArchive(0, e.target.value), 300);
+        });
 
         const movieInput = document.getElementById('movies-search');
         if (movieInput) {
@@ -629,7 +635,7 @@ const app = {
             } else { 
                 if(textEl) textEl.textContent = t('Avvio...'); 
             }
-        } catch (e) {}
+        } catch (e) { console.warn('runNow UI:', e); }
     },
     
     async loadRecentDownloads() {
@@ -1147,15 +1153,18 @@ const app = {
     // SERIES
     // ========================================================================
     async loadSeries(searchQuery = '') {
+        if (this._seriesAbortCtrl) this._seriesAbortCtrl.abort();
+        this._seriesAbortCtrl = new AbortController();
+        const signal = this._seriesAbortCtrl.signal;
         try {
-            const configRes = await fetch(`${API_BASE}/api/config`);
+            const configRes = await fetch(`${API_BASE}/api/config`, { signal });
             const config = await configRes.json();
             let series = config.series || [];
             series = series.slice().sort((a,b) => (a.name||'').toLowerCase().localeCompare((b.name||'').toLowerCase()));
             
             if (searchQuery) series = series.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
             
-            const dbRes = await fetch(`${API_BASE}/api/series`);
+            const dbRes = await fetch(`${API_BASE}/api/series`, { signal });
             const dbSeries = await dbRes.json();
             const dbMap = {};
             dbSeries.forEach(s => { dbMap[s.name.toLowerCase()] = s; });
@@ -1873,7 +1882,7 @@ const app = {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ new_name: updatedSeries.name })
                         });
-                    } catch (e) {}
+                    } catch (e) { console.warn('series rename:', e); }
                 }
 
                 // Ricarica sempre la view per aggiornare ID TMDB, aliases e altri campi in testata
@@ -2590,8 +2599,10 @@ const app = {
         this._archiveQuery = query;
         this._archiveSelection = new Set();
         this._archiveUpdateBatchBar();
+        if (this._archiveAbortCtrl) this._archiveAbortCtrl.abort();
+        this._archiveAbortCtrl = new AbortController();
         try {
-            const res = await fetch(`${API_BASE}/api/archive?page=${page}&q=${encodeURIComponent(query)}`);
+            const res = await fetch(`${API_BASE}/api/archive?page=${page}&q=${encodeURIComponent(query)}`, { signal: this._archiveAbortCtrl.signal });
             const data = await res.json();
             const container = document.getElementById('archive-list');
             const q = query.replace(/'/g, "\\'");
@@ -5025,7 +5036,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             }).join('');
             
             this.showToast(`${Object.keys(interfaces).length} ${t('interfaces detected')}`, 'success');
-        } catch (e) {}
+        } catch (e) { console.warn('detectInterfaces:', e); }
     },
     closeModal(id) { document.getElementById(id).classList.remove('active'); },
     closeRenameModal() {
@@ -5189,11 +5200,14 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     },
 
     async loadTorrents() {
+        if (this._torrentsAbortCtrl) this._torrentsAbortCtrl.abort();
+        this._torrentsAbortCtrl = new AbortController();
+        const signal = this._torrentsAbortCtrl.signal;
         try {
             // Stats dal motore LT (può fallire — non blocca i download HTTP/Mega)
             let s = { available: false, dl_rate: 0, ul_rate: 0, active: 0, paused: 0 };
             try {
-                const sRes = await fetch(`${API_BASE}/api/torrents/stats`);
+                const sRes = await fetch(`${API_BASE}/api/torrents/stats`, { signal });
                 s = await sRes.json();
             } catch(_) {}
 
@@ -5493,7 +5507,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 } else {
                     this.showToast(data.error || t('Error downloading from URL'), 'error');
                 }
-            } catch (e) {}
+            } catch (e) { console.error('addTorrentFromURL:', e); this.showToast(t('Errore imprevisto'), 'error'); }
         } else {
             const res  = await fetch(`${API_BASE}/api/torrents/add`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
@@ -6192,7 +6206,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ [hash]: tag })
             });
-        } catch (_) {}
+        } catch (_) { /* tag save: non critico */ }
     },
 
     async _saveNoRename(hash, value) {
@@ -6203,7 +6217,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ [hash]: !!value })
             });
-        } catch (_) {}
+        } catch (_) { /* no-rename save: non critico */ }
     },
 
     // Mostra il mini-modal di conferma con checkbox no-rename per flussi senza modal proprio

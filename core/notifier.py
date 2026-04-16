@@ -76,9 +76,18 @@ class Notifier:
 
     # -----------------------------------------------------------------------
 
+    # Timestamp ultimo invio Telegram (condiviso tra istanze tramite class var)
+    _tg_last_sent: float = 0.0
+    _TG_MIN_INTERVAL = 1.0  # secondi minimi tra messaggi consecutivi
+
     def _send_telegram(self, text):
         if not self.tg_enabled or not self.tg_token or not self.tg_chat_id:
             return
+        import time as _ttime
+        # Throttling: rispetta il minimo intervallo tra messaggi
+        elapsed = _ttime.time() - Notifier._tg_last_sent
+        if elapsed < Notifier._TG_MIN_INTERVAL:
+            _ttime.sleep(Notifier._TG_MIN_INTERVAL - elapsed)
         try:
             url = f"https://api.telegram.org/bot{self.tg_token}/sendMessage"
             payload = {
@@ -92,7 +101,19 @@ class Notifier:
                 data=json.dumps(payload).encode(),
                 headers={'Content-Type': 'application/json'}
             )
-            urllib.request.urlopen(req, timeout=10, context=self.ctx)
+            Notifier._tg_last_sent = _ttime.time()
+            try:
+                urllib.request.urlopen(req, timeout=10, context=self.ctx)
+            except urllib.error.HTTPError as _he:
+                if _he.code == 429:
+                    # Telegram rate limit: aspetta Retry-After e riprova una volta
+                    _retry = int(_he.headers.get('Retry-After', 5))
+                    logger.warning(f"Telegram rate limit, attendo {_retry}s e riprovo")
+                    _ttime.sleep(_retry)
+                    urllib.request.urlopen(req, timeout=10, context=self.ctx)
+                    Notifier._tg_last_sent = _ttime.time()
+                else:
+                    raise
         except Exception as e:
             logger.warning(f"Telegram send error: {e}")
 

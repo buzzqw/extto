@@ -42,8 +42,8 @@ class HealthMonitor:
                     cmd = " ".join(p.info['cmdline']) if p.info['cmdline'] else p.info['name']
                     if cmd:
                         running_cmds.append(cmd.lower())
-                except:
-                    pass
+                except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
+                    pass  # processo terminato o senza permessi — normale
             
             for label, keyword in services.items():
                 is_active = any(keyword.lower() in cmd for cmd in running_cmds)
@@ -66,8 +66,8 @@ class HealthMonitor:
                     'status': status_text,
                     'ok': is_active
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f'health get_service_status: {e}')
             
         return results
 
@@ -118,8 +118,8 @@ class HealthMonitor:
                     'percent': round(percent, 1),
                     'status': 'warning' if percent > 90 else 'ok'
                 })
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'health disk check {path}: {e}')
         return results
 
     def get_indexer_status(self) -> List[Dict]:
@@ -183,8 +183,8 @@ class HealthMonitor:
             try:
                 if not os.path.exists(f):
                     os.makedirs(f, exist_ok=True)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'health makedirs {f}: {e}')
                 
             if not os.path.exists(f):
                 continue

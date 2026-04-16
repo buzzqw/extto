@@ -17,7 +17,30 @@ from . import config_db as _cdb
 
 
 class Config:
+    # ── Singleton con TTL: evita reletture DB ridondanti nello stesso ciclo ──
+    _instance: 'Config | None' = None
+    _instance_time: float = 0.0
+    _TTL: float = 60.0  # secondi: Config() restituisce la stessa istanza se < TTL
+
+    def __new__(cls):
+        import time as _tnew
+        now = _tnew.time()
+        if cls._instance is None or (now - cls._instance_time) > cls._TTL:
+            cls._instance = super().__new__(cls)
+            cls._instance_time = now
+            cls._instance._initialized = False
+        return cls._instance
+
+    @classmethod
+    def invalidate(cls):
+        """Invalida la cache singleton — da chiamare dopo salvataggio impostazioni."""
+        cls._instance = None
+        cls._instance_time = 0.0
+
     def __init__(self):
+        if getattr(self, '_initialized', False):
+            return  # già inizializzata in questa finestra TTL
+        self._initialized = True
         self.urls    = []
         self.series  = []
         self.movies  = []
@@ -122,6 +145,7 @@ class Config:
 
         # ── Legge tutte le impostazioni dal DB ───────────────────────────────
         raw = _cdb.get_all_settings()
+        import time as _time_cfg; self._loaded_at = _time_cfg.time()
 
         # ── URL sorgenti ─────────────────────────────────────────────────────
         urls_raw = raw.get('url', [])

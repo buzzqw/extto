@@ -2134,6 +2134,10 @@ def backup_settings():
         
         save_series_config(cfg_full)
         import logging as _l; _l.getLogger('extto.backup').info(f"💾 Backup settings salvati nel Database")
+        try:
+            from core.config import Config as _Cfg; _Cfg.invalidate()
+        except Exception:
+            pass
         return jsonify({'success': True})
     except Exception as e:
         import logging as _l; _l.getLogger('extto.backup').error(f"❌ Errore salvataggio backup settings: {e}")
@@ -2163,6 +2167,10 @@ def scores_settings():
                         s[f'score_{prefix}_{k}'] = str(v)
                         
             save_series_config(cfg_data)
+            try:
+                from core.config import Config as _Cfg; _Cfg.invalidate()
+            except Exception:
+                pass
             return jsonify({'success': True})
 
         # LOGICA DINAMICA: Prende tutto ciò che esiste nel file
@@ -3059,6 +3067,10 @@ def save_full_config():
                 'series':   new_series if new_series is not None else current['series'],
             }
             if save_series_config(config):
+                try:
+                    from core.config import Config as _Cfg; _Cfg.invalidate()
+                except Exception:
+                    pass
                 return jsonify({'success': True})
         return jsonify({'success': False, 'error': 'Errore salvataggio'}), 500
     except Exception as e:
@@ -3088,6 +3100,10 @@ def update_series_config():
                 logger.error(f"update_series_config db: {e}")
                 return jsonify({'success': False, 'error': str(e)}), 500
 
+        try:
+            from core.config import Config as _Cfg; _Cfg.invalidate()
+        except Exception:
+            pass
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -3100,6 +3116,10 @@ def update_movies_config():
         movies = data.get('movies', [])
         
         if save_movies_config(movies):
+            try:
+                from core.config import Config as _Cfg; _Cfg.invalidate()
+            except Exception:
+                pass
             return jsonify({'success': True})
         else:
             return jsonify({'success': False, 'error': 'Errore salvataggio'}), 500
@@ -3137,6 +3157,10 @@ def update_settings():
         config['settings'] = {**preserved, **new_settings} # FIX: Permette il salvataggio corretto delle liste!
 
         if save_series_config(config):
+            try:
+                from core.config import Config as _Cfg; _Cfg.invalidate()
+            except Exception:
+                pass
             return jsonify({'success': True})
         else:
             return jsonify({'success': False, 'error': 'Errore salvataggio'}), 500
@@ -3435,6 +3459,10 @@ def update_urls_filters():
         config['settings']['wantedlist'] = wantedlist
         
         if save_series_config(config):
+            try:
+                from core.config import Config as _Cfg; _Cfg.invalidate()
+            except Exception:
+                pass
             return jsonify({'success': True})
         else:
             return jsonify({'success': False, 'error': 'Errore salvataggio'}), 500
@@ -3924,6 +3952,10 @@ def amule_config_save():
                 return jsonify({'ok': True, 'warning': str(e)})
 
         log_maintenance("✅ Configurazione aMule salvata")
+        try:
+            from core.config import Config as _Cfg; _Cfg.invalidate()
+        except Exception:
+            pass
         return jsonify({'ok': True})
     except Exception as e:
         log_maintenance(f"❌ Errore salvataggio config aMule: {e}")
@@ -7970,6 +8002,10 @@ def trakt_save_settings():
                 bulk[f"trakt_{key}"] = str(data[key]).strip()
         if bulk:
             _cdb.set_settings_bulk(bulk)
+        try:
+            from core.config import Config as _Cfg; _Cfg.invalidate()
+        except Exception:
+            pass
         return jsonify({"ok": True})
     except Exception as e:
         logger.error(f"trakt_save_settings: {e}")

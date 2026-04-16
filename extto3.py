@@ -2651,7 +2651,10 @@ def main():
             # --- START SOTTO-CICLO RSS ---
             if (time.time() - last_rss_check) >= RSS_INTERVAL:
                 last_rss_check = time.time()
-                cfg_live = Config() # Ricarica per eventuali nuovi titoli
+                # Ricarica config solo se il ciclo principale è terminato > 5 min fa
+                # (evita doppia lettura DB se RSS scatta subito dopo il ciclo)
+                _cfg_age = time.time() - getattr(cfg, '_loaded_at', 0)
+                cfg_live = cfg if _cfg_age < 300 else Config()
                 from core.engine import Engine as _Eng
                 if _Eng._get_indexers(cfg_live):   # FIX-D: attivo se almeno un indexer configurato
                     logger.info("⚡ Starting RSS Scan (Jackett/Prowlarr Fast Check)...")
