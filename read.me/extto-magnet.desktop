@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=EXTTO Magnet Handler
-Comment=Invia link magnet a EXTTO torrent manager
-Exec=/usr/local/bin/extto-magnet %U
-Type=Application
-MimeType=x-scheme-handler/magnet;
-NoDisplay=true
-StartupNotify=false
-Terminal=false

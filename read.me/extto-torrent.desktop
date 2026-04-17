@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=EXTTO Torrent Handler
-Comment=Invia file .torrent a EXTTO torrent manager
-Exec=/usr/local/bin/extto-torrent %U
-Type=Application
-MimeType=application/x-bittorrent;x-scheme-handler/magnet;
-NoDisplay=true
-StartupNotify=false
-Terminal=false
