@@ -122,6 +122,19 @@ Every donation directly funds new features, bug fixes, and keeping the project a
 </div>
 
 ---
+
+## ⚖️ Legal & Fair Use
+
+EXTTO is a **download automation tool**. It does not host, index, or distribute any copyrighted content.
+
+- EXTTO connects to **indexers you configure** (Jackett, Prowlarr, public RSS feeds). It has no built-in index.
+- What you download is **entirely your responsibility**. Use EXTTO only for content you have the right to access — public domain, Creative Commons, or media you own.
+- The eMule/eD2k and torrent integrations are neutral technologies. EXTTO does not encourage or facilitate piracy.
+- This project is released under the **EUPL 1.2** open-source license.
+
+> *"With great automation comes great responsibility."*
+
+---
 ---
 
 <a name="italiano"></a>
@@ -239,3 +252,16 @@ Ogni donazione finanzia direttamente nuove funzionalità, correzioni di bug e la
 *Grazie. Sul serio.*
 
 </div>
+
+---
+
+## ⚖️ Uso Lecito & Responsabilità
+
+EXTTO è uno **strumento di automazione dei download**. Non ospita, non indicizza e non distribuisce alcun contenuto protetto da copyright.
+
+- EXTTO si connette agli **indexer che configuri tu** (Jackett, Prowlarr, feed RSS pubblici). Non ha un indice integrato.
+- Ciò che scarichi è **interamente sotto la tua responsabilità**. Usa EXTTO solo per contenuti che hai il diritto di accedere — dominio pubblico, licenze Creative Commons, o media di tua proprietà.
+- Le integrazioni eMule/eD2k e torrent sono tecnologie neutrali. EXTTO non incoraggia né facilita la pirateria.
+- Questo progetto è rilasciato sotto licenza open-source **EUPL 1.2**.
+
+> *"Con grande automazione viene grande responsabilità."*
