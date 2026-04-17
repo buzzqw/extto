@@ -2148,6 +2148,16 @@ def main():
                     if t.get('progress', 0) >= 1.0:
                         t_hash = t['hash']
 
+                        # ANTI-FALSO-COMPLETAMENTO: salta torrent con metadata non ancora risolto.
+                        # Libtorrent riporta progress=1.0 subito dopo l'aggiunta di un magnet
+                        # prima che il metadata sia scaricato (total_size=0, active_time~0).
+                        # Attendiamo almeno 10s di attività e una dimensione nota prima di processare.
+                        _t_size   = t.get('total_size', 0)
+                        _t_active = t.get('active_time', 0)
+                        if _t_size == 0 or _t_active < 10:
+                            logger.debug(f"[post-processing] skip torrent non maturo: {t.get('name','')} size={_t_size} active={_t_active}s")
+                            continue
+
                         # ANTI-DUPLICATI: salta torrent già notificati (controllo persistente su DB)
                         if _pp_is_notified(t_hash):
                             continue
