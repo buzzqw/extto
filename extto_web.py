@@ -4919,6 +4919,336 @@ def amule_ed2k_handler():
         return f"Errore: {e}", 500
 
 
+@app.route('/api/browser-handlers/download', methods=['GET'])
+def browser_handlers_download():
+    """
+    Serve gli script handler (extto-magnet, extto-torrent, .desktop, install.sh)
+    con l'URL di EXTTO già iniettato dentro.
+    Parametro: ?file=extto-magnet | extto-torrent | extto-magnet.desktop |
+                       extto-torrent.desktop | install.sh
+    """
+    import os
+    from flask import make_response
+
+    requested = request.args.get('file', '').strip()
+    allowed   = {'extto-magnet', 'extto-torrent',
+                 'extto-magnet.desktop', 'extto-torrent.desktop',
+                 'install.sh'}
+    if requested not in allowed:
+        return jsonify({'error': 'File non valido'}), 400
+
+    try:
+        # Ricava l'URL pubblico del server (quello che l'utente vede nel browser)
+        s        = _cdb.get_all_settings()
+        port     = int(s.get('flask_port', 5000))
+        # Usa l'host della request se disponibile (funziona anche con IP LAN/hostname)
+        req_host = request.host.split(':')[0]  # solo hostname, senza porta
+        extto_url = f"http://{req_host}:{port}"
+
+        # ── Contenuti ────────────────────────────────────────────────────────
+        if requested == 'extto-magnet':
+            content = f"""#!/bin/bash
+# EXTTO — Handler protocollo magnet:
+# Invia il link magnet all'endpoint /api/send-magnet di EXTTO.
+# Installazione: esegui install.sh
+
+EXTTO_URL="${{EXTTO_URL:-{extto_url}}}"
+LOG="/tmp/extto-magnet.log"
+
+MAGNET="${{*}}"
+
+echo "$(date '+%F %T') --- CHIAMATA ---" >> "$LOG"
+echo "  ARG1: ${{1}}" >> "$LOG"
+echo "  ALL:  ${{*}}" >> "$LOG"
+echo "  MAGNET: ${{MAGNET}}" >> "$LOG"
+
+if [[ -z "$MAGNET" ]]; then
+    echo "$(date '+%F %T') ERRORE: magnet vuoto" >> "$LOG"
+    notify-send "EXTTO" "Nessun link magnet ricevuto" --icon=dialog-error 2>/dev/null
+    exit 1
+fi
+
+notify-send "EXTTO" "Invio magnet in corso..." --icon=emblem-downloads 2>/dev/null
+
+JSON=$(python3 -c "import json,sys; print(json.dumps({{'magnet': sys.argv[1]}}))" "$MAGNET")
+echo "$(date '+%F %T') JSON: $JSON" >> "$LOG"
+
+RESPONSE=$(curl -s -w "\\n%{{http_code}}" \\
+    -X POST "${{EXTTO_URL}}/api/send-magnet" \\
+    -H 'Content-Type: application/json' \\
+    --data-raw "$JSON" \\
+    --max-time 10 2>/dev/null)
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+echo "$(date '+%F %T') HTTP: $HTTP_CODE  BODY: $BODY" >> "$LOG"
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    SUCCESS=$(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('success',''))" 2>/dev/null)
+    if [[ "$SUCCESS" == "True" ]]; then
+        notify-send "EXTTO" "✅ Torrent aggiunto con successo" --icon=emblem-downloads 2>/dev/null
+    else
+        MSG=$(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','') or d.get('error','Errore sconosciuto'))" 2>/dev/null)
+        notify-send "EXTTO" "⚠️ $MSG" --icon=dialog-warning 2>/dev/null
+    fi
+else
+    notify-send "EXTTO" "❌ EXTTO non raggiungibile (${{EXTTO_URL}})" --icon=dialog-error 2>/dev/null
+fi
+"""
+            mime = 'text/x-shellscript'
+
+        elif requested == 'extto-torrent':
+            content = f"""#!/bin/bash
+# EXTTO — Handler file .torrent
+# Scarica (se URL) o legge (se file locale) un .torrent e lo invia
+# all'endpoint /api/upload-torrent di EXTTO.
+# Installazione: esegui install.sh
+
+EXTTO_URL="${{EXTTO_URL:-{extto_url}}}"
+LOG="/tmp/extto-torrent.log"
+INPUT="$1"
+
+echo "$(date '+%F %T') --- CHIAMATA ---" >> "$LOG"
+echo "  ARG1:  ${{1}}" >> "$LOG"
+echo "  ALL:   ${{*}}" >> "$LOG"
+echo "  INPUT: ${{INPUT}}" >> "$LOG"
+
+if [[ -z "$INPUT" ]]; then
+    echo "$(date '+%F %T') ERRORE: input vuoto" >> "$LOG"
+    notify-send "EXTTO" "Nessun file .torrent ricevuto" --icon=dialog-error 2>/dev/null
+    exit 1
+fi
+
+notify-send "EXTTO" "Invio .torrent in corso..." --icon=emblem-downloads 2>/dev/null
+
+if [[ "$INPUT" == http://* ]] || [[ "$INPUT" == https://* ]]; then
+    TMPFILE=$(mktemp /tmp/extto-XXXXXX.torrent)
+    HTTP_DL=$(curl -s -w "%{{http_code}}" -L -o "$TMPFILE" \\
+        -A "Mozilla/5.0" --max-time 30 "$INPUT" 2>/dev/null)
+    echo "$(date '+%F %T') DL HTTP: $HTTP_DL  FILE: $TMPFILE" >> "$LOG"
+    if [[ "$HTTP_DL" != "200" ]]; then
+        rm -f "$TMPFILE"
+        LOCATION=$(curl -s -w "%{{redirect_url}}" -o /dev/null -L "$INPUT" 2>/dev/null | tail -1)
+        echo "$(date '+%F %T') REDIRECT: $LOCATION" >> "$LOG"
+        if [[ "$LOCATION" == magnet:* ]]; then
+            exec "$(dirname "$0")/extto-magnet" "$LOCATION"
+        fi
+        notify-send "EXTTO" "❌ Impossibile scaricare il file .torrent" --icon=dialog-error 2>/dev/null
+        exit 1
+    fi
+    FILEPATH="$TMPFILE"
+    FILENAME=$(basename "$INPUT" | sed 's/[?#].*//')
+    [[ "$FILENAME" != *.torrent ]] && FILENAME="download.torrent"
+    CLEANUP=1
+else
+    FILEPATH="${{INPUT#file://}}"
+    FILENAME=$(basename "$FILEPATH")
+    CLEANUP=0
+fi
+
+echo "$(date '+%F %T') FILEPATH: $FILEPATH  FILENAME: $FILENAME" >> "$LOG"
+
+if [[ ! -f "$FILEPATH" ]]; then
+    echo "$(date '+%F %T') ERRORE: file non trovato: $FILEPATH" >> "$LOG"
+    notify-send "EXTTO" "❌ File non trovato: $FILEPATH" --icon=dialog-error 2>/dev/null
+    exit 1
+fi
+
+B64=$(base64 -w 0 "$FILEPATH")
+JSON=$(python3 -c "
+import json, sys
+print(json.dumps({{
+    'filename': sys.argv[1],
+    'data': sys.argv[2],
+    'download_now': True
+}}))
+" "$FILENAME" "$B64")
+
+RESPONSE=$(curl -s -w "\\n%{{http_code}}" \\
+    -X POST "${{EXTTO_URL}}/api/upload-torrent" \\
+    -H 'Content-Type: application/json' \\
+    --data-raw "$JSON" \\
+    --max-time 15 2>/dev/null)
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+echo "$(date '+%F %T') HTTP: $HTTP_CODE  BODY: $BODY" >> "$LOG"
+
+[[ "$CLEANUP" == "1" ]] && rm -f "$FILEPATH"
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    SUCCESS=$(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('success',''))" 2>/dev/null)
+    if [[ "$SUCCESS" == "True" ]]; then
+        notify-send "EXTTO" "✅ $FILENAME aggiunto con successo" --icon=emblem-downloads 2>/dev/null
+    else
+        MSG=$(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message','') or d.get('error','Errore sconosciuto'))" 2>/dev/null)
+        notify-send "EXTTO" "⚠️ $MSG" --icon=dialog-warning 2>/dev/null
+    fi
+else
+    notify-send "EXTTO" "❌ EXTTO non raggiungibile (${{EXTTO_URL}})" --icon=dialog-error 2>/dev/null
+fi
+"""
+            mime = 'text/x-shellscript'
+
+        elif requested == 'extto-magnet.desktop':
+            content = """[Desktop Entry]
+Name=EXTTO Magnet Handler
+Comment=Invia link magnet a EXTTO torrent manager
+Exec=/usr/local/bin/extto-magnet %U
+Type=Application
+MimeType=x-scheme-handler/magnet;
+NoDisplay=true
+StartupNotify=false
+Terminal=false
+"""
+            mime = 'text/plain'
+
+        elif requested == 'extto-torrent.desktop':
+            content = """[Desktop Entry]
+Name=EXTTO Torrent Handler
+Comment=Invia file .torrent a EXTTO torrent manager
+Exec=/usr/local/bin/extto-torrent %U
+Type=Application
+MimeType=application/x-bittorrent;x-scheme-handler/magnet;
+NoDisplay=true
+StartupNotify=false
+Terminal=false
+"""
+            mime = 'text/plain'
+
+        elif requested == 'install.sh':
+            content = f"""#!/bin/bash
+# ============================================================
+# EXTTO — Installazione handler magnet: e .torrent
+# Compatibile con: Firefox, Chrome, Chromium, Vivaldi
+# Requisiti: curl, python3, xdg-utils, libnotify (notify-send)
+#
+# Generato automaticamente da EXTTO ({extto_url})
+# ============================================================
+
+set -e
+
+EXTTO_URL="${{EXTTO_URL:-{extto_url}}}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "╔══════════════════════════════════════════════╗"
+echo "║  EXTTO — Installazione handler torrent/magnet ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
+echo "▶ URL EXTTO: $EXTTO_URL"
+echo ""
+
+# ── Verifica dipendenze ──────────────────────────────────────
+echo "→ Verifica dipendenze..."
+for cmd in curl python3 xdg-mime xdg-open; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo "  ✗ Mancante: $cmd"
+        echo "    Installa con: sudo apt install ${{cmd/xdg-mime/xdg-utils}}"
+        exit 1
+    fi
+    echo "  ✓ $cmd"
+done
+
+if command -v notify-send &>/dev/null; then
+    echo "  ✓ notify-send (notifiche desktop attive)"
+else
+    echo "  ⚠ notify-send non trovato — le notifiche desktop saranno silenti"
+    echo "    Installa con: sudo apt install libnotify-bin"
+fi
+echo ""
+
+# ── Copia script in /usr/local/bin ──────────────────────────
+echo "→ Installazione script in /usr/local/bin ..."
+for f in extto-magnet extto-torrent; do
+    if [[ -f "$SCRIPT_DIR/$f" ]]; then
+        sudo cp "$SCRIPT_DIR/$f" "/usr/local/bin/$f"
+        sudo chmod +x "/usr/local/bin/$f"
+        echo "  ✓ /usr/local/bin/$f"
+    else
+        echo "  ✗ File non trovato: $SCRIPT_DIR/$f"
+        exit 1
+    fi
+done
+echo ""
+
+# ── Installa file .desktop ────────────────────────────────────
+echo "→ Installazione file .desktop ..."
+DESKTOP_DIR="$HOME/.local/share/applications"
+mkdir -p "$DESKTOP_DIR"
+for f in extto-magnet.desktop extto-torrent.desktop; do
+    if [[ -f "$SCRIPT_DIR/$f" ]]; then
+        cp "$SCRIPT_DIR/$f" "$DESKTOP_DIR/$f"
+        echo "  ✓ $DESKTOP_DIR/$f"
+    else
+        echo "  ✗ File non trovato: $SCRIPT_DIR/$f"
+        exit 1
+    fi
+done
+echo ""
+
+# ── Registra handler MIME ─────────────────────────────────────
+echo "→ Registrazione handler MIME ..."
+xdg-mime default extto-magnet.desktop x-scheme-handler/magnet
+echo "  ✓ x-scheme-handler/magnet → extto-magnet"
+xdg-mime default extto-torrent.desktop application/x-bittorrent
+echo "  ✓ application/x-bittorrent → extto-torrent"
+update-desktop-database "$DESKTOP_DIR" 2>/dev/null && echo "  ✓ database applicazioni aggiornato"
+echo ""
+
+# ── Configurazione Firefox ────────────────────────────────────
+echo "→ Configurazione Firefox ..."
+FIREFOX_PROFILES=$(find "$HOME/.mozilla/firefox" -name "prefs.js" 2>/dev/null)
+if [[ -n "$FIREFOX_PROFILES" ]]; then
+    for PREFS in $FIREFOX_PROFILES; do
+        sed -i '/network.protocol-handler.expose.magnet/d' "$PREFS"
+        sed -i '/network.protocol-handler.app.magnet/d' "$PREFS"
+        echo 'user_pref("network.protocol-handler.expose.magnet", false);' >> "$PREFS"
+        echo 'user_pref("network.protocol-handler.external.magnet", true);' >> "$PREFS"
+        echo "  ✓ Firefox: $PREFS"
+    done
+else
+    echo "  ⚠ Firefox: nessun profilo trovato"
+fi
+for browser in google-chrome chromium vivaldi; do
+    command -v "$browser" &>/dev/null && echo "  ✓ $browser: usa xdg-open automaticamente"
+done
+echo ""
+
+# ── Test connessione ──────────────────────────────────────────
+echo "→ Test connessione EXTTO ($EXTTO_URL) ..."
+if curl -s --max-time 3 "$EXTTO_URL/api/torrent-tags" &>/dev/null; then
+    echo "  ✓ EXTTO raggiungibile"
+else
+    echo "  ⚠ EXTTO non raggiungibile — assicurati che sia in esecuzione"
+fi
+echo ""
+
+echo "╔══════════════════════════════════════════════╗"
+echo "║  ✅ Installazione completata!                 ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
+echo "⚠  Riavvia i browser aperti per applicare le modifiche."
+echo ""
+echo "Verifica:"
+echo "  xdg-mime query default x-scheme-handler/magnet"
+echo "  xdg-mime query default application/x-bittorrent"
+"""
+            mime = 'text/x-shellscript'
+
+        else:
+            return jsonify({'error': 'File non valido'}), 400
+
+        resp = make_response(content)
+        resp.headers['Content-Type']        = f'{mime}; charset=utf-8'
+        resp.headers['Content-Disposition'] = f'attachment; filename="{requested}"'
+        resp.headers['Cache-Control']       = 'no-cache'
+        return resp
+
+    except Exception as e:
+        logger.error(f"browser_handlers_download: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/amule/ed2k-install', methods=['GET'])
 def amule_ed2k_install():
     """Genera script per registrare ed2k:// come protocol handler su Linux."""

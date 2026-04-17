@@ -3053,6 +3053,7 @@ const app = {
             this.renderNotifications(s);
             this.renderAdvanced(s);
             this.renderUrlsAndFilters(config);
+            this.renderBrowserHandlers();
             // Carica esempio formato rinomina dopo che il DOM è pronto
             this._renameFormatExamples = null; // reset cache
             const initFmt = (s.rename_format || 'base');
@@ -3442,6 +3443,107 @@ const app = {
                     ${this.renderField({key:'email_password', label:'Pass', type:'password'}, settings)}
                 </div>
             </div>`;
+    },
+
+    renderBrowserHandlers() {
+        const el = document.getElementById('browser-handlers-card');
+        if (!el) return;
+        const base = API_BASE;
+
+        // Il one-liner bash contiene $f che NON deve essere interpolato da JS —
+        // lo costruiamo come stringa normale (non template literal) e lo iniettiamo dopo.
+        const files = ['extto-magnet', 'extto-torrent', 'extto-magnet.desktop', 'extto-torrent.desktop', 'install.sh'];
+        const dlParts = files.map(f =>
+            'curl -fsSL "' + base + '/api/browser-handlers/download?file=' + encodeURIComponent(f) + '" -o "' + f + '"'
+        ).join(' && \\\n  ');
+        const oneliner = 'cd /tmp && mkdir -p extto-handlers && cd extto-handlers && \\\n  ' +
+                         dlParts + ' && \\\n  chmod +x extto-magnet extto-torrent install.sh && bash install.sh';
+
+        const uninstall = 'sudo rm -f /usr/local/bin/extto-magnet /usr/local/bin/extto-torrent && \\\n' +
+                          'rm -f ~/.local/share/applications/extto-magnet.desktop \\\n' +
+                          '      ~/.local/share/applications/extto-torrent.desktop && \\\n' +
+                          'update-desktop-database ~/.local/share/applications';
+
+        const btnHtml = files.map(f => {
+            const icon = f.endsWith('.desktop') ? 'fa-file-lines'
+                       : f === 'install.sh'     ? 'fa-terminal'
+                       : 'fa-file-code';
+            return '<a href="' + base + '/api/browser-handlers/download?file=' + encodeURIComponent(f) + '" ' +
+                   'download="' + f + '" class="btn btn-secondary" ' +
+                   'style="display:flex;align-items:center;gap:7px;justify-content:center;font-size:0.8rem;padding:8px 10px;text-decoration:none;">' +
+                   '<i class="fa-solid ' + icon + '"></i> ' + f + '</a>';
+        }).join('');
+
+        el.innerHTML =
+            '<div class="card-header" style="display:flex;align-items:center;gap:10px;">' +
+                '<i class="fa-solid fa-magnet" style="color:var(--accent);"></i>' +
+                ' Handler Magnet &amp; Torrent per Browser' +
+            '</div>' +
+            '<div class="card-body">' +
+                '<p style="color:var(--text-secondary);margin:0 0 14px;font-size:0.88rem;line-height:1.6;">' +
+                    'Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia ' +
+                    '<code>install.sh</code> dal terminale. Da quel momento ogni click su un ' +
+                    'link <code>magnet:</code> o su un file <code>.torrent</code> nel browser ' +
+                    'invierà automaticamente il download a EXTTO.' +
+                '</p>' +
+
+                '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:18px;">' +
+                    btnHtml +
+                '</div>' +
+
+                '<details style="margin-top:4px;">' +
+                    '<summary style="cursor:pointer;font-size:0.83rem;color:var(--text-muted);user-select:none;">' +
+                        '<i class="fa-solid fa-terminal" style="margin-right:5px;"></i>' +
+                        'Comando rapido — scarica e installa in un colpo' +
+                    '</summary>' +
+                    '<div style="margin-top:10px;">' +
+                        '<p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 8px;">' +
+                            'Esegui questo nel terminale del <strong>tuo PC</strong> (non sul server):' +
+                        '</p>' +
+                        '<div style="position:relative;">' +
+                            '<pre id="bh-oneliner" style="background:var(--bg-main);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:0.78rem;overflow-x:auto;white-space:pre;margin:0;padding-right:48px;"></pre>' +
+                            '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-oneliner\').textContent).then(()=>app.showToast(\'Copiato!\',\'success\'))" ' +
+                                    'class="btn btn-small btn-secondary" ' +
+                                    'style="position:absolute;top:6px;right:6px;" title="Copia negli appunti">' +
+                                '<i class="fa-regular fa-copy"></i>' +
+                            '</button>' +
+                        '</div>' +
+                        '<p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">' +
+                            '<i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>' +
+                            'Richiede: <code>curl</code>, <code>python3</code>, <code>xdg-utils</code>. ' +
+                            'Dopo l\'installazione riavvia il browser.' +
+                        '</p>' +
+                    '</div>' +
+                '</details>' +
+
+                '<details style="margin-top:10px;">' +
+                    '<summary style="cursor:pointer;font-size:0.83rem;color:var(--text-muted);user-select:none;">' +
+                        '<i class="fa-solid fa-trash-can" style="margin-right:5px;"></i>' +
+                        'Disinstallazione' +
+                    '</summary>' +
+                    '<div style="margin-top:10px;position:relative;">' +
+                        '<pre id="bh-uninstall" style="background:var(--bg-main);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:0.78rem;overflow-x:auto;white-space:pre;margin:0;padding-right:48px;"></pre>' +
+                        '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-uninstall\').textContent).then(()=>app.showToast(\'Copiato!\',\'success\'))" ' +
+                                'class="btn btn-small btn-secondary" ' +
+                                'style="position:absolute;top:6px;right:6px;" title="Copia negli appunti">' +
+                            '<i class="fa-regular fa-copy"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</details>' +
+
+                '<div style="margin-top:14px;padding:10px 14px;background:var(--bg-main);border-radius:var(--radius-md);border-left:3px solid var(--accent);font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">' +
+                    '<strong>Come funziona:</strong> il browser chiama <code>extto-magnet</code> / <code>extto-torrent</code> ' +
+                    'via <code>xdg-open</code>, che manda una POST a EXTTO. ' +
+                    'L\'URL del server (<code>' + base + '</code>) è già scritto negli script scaricati. ' +
+                    'Per cambiarlo dopo l\'installazione: <code>sudo nano /usr/local/bin/extto-magnet</code>.' +
+                '</div>' +
+            '</div>';
+
+        // Inietta i testi bash DOPO aver creato il DOM (evita escaping HTML)
+        const preOneliner   = el.querySelector('#bh-oneliner');
+        const preUninstall  = el.querySelector('#bh-uninstall');
+        if (preOneliner)  preOneliner.textContent  = oneliner;
+        if (preUninstall) preUninstall.textContent = uninstall;
     },
 
     renderAdvanced(settings) {
