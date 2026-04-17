@@ -145,7 +145,12 @@ class CycleStats:
         logger.info("📊 CYCLE REPORT")
         logger.info("=" * 60)
 
-        logger.info(f"🌐 Scraping: ExtTo: {self.scraped['ExtTo']} | Corsaro: {self.scraped['Corsaro']} | Archive: {self.scraped['Archive']}")
+        # Stampa tutte le sorgenti con risultati > 0, Archive sempre per ultima
+        _archive = self.scraped.pop('Archive', 0)
+        _parts   = [f"{k}: {v}" for k, v in sorted(self.scraped.items()) if v > 0]
+        _parts.append(f"Archive: {_archive}")
+        self.scraped['Archive'] = _archive  # ripristina per uso successivo
+        logger.info(f"🌐 Scraping: {' | '.join(_parts)}")
         logger.info(f"🔍 Candidates: {self.candidates_count}")
         logger.info("-" * 60)
 
