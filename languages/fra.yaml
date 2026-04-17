@@ -1349,3 +1349,18 @@ upgrade: mises à niveau
 'Ricerca in corso sulla rete — attendi i risultati...': 'Recherche en cours sur le réseau — veuillez patienter...'
 'Ricerca su TMDB...': 'Recherche sur TMDB...'
 'Feed matches — ': 'Correspondances de flux — '
+'Non rinominare': 'Ne pas renommer'
+'Salta la ricerca TMDB e la rinomina automatica del file': 'Ignorer la recherche TMDB et le renommage automatique du fichier'
+'Conferma download': 'Confirmer le téléchargement'
+'salta TMDB e rinomina automatica': 'ignorer TMDB et renommage auto'
+'Aggiungi Torrent/Magnet': 'Ajouter Torrent/Magnet'
+
+# --- Handler Browser (magnet/torrent) ---
+'Handler Magnet & Torrent per Browser': 'Gestionnaire Magnet & Torrent pour Navigateur'
+'Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia install.sh dal terminale. Da quel momento ogni click su un link magnet: o su un file .torrent nel browser invierà automaticamente il download a EXTTO.': 'Téléchargez les 5 fichiers ci-dessous, placez-les dans le même dossier et exécutez install.sh depuis le terminal. À partir de ce moment, chaque clic sur un lien magnet: ou sur un fichier .torrent dans le navigateur enverra automatiquement le téléchargement à EXTTO.'
+'Comando rapido — scarica e installa in un colpo': 'Commande rapide — télécharger et installer en une seule fois'
+"Esegui questo nel terminale del tuo PC (non sul server):": "Exécutez ceci dans le terminal de votre PC (pas sur le serveur) :"
+"Richiede: curl, python3, xdg-utils. Dopo l'installazione riavvia il browser.": "Nécessite : curl, python3, xdg-utils. Après l'installation, redémarrez le navigateur."
+'Disinstallazione': 'Désinstallation'
+'Come funziona': 'Comment ça marche'
+"Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:": "Le navigateur appelle extto-magnet / extto-torrent via xdg-open, qui envoie un POST à EXTTO. L'URL du serveur est déjà écrite dans les scripts téléchargés. Pour la modifier après l'installation :"

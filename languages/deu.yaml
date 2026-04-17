@@ -1349,3 +1349,18 @@ upgrade: Upgrades
 'Ricerca in corso sulla rete — attendi i risultati...': 'Netzwerk wird durchsucht — bitte warten...'
 'Ricerca su TMDB...': 'Suche auf TMDB...'
 'Feed matches — ': 'Feed-Treffer — '
+'Non rinominare': 'Nicht umbenennen'
+'Salta la ricerca TMDB e la rinomina automatica del file': 'TMDB-Suche und automatische Dateiumbenennung überspringen'
+'Conferma download': 'Download bestätigen'
+'salta TMDB e rinomina automatica': 'TMDB und autom. Umbenennung überspringen'
+'Aggiungi Torrent/Magnet': 'Torrent/Magnet hinzufügen'
+
+# --- Handler Browser (magnet/torrent) ---
+'Handler Magnet & Torrent per Browser': 'Browser Magnet & Torrent Handler'
+'Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia install.sh dal terminale. Da quel momento ogni click su un link magnet: o su un file .torrent nel browser invierà automaticamente il download a EXTTO.': 'Laden Sie die 5 Dateien unten herunter, legen Sie sie in denselben Ordner und führen Sie install.sh im Terminal aus. Ab diesem Moment sendet jeder Klick auf einen magnet:-Link oder eine .torrent-Datei im Browser den Download automatisch an EXTTO.'
+'Comando rapido — scarica e installa in un colpo': 'Schnellbefehl — herunterladen und in einem Rutsch installieren'
+"Esegui questo nel terminale del tuo PC (non sul server):": "Führen Sie dies im Terminal Ihres PCs aus (nicht auf dem Server):"
+"Richiede: curl, python3, xdg-utils. Dopo l'installazione riavvia il browser.": "Erfordert: curl, python3, xdg-utils. Starten Sie nach der Installation den Browser neu."
+'Disinstallazione': 'Deinstallation'
+'Come funziona': 'Wie es funktioniert'
+"Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:": "Der Browser ruft extto-magnet / extto-torrent via xdg-open auf, was einen POST an EXTTO sendet. Die Server-URL ist bereits in den heruntergeladenen Skripten geschrieben. Um sie nach der Installation zu ändern:"

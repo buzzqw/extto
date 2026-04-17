@@ -3477,14 +3477,11 @@ const app = {
         el.innerHTML =
             '<div class="card-header" style="display:flex;align-items:center;gap:10px;">' +
                 '<i class="fa-solid fa-magnet" style="color:var(--accent);"></i>' +
-                ' Handler Magnet &amp; Torrent per Browser' +
+                ' ' + t('Handler Magnet & Torrent per Browser') +
             '</div>' +
             '<div class="card-body">' +
                 '<p style="color:var(--text-secondary);margin:0 0 14px;font-size:0.88rem;line-height:1.6;">' +
-                    'Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia ' +
-                    '<code>install.sh</code> dal terminale. Da quel momento ogni click su un ' +
-                    'link <code>magnet:</code> o su un file <code>.torrent</code> nel browser ' +
-                    'invierà automaticamente il download a EXTTO.' +
+                    t('Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia install.sh dal terminale. Da quel momento ogni click su un link magnet: o su un file .torrent nel browser invierà automaticamente il download a EXTTO.') +
                 '</p>' +
 
                 '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:18px;">' +
@@ -3494,24 +3491,23 @@ const app = {
                 '<details style="margin-top:4px;">' +
                     '<summary style="cursor:pointer;font-size:0.83rem;color:var(--text-muted);user-select:none;">' +
                         '<i class="fa-solid fa-terminal" style="margin-right:5px;"></i>' +
-                        'Comando rapido — scarica e installa in un colpo' +
+                        t('Comando rapido — scarica e installa in un colpo') +
                     '</summary>' +
                     '<div style="margin-top:10px;">' +
                         '<p style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 8px;">' +
-                            'Esegui questo nel terminale del <strong>tuo PC</strong> (non sul server):' +
+                            t('Esegui questo nel terminale del tuo PC (non sul server):') +
                         '</p>' +
                         '<div style="position:relative;">' +
                             '<pre id="bh-oneliner" style="background:var(--bg-main);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:0.78rem;overflow-x:auto;white-space:pre;margin:0;padding-right:48px;"></pre>' +
-                            '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-oneliner\').textContent).then(()=>app.showToast(\'Copiato!\',\'success\'))" ' +
+                            '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-oneliner\').textContent).then(()=>app.showToast(t(\'Copiato!\'),\'success\'))" ' +
                                     'class="btn btn-small btn-secondary" ' +
-                                    'style="position:absolute;top:6px;right:6px;" title="Copia negli appunti">' +
+                                    'style="position:absolute;top:6px;right:6px;" title="' + t('Copia negli appunti') + '">' +
                                 '<i class="fa-regular fa-copy"></i>' +
                             '</button>' +
                         '</div>' +
                         '<p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">' +
                             '<i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>' +
-                            'Richiede: <code>curl</code>, <code>python3</code>, <code>xdg-utils</code>. ' +
-                            'Dopo l\'installazione riavvia il browser.' +
+                            t('Richiede: curl, python3, xdg-utils. Dopo l\'installazione riavvia il browser.') +
                         '</p>' +
                     '</div>' +
                 '</details>' +
@@ -3519,23 +3515,22 @@ const app = {
                 '<details style="margin-top:10px;">' +
                     '<summary style="cursor:pointer;font-size:0.83rem;color:var(--text-muted);user-select:none;">' +
                         '<i class="fa-solid fa-trash-can" style="margin-right:5px;"></i>' +
-                        'Disinstallazione' +
+                        t('Disinstallazione') +
                     '</summary>' +
                     '<div style="margin-top:10px;position:relative;">' +
                         '<pre id="bh-uninstall" style="background:var(--bg-main);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:0.78rem;overflow-x:auto;white-space:pre;margin:0;padding-right:48px;"></pre>' +
-                        '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-uninstall\').textContent).then(()=>app.showToast(\'Copiato!\',\'success\'))" ' +
+                        '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-uninstall\').textContent).then(()=>app.showToast(t(\'Copiato!\'),\'success\'))" ' +
                                 'class="btn btn-small btn-secondary" ' +
-                                'style="position:absolute;top:6px;right:6px;" title="Copia negli appunti">' +
+                                'style="position:absolute;top:6px;right:6px;" title="' + t('Copia negli appunti') + '">' +
                             '<i class="fa-regular fa-copy"></i>' +
                         '</button>' +
                     '</div>' +
                 '</details>' +
 
                 '<div style="margin-top:14px;padding:10px 14px;background:var(--bg-main);border-radius:var(--radius-md);border-left:3px solid var(--accent);font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">' +
-                    '<strong>Come funziona:</strong> il browser chiama <code>extto-magnet</code> / <code>extto-torrent</code> ' +
-                    'via <code>xdg-open</code>, che manda una POST a EXTTO. ' +
-                    'L\'URL del server (<code>' + base + '</code>) è già scritto negli script scaricati. ' +
-                    'Per cambiarlo dopo l\'installazione: <code>sudo nano /usr/local/bin/extto-magnet</code>.' +
+                    '<strong>' + t('Come funziona') + ':</strong> ' +
+                    t('Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L\'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l\'installazione:') +
+                    ' <code>sudo nano /usr/local/bin/extto-magnet</code>.' +
                 '</div>' +
             '</div>';
 

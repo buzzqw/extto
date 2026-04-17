@@ -1305,3 +1305,13 @@
 'Conferma download': 'Conferma download'
 'salta TMDB e rinomina automatica': 'salta TMDB e rinomina automatica'
 'Aggiungi Torrent/Magnet': 'Aggiungi Torrent/Magnet'
+
+# --- Handler Browser (magnet/torrent) ---
+'Handler Magnet & Torrent per Browser': 'Handler Magnet & Torrent per Browser'
+'Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia install.sh dal terminale. Da quel momento ogni click su un link magnet: o su un file .torrent nel browser invierà automaticamente il download a EXTTO.': 'Scarica i 5 file qui sotto, mettili nella stessa cartella e lancia install.sh dal terminale. Da quel momento ogni click su un link magnet: o su un file .torrent nel browser invierà automaticamente il download a EXTTO.'
+'Comando rapido — scarica e installa in un colpo': 'Comando rapido — scarica e installa in un colpo'
+"Esegui questo nel terminale del tuo PC (non sul server):": "Esegui questo nel terminale del tuo PC (non sul server):"
+"Richiede: curl, python3, xdg-utils. Dopo l'installazione riavvia il browser.": "Richiede: curl, python3, xdg-utils. Dopo l'installazione riavvia il browser."
+'Disinstallazione': 'Disinstallazione'
+'Come funziona': 'Come funziona'
+"Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:": "Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:"
