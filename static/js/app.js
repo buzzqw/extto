@@ -507,6 +507,10 @@ const app = {
             (data.disk || []).forEach(d => {
                 const item = document.createElement('div');
                 item.className = `h-list-item ${d.status}`;
+                const trashExtra = (d.trash_content_gb !== undefined)
+                    ? `<div style="font-size:0.75rem; color:var(--warning); margin-top:2px;">`
+                    + `&#x1F5D1; ${d.trash_content_gb} GB ${t('nel cestino')} (${d.trash_file_count} ${t('file')})</div>`
+                    : '';
                 item.innerHTML = `
                     <div style="display:flex; flex-direction:column;">
                         <b>${d.label}</b>
@@ -515,6 +519,7 @@ const app = {
                     <div style="text-align:right;">
                         <div>${d.free_gb} GB ${t('liberi')}</div>
                         <div style="font-size:0.75rem; font-weight:700;">${d.percent}% ${t('occupato')}</div>
+                        ${trashExtra}
                     </div>
                 `;
                 diskList.appendChild(item);
@@ -5888,7 +5893,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 const rawPct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
                 
                 const stateStr = torr.state || '';
-                const terminalState = stateStr.includes('seeding') || stateStr.includes('finished');
+                const _stLower = stateStr.toLowerCase();
+                const terminalState = _stLower.includes('seeding') || _stLower.includes('finished');
                 
                 const isActiveDownload = rawPct > 0 && rawPct < 100 && !terminalState && !torr.paused;
                 const fileOnDiskFinal  = fileOnDisk && !isActiveDownload;
@@ -5903,11 +5909,18 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
 
                 let displayState = stateStr;
                 if (fileOnDiskFinal) {
+                    // Rimuove suffisso " [F]" (Forzato) prima del matching, per evitare
+                    // che "In Seeding [F]" venga classificato come stato non finale
+                    const _stBase = _stLower.replace(/\s*\[f\]\s*$/i, '').trim();
                     const keepStates = ['in pausa', 'in coda (dl)', 'in coda (seeding)', 'errore'];
-                    const isExplicitState = keepStates.some(k => stateStr.toLowerCase().includes(k));
-                    const finalStates = ['seeding', 'finished', 'finished_t', 'terminato', 'salvato',
-                                         'in seeding', 'seeding (fermo)', 'in coda (seeding)'];
-                    if (!isExplicitState && !finalStates.includes(stateStr)) {
+                    const isExplicitState = keepStates.some(k => _stBase.includes(k));
+                    // Match su "contiene" invece di "uguale": copre "seeding (fermo)",
+                    // "in seeding", "seeding (completato)", eventuali varianti future
+                    const isFinalState = _stBase.includes('seeding')
+                                      || _stBase.includes('finished')
+                                      || _stBase.includes('terminato')
+                                      || _stBase.includes('salvato');
+                    if (!isExplicitState && !isFinalState) {
                         displayState = 'salvato';
                     }
                 }
@@ -6013,14 +6026,14 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                             </div>
                             <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary); width:42px; text-align:right;">${pct.toFixed(1)}%</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); opacity:1; padding-right:50px; margin-top:3px;">
-                            <span title="Dati scaricati fisicamente finora"><i class="fa-solid fa-arrow-down" style="color:var(--success); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(torr._dlBytes)}</span>
-                            <span title="Dati inviati (Seeding) finora"><i class="fa-solid fa-arrow-up" style="color:var(--warning); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(torr._ulBytes)}</span>
+                        <div style="display:flex; justify-content:space-between; gap:1rem; font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted); opacity:1; padding-right:50px; margin-top:3px; white-space:nowrap;">
+                            <span title="Dati scaricati fisicamente finora" style="white-space:nowrap;"><i class="fa-solid fa-arrow-down" style="color:var(--success); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(torr._dlBytes)}</span>
+                            <span title="Dati inviati (Seeding) finora" style="white-space:nowrap;"><i class="fa-solid fa-arrow-up" style="color:var(--warning); font-size:0.7rem; vertical-align:middle;"></i> ${this._fmtBytes(torr._ulBytes)}</span>
                         </div>
                     </div>
                     
-                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success);">${this._fmtRate(torr.dl_rate)}</div>
-                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning);">${this._fmtRate(torr.ul_rate)}</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success); white-space:nowrap; min-width:72px;">${this._fmtRate(torr.dl_rate)}</div>
+                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning); white-space:nowrap; min-width:72px;">${this._fmtRate(torr.ul_rate)}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; ${etaStyle}">${etaStr}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${torr.num_seeds || 0}S/${torr.num_peers || 0}P</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.85rem; font-weight:600; color:var(--text-primary);">${ratioHtml}</div>

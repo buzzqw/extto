@@ -145,12 +145,7 @@ class CycleStats:
         logger.info("📊 CYCLE REPORT")
         logger.info("=" * 60)
 
-        # Stampa tutte le sorgenti con risultati > 0, Archive sempre per ultima
-        _archive = self.scraped.pop('Archive', 0)
-        _parts   = [f"{k}: {v}" for k, v in sorted(self.scraped.items()) if v > 0]
-        _parts.append(f"Archive: {_archive}")
-        self.scraped['Archive'] = _archive  # ripristina per uso successivo
-        logger.info(f"🌐 Scraping: {' | '.join(_parts)}")
+        logger.info(f"🌐 Scraping: ExtTo: {self.scraped['ExtTo']} | Corsaro: {self.scraped['Corsaro']} | Archive: {self.scraped['Archive']}")
         logger.info(f"🔍 Candidates: {self.candidates_count}")
         logger.info("-" * 60)
 
@@ -383,28 +378,46 @@ class Parser:
         # IMPORTANTE: rimuove prima i tag sorgente streaming noti che contengono
         # 'it' come sigla (iT = iTunes, WEBRip, ecc.) per evitare falsi positivi.
         # Esempio: '2160p.iT.WEB-DL' → 'iT' non è italiano, è iTunes.
+        # ── Rilevamento lingua italiana ─────────────────────────────────────
+        # Tre livelli di ricerca, dal più sicuro al più specifico:
+
+        # Livello 1: ITA / Italian / Italiano — non ambigui, ricerca su tutto
         _STREAMING_TAGS = (
-            r'\bit\b(?=\s+web)'    # .iT.WEB-DL / .iT.WEBRip  (iTunes)
-            r'|\biTunes\b'          # iTunes esplicito
-            r'|\bamzn\b'           # Amazon
-            r'|\bdsnp\b'           # Disney+
-            r'|\bnf\b(?=\s+web)'  # .NF.WEB (Netflix)
-            r'|\bhmax\b'           # HBO Max
+            r'\bit\b(?=\s+web)'    # .iT.WEB-DL / .iT.WEBRip (iTunes)
+            r'|\bitunes\b'           # iTunes esplicito
+            r'|\bamzn\b'             # Amazon
+            r'|\bdsnp\b'             # Disney+
+            r'|\bnf\b(?=\s+web)'   # .NF.WEB (Netflix)
+            r'|\bhmax\b'             # HBO Max
             r'|\bparamount\b'
         )
-        # Rimuove i tag sorgente prima del check lingua
-        t_norm_lang_nostream = re.sub(_STREAMING_TAGS, ' ', t_norm_lang)
+        if re.search(r'\bita\b|\bitalian\b|\bitaliano\b',
+                     re.sub(_STREAMING_TAGS, ' ', t_norm_lang)):
+            q.is_ita = True
 
-        if re.search(r'\bita\b|\bitalian\b|\bitaliano\b', t_norm_lang_nostream):
+        # Livello 2: formato lingua esplicito composito — IT+EN, IT|EN, [IT], [IT+EN]
+        # Cerca sull'originale (t già lowercase) perché la normalizzazione rimuove + e []
+        # Il "+" non appare mai nel titolo di un episodio, quindi è un indicatore sicuro
+        elif re.search(r'\bit[\+\|]|\[it\]', t):
             q.is_ita = True
-        elif re.search(r'\bit\b', t_norm_lang_nostream) and not re.search(
-                r'\bwith\b|\bbit\b|\bsplit\b|\bedit\b|\bunit\b|\bvisit\b|'
-                r'\blimit\b|\bexit\b|\bprofit\b|\bsubmit\b|\bcommit\b|'
-                r'\bpermit\b|\badmit\b|\bomit\b|\bhit\b|\bkit\b|\bpit\b|'
-                r'\bsit\b|\bfit\b|\bwit\b|\bknit\b|\bspit\b|\bslit\b|'
-                r'\bitunes\b',   # iTunes esplicito come parola intera
-                t_norm_lang_nostream):
-            q.is_ita = True
+
+        # Livello 3: \bit\b solo dalla RISOLUZIONE in poi
+        # Evita falsi positivi da parole nel titolo episodio ("Feel It Still", "It Chapter")
+        # I tag lingua nei torrent appaiono sempre nella parte tecnica, mai nel titolo
+        else:
+            _res_m = re.search(
+                r'\b(2160p?|1080p?|720p?|480p?|4k|uhd|bluray|web[\s\-]?dl|webrip|hdtv)\b',
+                t_norm_lang
+            )
+            _tech = re.sub(_STREAMING_TAGS, ' ', t_norm_lang[_res_m.start():] if _res_m else '')
+            if re.search(r'\bit\b', _tech) and not re.search(
+                    r'\bwith\b|\bbit\b|\bsplit\b|\bedit\b|\bunit\b|\bvisit\b|'
+                    r'\blimit\b|\bexit\b|\bprofit\b|\bsubmit\b|\bcommit\b|'
+                    r'\bpermit\b|\badmit\b|\bomit\b|\bhit\b|\bkit\b|\bpit\b|'
+                    r'\bsit\b|\bfit\b|\bwit\b|\bknit\b|\bspit\b|\bslit\b|'
+                    r'\bitunes\b',
+                    _tech):
+                q.is_ita = True
 
         # Revisioni
         if 'repack' in t or 'rerip' in t: q.is_repack = True

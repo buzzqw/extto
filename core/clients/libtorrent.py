@@ -252,7 +252,12 @@ class LibtorrentClient:
                     # Salta stati transitori — non ha senso salvarli come "ultimo stato noto"
                     if raw_state in ('checking_resume_data', 'downloading_metadata', 'checking_files', 'allocating'):
                         continue
-                    is_seeding = getattr(s, 'is_seeding', False) or getattr(s, 'is_finished', False)
+                    # is_seeding: sta attivamente uploadando (raw_state='seeding')
+                    # is_finished: ha tutti i pezzi ma non sta uploadando (raw_state='finished')
+                    # NON unire i due: finished non è seeding
+                    is_seeding  = getattr(s, 'is_seeding',  False) or raw_state == 'seeding'
+                    is_finished = getattr(s, 'is_finished', False) or raw_state == 'finished'
+                    is_done     = is_seeding or is_finished
                     is_auto_managed = getattr(s, 'auto_managed', False)
                     dl_rate = getattr(s, 'download_payload_rate', getattr(s, 'download_rate', 0))
                     ul_rate = getattr(s, 'upload_payload_rate', getattr(s, 'upload_rate', 0))
@@ -263,12 +268,17 @@ class LibtorrentClient:
                     if err_msg:
                         ui_state = "Errore"
                     elif is_paused:
-                        if is_seeding:
-                            ui_state = "In Coda (Seeding)" if is_auto_managed else "Terminato"
+                        if is_seeding or is_finished:
+                            # finished/seeding + paused: ratio raggiunto o pausa manuale
+                            ui_state = "In Coda (Seeding)" if is_auto_managed else "Seeding (Completato)"
                         else:
                             ui_state = "In Coda (DL)" if is_auto_managed else "In Pausa"
                     elif is_seeding:
                         ui_state = "In Seeding" if ul_rate > 0 else "Seeding (Fermo)"
+                    elif is_finished:
+                        # finished = download completo, nessun peer attivo al momento
+                        # NON è Terminato — è disponibile per il seeding, solo fermo
+                        ui_state = "Seeding (Fermo)"
                     else:
                         ui_state = "In Scarico" if dl_rate > 0 else "In Scarico (Fermo)"
                     snapshot[ih] = {
@@ -461,6 +471,13 @@ class LibtorrentClient:
                 'pre_allocate_storage':     bool(preallocate),
                 'rename_files_on_settings_change': True,
             }
+            # Limiti seeding globali — presenti anche nel ramo 1.x
+            # share_ratio_limit: ratio upload/download minimo prima di fermare il seeding
+            # seed_time_limit: minuti minimi di seeding (0 = disabilitato)
+            if seed_ratio > 0:
+                pack['share_ratio_limit'] = float(seed_ratio)
+            if seed_time > 0:
+                pack['seed_time_limit'] = int(seed_time * 60)
             proxy_type = str(cfg.get('libtorrent_proxy_type', 'none')).lower()
             if proxy_type != 'none':
                 pack['proxy_type']     = cls._PROXY_MAP.get(proxy_type, 0)
@@ -570,29 +587,24 @@ class LibtorrentClient:
                 _db = Database()
             except Exception:
                 pass
-            try:
-                # Tenta prima con la logica Serie TV
-                is_renamed = rename_completed_torrent(
+            
+            # Tenta prima con la logica Serie TV
+            is_renamed = rename_completed_torrent(
+                torrent_name = h.name() or '',
+                save_path    = save_path,
+                cfg          = full_cfg,  # <--- ORA E' CORRETTO!
+                db           = _db
+            )
+            
+            # Se fallisce, tenta come Film
+            if not is_renamed:
+                rename_completed_movie(
                     torrent_name = h.name() or '',
                     save_path    = save_path,
-                    cfg          = full_cfg,
-                    db           = _db
+                    cfg          = full_cfg   # <--- ORA E' CORRETTO!
                 )
-                # Se fallisce, tenta come Film
-                if not is_renamed:
-                    rename_completed_movie(
-                        torrent_name = h.name() or '',
-                        save_path    = save_path,
-                        cfg          = full_cfg
-                    )
-            finally:
-                if _db:
-                    try:
-                        _db.close()
-                    except Exception:
-                        pass
         except Exception as _re:
-            logger.warning(f"⚠️ Rename failed: {_re}")
+            logger.warning(f"⚠️ Rename failed: {_re}")   
             
     @classmethod
     def _trigger_folder_scan(cls, h):
@@ -606,15 +618,9 @@ class LibtorrentClient:
             series_name = ep_info['name']
             from ..database import Database
             db = Database()
-            try:
-                c = db.conn.cursor()
-                c.execute("SELECT id FROM series WHERE name LIKE ?", (f"%{series_name}%",))
-                row = c.fetchone()
-            finally:
-                try:
-                    db.close()
-                except Exception:
-                    pass
+            c = db.conn.cursor()
+            c.execute("SELECT id FROM series WHERE name LIKE ?", (f"%{series_name}%",))
+            row = c.fetchone()
             if not row: return
             
             s_id = row['id']
@@ -780,19 +786,12 @@ class LibtorrentClient:
                             _db_inst = Database()
                         except Exception:
                             pass
-                        try:
-                            renamed = rename_completed_torrent(
-                                torrent_name = fname,
-                                save_path    = nas_path,
-                                cfg          = full_cfg,
-                                db           = _db_inst,
-                            )
-                        finally:
-                            if _db_inst:
-                                try:
-                                    _db_inst.close()
-                                except Exception:
-                                    pass
+                        renamed = rename_completed_torrent(
+                            torrent_name = fname,
+                            save_path    = nas_path,
+                            cfg          = full_cfg,
+                            db           = _db_inst,
+                        )
                         if renamed:
                             logger.info(f"   \u270f\ufe0f  pack rename: '{fname}'")
                             if Parser and ep_info:
@@ -1455,7 +1454,9 @@ class LibtorrentClient:
                     
                     is_paused = getattr(s, 'paused', False)
                     is_auto_managed = getattr(s, 'auto_managed', False)
-                    is_seeding = getattr(s, 'is_seeding', False) or getattr(s, 'is_finished', False)
+                    is_seeding  = getattr(s, 'is_seeding',  False) or raw_state == 'seeding'
+                    is_finished = getattr(s, 'is_finished', False) or raw_state == 'finished'
+                    is_done     = is_seeding or is_finished
                     
                     # Le velocità "payload" escludono il traffico di protocollo (ping tracker)
                     dl_rate = getattr(s, 'download_payload_rate', getattr(s, 'download_rate', 0))
@@ -1470,22 +1471,22 @@ class LibtorrentClient:
                     elif raw_state == "downloading_metadata":
                         ui_state = "Attesa Metadati"
                     elif raw_state == "checking_files":
-                        ui_state = "Controllo (100%)" if is_seeding else "Controllo File"
+                        ui_state = "Controllo (100%)" if is_done else "Controllo File"
                     elif is_paused:
-                        # Pausato: Capiamo chi lo ha pausato e se ha finito
-                        if is_seeding:
-                            ui_state = "In Coda (Seeding)" if is_auto_managed else "Terminato"
+                        if is_seeding or is_finished:
+                            ui_state = "In Coda (Seeding)" if is_auto_managed else "Seeding (Completato)"
                         else:
                             ui_state = "In Coda (DL)" if is_auto_managed else "In Pausa"
                     else:
-                        # Attivo
                         if is_seeding:
                             ui_state = "In Seeding" if ul_rate > 0 else "Seeding (Fermo)"
+                        elif is_finished:
+                            ui_state = "Seeding (Fermo)"
                         else:
                             ui_state = "In Scarico" if dl_rate > 0 else "In Scarico (Fermo)"
                             
                     # Aggiunta badge Forzato [F] se l'utente ha tolto la gestione automatica
-                    if not is_paused and not is_auto_managed and "Fermo" not in ui_state and "Terminato" not in ui_state:
+                    if not is_paused and not is_auto_managed and "Fermo" not in ui_state and "Completato" not in ui_state:
                         ui_state = f"{ui_state} [F]"
                     # Fallback stato UI: se siamo in una fase transitoria post-riavvio
                     # (Attesa Metadati, Controllo Dati) usiamo lo snapshot salvato prima dello shutdown
@@ -1677,8 +1678,15 @@ class LibtorrentClient:
             total_dl = sum(h.status().download_rate for h in torrents)
             total_ul = sum(h.status().upload_rate   for h in torrents)
             try:
-                listen_port  = s.listen_port()
-                is_listening = listen_port > 0
+                listen_port = s.listen_port()
+                # is_listening: porta > 0 OPPURE s.is_listening() se disponibile
+                # Evita falso 'offline' transitorio durante riapplicazione impostazioni
+                if listen_port > 0:
+                    is_listening = True
+                elif hasattr(s, 'is_listening'):
+                    is_listening = bool(s.is_listening())
+                else:
+                    is_listening = False
             except Exception:
                 listen_port, is_listening = 0, False
             cfg         = cls._cfg_snapshot
