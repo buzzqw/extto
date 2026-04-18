@@ -5539,6 +5539,18 @@ def send_magnet():
             except Exception as e:
                 pass
 
+        # Prova aria2 via RPC
+        if settings.get('aria2_enabled') == 'yes':
+            try:
+                from core.clients.aria2 import Aria2Client
+                a2 = Aria2Client(settings)
+                if a2.rpc_url and a2._rpc_add(magnet):
+                    push_notification('download', 'Scarico avviato', 'Torrent inviato a aria2c', {'magnet': magnet[:80]})
+                    _save_tag_for_magnet(magnet, 'Manuale')
+                    return jsonify({'success': True, 'message': 'Inviato a aria2c'})
+            except Exception as e:
+                logger.warning(f'send-magnet aria2 error: {e}')
+
         return jsonify({'success': False, 'error': 'Nessun client torrent configurato o disponibile'}), 500
     
     except Exception as e:
@@ -5625,6 +5637,30 @@ def upload_torrent():
                     return jsonify({'success': False, 'error': f'Errore libtorrent: {err_msg}'})
             except Exception as e:
                 pass
+
+        # Prova aria2 via RPC (addTorrent con base64)
+        if settings.get('aria2_enabled') == 'yes':
+            try:
+                import base64 as _b64
+                from core.clients.aria2 import Aria2Client
+                a2 = Aria2Client(settings)
+                if a2.rpc_url:
+                    torrent_b64 = _b64.b64encode(torrent_bytes).decode('utf-8')
+                    opts = {}
+                    if save_path:
+                        opts['dir'] = save_path
+                    elif a2.dir:
+                        opts['dir'] = a2.dir
+                    j = a2._rpc_post('aria2.addTorrent', torrent_b64, [], opts)
+                    if 'result' in j:
+                        gid = j['result']
+                        with a2._gids_lock:
+                            a2._pending_gids.add(gid)
+                        push_notification('download', 'Scarico avviato', f'File .torrent inviato a aria2c (GID {gid})', {})
+                        _save_tag_for_magnet(filename, 'Manuale')
+                        return jsonify({'success': True, 'message': f'File .torrent inviato a aria2c'})
+            except Exception as e:
+                logger.warning(f'upload-torrent aria2 error: {e}')
 
         return jsonify({'success': False, 'error': 'Nessun client torrent configurato o disponibile'}), 500
     
@@ -8679,6 +8715,50 @@ def trakt_scrobble():
 # END TRAKT INTEGRATION
 # ============================================================================
 
+@app.route('/api/aria2/status-service', methods=['GET'])
+def aria2_status_service():
+    import subprocess
+    try:
+        # Controlla se il processo aria2c è in esecuzione
+        subprocess.check_output(['pgrep', '-x', 'aria2c'])
+        return jsonify({'active': True})
+    except:
+        return jsonify({'active': False})
+
+@app.route('/api/aria2/start', methods=['POST'])
+def aria2_start():
+    import subprocess
+    try:
+        import core.config_db as _cdb
+        path   = _cdb.get_setting('aria2c_path', 'aria2c')
+        secret = _cdb.get_setting('aria2_rpc_secret', '')
+        port   = int(_cdb.get_setting('aria2_rpc_port', '6800') or '6800')
+        cmd = [path, '--daemon', '--enable-rpc', '--rpc-listen-all',
+               f'--rpc-listen-port={port}']
+        if secret:
+            cmd.append(f'--rpc-secret={secret}')
+        subprocess.Popen(cmd)
+        # Se aria2_rpc_url non è ancora configurato, lo impostiamo automaticamente
+        # in modo che EXTTO (Watchdog, add()) sappia dove connettersi.
+        current_url = (_cdb.get_setting('aria2_rpc_url', '') or '').strip()
+        if not current_url:
+            auto_url = f'http://localhost:{port}/jsonrpc'
+            try:
+                _cdb.set_settings_bulk({'aria2_rpc_url': auto_url})
+            except Exception:
+                pass  # Non blocchiamo l'avvio se il salvataggio fallisce
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/aria2/stop', methods=['POST'])
+def aria2_stop():
+    import subprocess
+    try:
+        subprocess.call(['pkill', '-x', 'aria2c'])
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     from waitress import serve

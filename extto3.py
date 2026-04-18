@@ -196,7 +196,45 @@ def web_task():
                         data['lt_version'] = lt.version
                     except ImportError:
                         data['lt_version'] = 'Sconosciuta'
-                        
+
+                    # Se libtorrent non è in ascolto ma aria2 è attivo e risponde,
+                    # segna is_listening=True per evitare il badge "offline" in UI.
+                    if not data.get('is_listening'):
+                        try:
+                            from core.config import Config as _CfgA2
+                            _cfg_a2 = _CfgA2()
+                            _a2_enabled = str(_cfg_a2.qbt.get('aria2_enabled', 'no')).lower() in ('yes', 'true', '1')
+                            if _a2_enabled:
+                                from core.clients.aria2 import Aria2Client as _A2C
+                                _a2 = _A2C(_cfg_a2.qbt)
+                                if _a2.rpc_url:
+                                    import requests as _req
+                                    _pong = _req.post(_a2.rpc_url, json={
+                                        'jsonrpc': '2.0', 'id': 'ping', 'method': 'aria2.getVersion',
+                                        'params': [f'token:{_a2.rpc_secret}'] if _a2.rpc_secret else []
+                                    }, timeout=2)
+                                    if _pong.status_code == 200 and 'result' in _pong.json():
+                                        ver = _pong.json()['result'].get('version', '?')
+                                        data['is_listening'] = True
+                                        data['available']    = True   # sblocca toolbar UI
+                                        data['listen_port']  = 6800
+                                        data['lt_version']   = f'aria2c {ver}'
+                                        # Velocità aggregate da aria2.getGlobalStat
+                                        try:
+                                            _gs = _req.post(_a2.rpc_url, json={
+                                                'jsonrpc': '2.0', 'id': 'gstat',
+                                                'method': 'aria2.getGlobalStat',
+                                                'params': [f'token:{_a2.rpc_secret}'] if _a2.rpc_secret else []
+                                            }, timeout=2).json().get('result', {})
+                                            data['dl_rate']  = int(_gs.get('downloadSpeed', 0))
+                                            data['ul_rate']  = int(_gs.get('uploadSpeed', 0))
+                                            data['active']   = int(_gs.get('numActive', 0))
+                                            data['paused']   = int(_gs.get('numWaiting', 0))
+                                        except Exception:
+                                            pass
+                        except Exception:
+                            pass
+
                     self._json_response(data)
                     return
 
@@ -1243,7 +1281,7 @@ def main():
             'email_password':     cfg.email_password,
         })
 
-        def _send_with_fallback(uri: str) -> Tuple[bool, str]:
+        def _send_with_fallback(uri: str, meta: dict = None) -> Tuple[bool, str]:
             # --- ROUTING ED2K → aMule ★ v45 ---
             if uri and uri.startswith('ed2k://') and amule_cl:
                 try:
@@ -1256,8 +1294,19 @@ def main():
                     logger.warning(f"⚠️  aMule send error: {_e}")
                     return False, ''
             # --- ROUTING NORMALE (magnet/torrent) ---
+            # Inietta meta (notifier, db, cfg_dict) per il post-processing di Aria2Client
+            _meta = None
+            if meta is not None:
+                _meta = dict(meta)
+                _meta.setdefault('notifier', notifier)
+                _meta.setdefault('db', db)
+                _meta.setdefault('cfg_dict', {k: getattr(cfg, k, '') for k in
+                    ['rename_episodes', 'rename_format', 'rename_template',
+                     'tmdb_api_key', 'tmdb_language', 'tmdb_cache_days',
+                     'move_episodes', 'cleanup_upgrades', 'trash_path', 'cleanup_action']})
             try:
-                if client.add(uri, cfg.qbt):
+                _add_meta = _meta if isinstance(client, Aria2Client) else None
+                if client.add(uri, cfg.qbt, _add_meta) if isinstance(client, Aria2Client) else client.add(uri, cfg.qbt):
                     return True, client_name
                 else:
                     logger.warning(f"⚠️  {client_name} add() failed, trying aria2c fallback")
@@ -1267,7 +1316,7 @@ def main():
             # Fallback aria2c: SEMPRE in caso di errore, ignorando i bottoni dell'interfaccia
             if not isinstance(client, Aria2Client):
                 try:
-                    if aria2.add(uri, cfg.qbt):
+                    if aria2.add(uri, cfg.qbt, _meta):
                         return True, 'aria2c'
                 except Exception as e:
                     logger.warning(f"⚠️  aria2c fallback error: {e}")
@@ -1569,7 +1618,15 @@ def main():
                     safe_magnet = sanitize_magnet(cand['magnet'], cand['title']) or cand['magnet']
                     dl, msg     = db.check_series(ep_dict, safe_magnet, '')
                     if dl:
-                        ok_send, used_cl = _send_with_fallback(safe_magnet)
+                        _a2_meta_series = {
+                            'series_name':  cand['series_name'],
+                            'season':       cand['season'],
+                            'episode':      cand['episode'],
+                            'archive_path': (_m.get('archive_path', '') if _m else ''),
+                            'tmdb_id':      (_m.get('tmdb_id') if _m else None),
+                            'title':        cand['title'],
+                        }
+                        ok_send, used_cl = _send_with_fallback(safe_magnet, _a2_meta_series)
                         if not ok_send:
                             _sid = key[0]
                             db.undo_episode_send(_sid, cand['season'], cand['episode'], safe_magnet)
@@ -1635,7 +1692,15 @@ def main():
                 if not dl_ok:
                     logger.info(f"⏭️  Skipping timeframe: {r['series_name']} S{r['season']:02d}E{r['episode']:02d} → {msg}")
                     continue
-                ok_send, used_cl = _send_with_fallback(safe_magnet)
+                _a2_meta_timeframe = {
+                    'series_name':  r['series_name'],
+                    'season':       r['season'],
+                    'episode':      r['episode'],
+                    'archive_path': (_m.get('archive_path', '') if _m else ''),
+                    'tmdb_id':      (_m.get('tmdb_id') if _m else None),
+                    'title':        r['best_title'],
+                }
+                ok_send, used_cl = _send_with_fallback(safe_magnet, _a2_meta_timeframe)
                 if ok_send:
                     db.mark_downloaded(r['id'])
                     stats.downloads_started += 1

@@ -1759,7 +1759,8 @@ const app = {
         Object.assign(s, {
             qbittorrent_url: v('qbt-url'), qbittorrent_username: v('qbt-user'), qbittorrent_password: v('qbt-pass'), qbittorrent_category: v('qbt-category'), qbittorrent_paused: v('qbt-paused'),
             transmission_url: v('tr-url'), transmission_username: v('tr-user'), transmission_password: v('tr-pass'), transmission_paused: v('tr-paused'),
-            aria2_rpc_url: v('ar-rpc-url'), aria2_rpc_secret: v('ar-secret'), aria2_dir: v('ar-dir'), aria2c_path: v('ar-path')
+            aria2_rpc_url: v('ar-rpc-url'), aria2_rpc_secret: v('ar-secret'), aria2_dir: v('ar-dir'), aria2c_path: v('ar-path'),
+            aria2_max_connection: v('ar-max-conn'), aria2_split: v('ar-split'), aria2_dl_limit: v('ar-dl-limit'), aria2_ul_limit: v('ar-ul-limit')
         });
 
         document.querySelectorAll('[id^="setting-"]').forEach(i => {
@@ -3219,6 +3220,12 @@ const app = {
         set('ar-secret',    s.aria2_rpc_secret  || '');
         set('ar-dir',       s.aria2_dir         || '');
         set('ar-path',      s.aria2c_path       || 'aria2c');
+    
+    // --- NUOVI CAMPI ---
+        set('ar-max-conn',  s.aria2_max_connection || '16');
+        set('ar-split',     s.aria2_split || '16');
+        set('ar-dl-limit',  s.aria2_dl_limit || '0');
+        set('ar-ul-limit',  s.aria2_ul_limit || '0');
     },
 
     toggleScheduler() {
@@ -10394,6 +10401,88 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
     },
 
+
+    // --- GESTIONE SERVIZIO ARIA2 ---
+
+    _aria2Log(msg, type = 'info') {
+        const log = document.getElementById('aria2-maint-log');
+        if (!log) return;
+        log.style.display = 'block';
+        const colors = { info: 'var(--text-secondary)', success: 'var(--success)', error: 'var(--danger)', warn: 'var(--warning)' };
+        const icons  = { info: 'ℹ', success: '✔', error: '✖', warn: '⚠' };
+        const ts = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const line = document.createElement('div');
+        line.style.color = colors[type] || colors.info;
+        line.textContent = `[${ts}] ${icons[type] || 'ℹ'} ${msg}`;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+    },
+
+    async aria2CheckServiceStatus() {
+        try {
+            const r = await fetch(`${API_BASE}/api/aria2/status-service`);
+            const d = await r.json();
+            const badge = document.getElementById('aria2-service-badge');
+            if (badge) {
+                if (d.active) {
+                    badge.style.background = 'rgba(16,185,129,0.18)';
+                    badge.style.color = 'var(--success)';
+                    badge.innerHTML = `<i class="fa-solid fa-circle" style="font-size:0.55rem;"></i> Attivo`;
+                    this._aria2Log('aria2c è in esecuzione.', 'success');
+                } else {
+                    badge.style.background = 'rgba(239,68,68,0.18)';
+                    badge.style.color = 'var(--danger)';
+                    badge.innerHTML = `<i class="fa-solid fa-circle-stop" style="font-size:0.55rem;"></i> Fermo`;
+                    this._aria2Log('aria2c non è in esecuzione.', 'warn');
+                }
+            }
+        } catch(e) {
+            this._aria2Log(`Errore verifica stato: ${e.message}`, 'error');
+            console.error("Errore stato aria2:", e);
+        }
+    },
+
+    async aria2StartService() {
+        this._aria2Log('Avvio aria2c in corso...', 'info');
+        this.showToast("Avvio aria2c...", "info");
+        try {
+            const r = await fetch(`${API_BASE}/api/aria2/start`, { method: 'POST' });
+            const d = await r.json();
+            if (d.success) {
+                this._aria2Log('aria2c avviato con successo. RPC in ascolto.', 'success');
+                this.showToast("aria2c avviato!", "success");
+                // Piccola attesa per dare tempo al processo di partire
+                setTimeout(() => this.aria2CheckServiceStatus(), 1200);
+            } else {
+                const errMsg = d.error || 'errore sconosciuto';
+                this._aria2Log(`Avvio fallito: ${errMsg}`, 'error');
+                this.showToast("Errore: " + errMsg, "error");
+            }
+        } catch(e) {
+            this._aria2Log(`Errore di rete: ${e.message}`, 'error');
+            this.showToast("Errore di rete", "error");
+        }
+    },
+
+    async aria2StopService() {
+        if (!confirm("Vuoi davvero fermare aria2c?\nI download in corso verranno interrotti (riprenderanno al prossimo avvio).")) return;
+        this._aria2Log('Invio segnale di stop ad aria2c...', 'warn');
+        try {
+            const r = await fetch(`${API_BASE}/api/aria2/stop`, { method: 'POST' });
+            const d = await r.json();
+            if (d.success !== false) {
+                this._aria2Log('aria2c fermato.', 'warn');
+                this.showToast("aria2c fermato", "info");
+            } else {
+                this._aria2Log(`Stop fallito: ${d.error || 'errore sconosciuto'}`, 'error');
+            }
+            setTimeout(() => this.aria2CheckServiceStatus(), 800);
+        } catch(e) {
+            this._aria2Log(`Errore di rete: ${e.message}`, 'error');
+            this.showToast("Errore di rete", "error");
+        }
+    },
+
 }; // chiude app object
 
 // ========================================================================
@@ -10540,5 +10629,5 @@ function highlightInElement(el, q) {
        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
         parent.replaceChild(frag, textNode);
     });
-}
+} // chiude highlightInElement
 // ASSICURATI CHE NON CI SIA UN'ALTRA } QUI SOTTO!
