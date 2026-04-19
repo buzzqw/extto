@@ -221,7 +221,15 @@ class TraktClient:
     # ------------------------------------------------------------------
 
     def get_my_calendar(self, start_date: str = None, days: int = 7) -> List[Dict]:
-        """Episodi in uscita per le serie seguite, da start_date per N giorni."""
+        """Episodi in uscita per le serie seguite, da start_date per N giorni.
+
+        L'API Trakt /calendars/my/shows/ restituisce una lista piatta:
+        [
+          { "first_aired": "...", "episode": {...}, "show": {...} },
+          ...
+        ]
+        NON una struttura annidata con chiave "episodes".
+        """
         if not start_date:
             from datetime import date
             start_date = date.today().isoformat()
@@ -229,20 +237,18 @@ class TraktClient:
         if not data:
             return []
         result = []
-        for day_block in data:
-            first_aired = day_block.get("first_aired", "")
-            for ep_block in day_block.get("episodes", []):
-                show    = ep_block.get("show", {})
-                episode = ep_block.get("episode", {})
-                result.append({
-                    "series_title":  show.get("title", ""),
-                    "series_ids":    show.get("ids", {}),
-                    "season":        episode.get("season", 0),
-                    "episode":       episode.get("number", 0),
-                    "episode_title": episode.get("title", ""),
-                    "first_aired":   first_aired,
-                    "overview":      episode.get("overview", ""),
-                })
+        for item in data:
+            show    = item.get("show", {})
+            episode = item.get("episode", {})
+            result.append({
+                "series_title":  show.get("title", ""),
+                "series_ids":    show.get("ids", {}),
+                "season":        episode.get("season", 0),
+                "episode":       episode.get("number", 0),
+                "episode_title": episode.get("title", ""),
+                "first_aired":   item.get("first_aired", ""),
+                "overview":      episode.get("overview", ""),
+            })
         return result
 
     # ------------------------------------------------------------------

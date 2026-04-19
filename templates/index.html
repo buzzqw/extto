@@ -1090,6 +1090,7 @@
                     <button class="tab-btn" data-tab="advanced" data-i18n-title="Opzioni di sistema avanzate." title="Opzioni di sistema avanzate." onclick="app.switchConfigTab('advanced')" data-i18n="Avanzate">Avanzate</button>
                     <button class="tab-btn" data-tab="urls" data-i18n-title="Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli." title="Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli." onclick="app.switchConfigTab('urls')" data-i18n="Fonti">Fonti</button>
                     <button class="tab-btn" data-tab="trakt" title="Integrazione Trakt.tv: watchlist, calendar e scrobbling" onclick="app.switchConfigTab('trakt')"><i class="fa-solid fa-fire" style="color:#e8323c;"></i> Trakt.tv</button>
+                    <button class="tab-btn" data-tab="mediaserver" title="Integrazione Jellyfin/Plex: library refresh automatico dopo rinomina" onclick="app.switchConfigTab('mediaserver')"><i class="fa-solid fa-photo-film" style="color:#00a4dc;"></i> Jellyfin/Plex</button>
                 </div>
 
                 <div id="config-settings" class="config-panel active">
@@ -1817,6 +1818,87 @@ sudo mount /mnt/ramdisk</div>
                   </div>
 
                 </div><!-- fine config-trakt -->
+
+                <div id="config-mediaserver" class="config-panel">
+
+                  <!-- JELLYFIN -->
+                  <div class="card" style="margin-bottom:1.5rem;">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                      <span><i class="fa-solid fa-photo-film" style="color:#00a4dc;"></i> Jellyfin — Library Refresh</span>
+                      <span id="jellyfin-status-badge" class="badge badge-secondary">—</span>
+                    </div>
+                    <div class="card-body">
+                      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1rem;line-height:1.5;">
+                        Dopo ogni rinomina/spostamento file, EXTTO chiama <code>/Library/Refresh</code>
+                        per aggiornare subito la libreria senza aspettare la scansione schedulata.<br>
+                        Ottieni la API Key da <strong>Pannello di controllo → Chiavi API</strong>.
+                      </p>
+                      <div class="form-grid" style="margin-bottom:1rem;">
+                        <div class="form-group">
+                          <label>URL Jellyfin</label>
+                          <input type="text" id="jellyfin-url" class="form-input"
+                            placeholder="http://192.168.1.x:8096"
+                            title="URL base del server Jellyfin, senza slash finale">
+                          <small style="color:var(--text-muted);">Es: http://nas:8096</small>
+                        </div>
+                        <div class="form-group">
+                          <label>API Key</label>
+                          <input type="password" id="jellyfin-api-key" class="form-input"
+                            placeholder="Incolla la API Key di Jellyfin">
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-secondary" onclick="app.jellyfinSave()">
+                          <i class="fa-solid fa-floppy-disk"></i> Salva
+                        </button>
+                        <button class="btn btn-primary" onclick="app.jellyfinTestRefresh()">
+                          <i class="fa-solid fa-rotate"></i> Testa Refresh
+                        </button>
+                        <span id="jellyfin-test-result" style="font-size:.85rem;"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PLEX -->
+                  <div class="card">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                      <span><i class="fa-solid fa-tv" style="color:#e5a00d;"></i> Plex — Library Refresh</span>
+                      <span id="plex-status-badge" class="badge badge-secondary">—</span>
+                    </div>
+                    <div class="card-body">
+                      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1rem;line-height:1.5;">
+                        Dopo ogni rinomina/spostamento, EXTTO chiama <code>/library/sections/all/refresh</code>
+                        per aggiornare subito tutte le librerie Plex.<br>
+                        Ottieni il token da <strong>Account → Preferenze XML → token</strong> oppure via
+                        <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" style="color:var(--primary);">questa guida</a>.
+                      </p>
+                      <div class="form-grid" style="margin-bottom:1rem;">
+                        <div class="form-group">
+                          <label>URL Plex</label>
+                          <input type="text" id="plex-url" class="form-input"
+                            placeholder="http://192.168.1.x:32400"
+                            title="URL base del server Plex, senza slash finale">
+                          <small style="color:var(--text-muted);">Es: http://nas:32400</small>
+                        </div>
+                        <div class="form-group">
+                          <label>X-Plex-Token</label>
+                          <input type="password" id="plex-token" class="form-input"
+                            placeholder="Incolla il tuo X-Plex-Token">
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-secondary" onclick="app.plexSave()">
+                          <i class="fa-solid fa-floppy-disk"></i> Salva
+                        </button>
+                        <button class="btn btn-primary" onclick="app.plexTestRefresh()">
+                          <i class="fa-solid fa-rotate"></i> Testa Refresh
+                        </button>
+                        <span id="plex-test-result" style="font-size:.85rem;"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div><!-- fine config-mediaserver -->
             </div>
             
             <div id="view-maintenance" class="view" style="overflow-y:auto; overflow-x:hidden;">

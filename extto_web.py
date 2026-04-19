@@ -727,6 +727,7 @@ def _save_extto_conf(config: dict) -> bool:
             ("CLIENT ESTERNI: QBITTORRENT, TRANSMISSION, ARIA2",
              ["qbittorrent_", "transmission_", "aria2_"]),
             ("NOTIFICHE: TELEGRAM & EMAIL", ["notify_", "telegram_", "email_"]),
+            ("NOTIFICHE: JELLYFIN, PLEX & EMBY", ["jellyfin_", "plex_", "emby_"]),
             ("MOTORE: JACKETT, RICERCA E AVANZATE",
              ["jackett_", "prowlarr_", "min_free_space", "gap_filling", "max_age",
               "stop_on_", "debug_", "archive_", "rename_episodes", "rename_format", "move_episodes",
@@ -7162,6 +7163,11 @@ def rename_execute(series_id):
                             if _handle_duplicate(aux_src, _trash, action=str(getattr(cfg_data, 'cleanup_action', 'move')).lower(), reason=reason):
                                 trash_count += 1
 
+        # Notifica Jellyfin/Plex se configurati (no-op se URL/credenziali mancanti)
+        if count > 0:
+            jellyfin_notify_refresh()
+            plex_notify_refresh()
+
         return jsonify({'success': True, 'renamed': count, 'removed': trash_count})
     except Exception as e:
         with _rename_progress_lock:
@@ -8388,6 +8394,130 @@ def _sync_language_files():
             print(f"Language files up to date ({len(yaml_files)} languages)")
     except Exception as e:
         logger.warning(f"[i18n-sync] startup sync failed: {e}")
+
+
+# ============================================================================
+# JELLYFIN / MEDIA SERVER INTEGRATION
+# ============================================================================
+
+def jellyfin_notify_refresh(settings: dict = None):
+    """Chiama /Library/Refresh su Jellyfin dopo rename/move. No-op se non configurato."""
+    try:
+        s       = settings or _cdb.get_all_settings()
+        url     = str(s.get('jellyfin_url',     '') or '').strip().rstrip('/')
+        api_key = str(s.get('jellyfin_api_key', '') or '').strip()
+        if not url or not api_key:
+            return
+        import requests as _req
+        resp = _req.post(
+            f"{url}/Library/Refresh",
+            headers={"X-Emby-Token": api_key},
+            timeout=10,
+        )
+        if resp.status_code in (200, 204):
+            logger.info("[Jellyfin] ✅ Library Refresh inviato.")
+        else:
+            logger.warning(f"[Jellyfin] Refresh HTTP {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"[Jellyfin] jellyfin_notify_refresh: {e}")
+
+
+@app.route('/api/jellyfin/config', methods=['GET'])
+def jellyfin_get_config():
+    return jsonify({
+        'jellyfin_url':     str(_cdb.get_setting('jellyfin_url',     '') or ''),
+        'jellyfin_api_key': str(_cdb.get_setting('jellyfin_api_key', '') or ''),
+    })
+
+
+@app.route('/api/jellyfin/config', methods=['POST'])
+def jellyfin_save_config():
+    data    = request.get_json(force=True) or {}
+    url     = str(data.get('jellyfin_url',     '') or '').strip().rstrip('/')
+    api_key = str(data.get('jellyfin_api_key', '') or '').strip()
+    try:
+        _cdb.set_settings_bulk({'jellyfin_url': url, 'jellyfin_api_key': api_key})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/jellyfin/test-refresh', methods=['POST'])
+def jellyfin_test_refresh():
+    url     = str(_cdb.get_setting('jellyfin_url',     '') or '').strip().rstrip('/')
+    api_key = str(_cdb.get_setting('jellyfin_api_key', '') or '').strip()
+    if not url or not api_key:
+        return jsonify({'success': False, 'error': 'URL o API Key non configurati'}), 400
+    try:
+        import requests as _req
+        resp = _req.post(f"{url}/Library/Refresh",
+                         headers={"X-Emby-Token": api_key}, timeout=10)
+        if resp.status_code in (200, 204):
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': f'HTTP {resp.status_code}'}), 502
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# --- PLEX ---
+
+def plex_notify_refresh(settings: dict = None):
+    """Chiama /library/sections/all/refresh su Plex dopo rename/move. No-op se non configurato."""
+    try:
+        s     = settings or _cdb.get_all_settings()
+        url   = str(s.get('plex_url',   '') or '').strip().rstrip('/')
+        token = str(s.get('plex_token', '') or '').strip()
+        if not url or not token:
+            return
+        import requests as _req
+        resp = _req.get(
+            f"{url}/library/sections/all/refresh",
+            params={"X-Plex-Token": token},
+            timeout=10,
+        )
+        if resp.status_code in (200, 204):
+            logger.info("[Plex] ✅ Library Refresh inviato.")
+        else:
+            logger.warning(f"[Plex] Refresh HTTP {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"[Plex] plex_notify_refresh: {e}")
+
+
+@app.route('/api/plex/config', methods=['GET'])
+def plex_get_config():
+    return jsonify({
+        'plex_url':   str(_cdb.get_setting('plex_url',   '') or ''),
+        'plex_token': str(_cdb.get_setting('plex_token', '') or ''),
+    })
+
+
+@app.route('/api/plex/config', methods=['POST'])
+def plex_save_config():
+    data  = request.get_json(force=True) or {}
+    url   = str(data.get('plex_url',   '') or '').strip().rstrip('/')
+    token = str(data.get('plex_token', '') or '').strip()
+    try:
+        _cdb.set_settings_bulk({'plex_url': url, 'plex_token': token})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/plex/test-refresh', methods=['POST'])
+def plex_test_refresh():
+    url   = str(_cdb.get_setting('plex_url',   '') or '').strip().rstrip('/')
+    token = str(_cdb.get_setting('plex_token', '') or '').strip()
+    if not url or not token:
+        return jsonify({'success': False, 'error': 'URL o Token non configurati'}), 400
+    try:
+        import requests as _req
+        resp = _req.get(f"{url}/library/sections/all/refresh",
+                        params={"X-Plex-Token": token}, timeout=10)
+        if resp.status_code in (200, 204):
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': f'HTTP {resp.status_code}'}), 502
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ============================================================================

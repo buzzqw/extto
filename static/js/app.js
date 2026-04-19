@@ -3418,6 +3418,7 @@ const app = {
         // Usiamo 'app.' per evitare l'errore "this.loadScoresSettings is not a function"
         if (tab === 'scores') app.loadScoresSettings();
         if (tab === 'trakt')  app.traktInit();
+        if (tab === 'mediaserver') { app.jellyfinInit(); app.plexInit(); }
     },
 
     renderNotifications(settings) {
@@ -9302,6 +9303,129 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 </div>`).join('');
         } catch(e) {
             container.innerHTML = `<span style="color:var(--danger);">${t('Errore')}: ${e.message}</span>`;
+        }
+    },
+
+
+    // ========================================================================
+    // JELLYFIN / MEDIA SERVER
+    // ========================================================================
+
+    async jellyfinInit() {
+        try {
+            const res  = await fetch('/api/jellyfin/config');
+            const data = await res.json();
+            const urlEl = document.getElementById('jellyfin-url');
+            const keyEl = document.getElementById('jellyfin-api-key');
+            if (urlEl) urlEl.value = data.jellyfin_url     || '';
+            if (keyEl) keyEl.value = data.jellyfin_api_key || '';
+            const badge = document.getElementById('jellyfin-status-badge');
+            if (badge) {
+                if (data.jellyfin_url && data.jellyfin_api_key) {
+                    badge.textContent = 'Configurato';
+                    badge.className   = 'badge badge-success';
+                } else {
+                    badge.textContent = 'Non configurato';
+                    badge.className   = 'badge badge-secondary';
+                }
+            }
+        } catch(e) { console.error('jellyfinInit', e); }
+    },
+
+    async jellyfinSave() {
+        const url    = (document.getElementById('jellyfin-url')?.value     || '').trim();
+        const apiKey = (document.getElementById('jellyfin-api-key')?.value || '').trim();
+        try {
+            const res  = await fetch('/api/jellyfin/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ jellyfin_url: url, jellyfin_api_key: apiKey }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('✅ Impostazioni Jellyfin salvate', 'success');
+                await this.jellyfinInit();
+            } else {
+                this.showToast('❌ ' + (data.error || 'Errore salvataggio'), 'error');
+            }
+        } catch(e) { this.showToast('❌ Errore connessione', 'error'); }
+    },
+
+    async jellyfinTestRefresh() {
+        const resultEl = document.getElementById('jellyfin-test-result');
+        if (resultEl) resultEl.textContent = '⏳ Test in corso...';
+        try {
+            const res  = await fetch('/api/jellyfin/test-refresh', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                if (resultEl) { resultEl.textContent = '✅ Refresh OK'; resultEl.style.color = 'var(--success)'; }
+                this.showToast('✅ Jellyfin Library Refresh inviato con successo', 'success');
+            } else {
+                if (resultEl) { resultEl.textContent = '❌ ' + (data.error || 'Errore'); resultEl.style.color = 'var(--danger)'; }
+                this.showToast('❌ ' + (data.error || 'Errore'), 'error');
+            }
+        } catch(e) {
+            if (resultEl) { resultEl.textContent = '❌ Errore connessione'; resultEl.style.color = 'var(--danger)'; }
+            this.showToast('❌ Errore connessione', 'error');
+        }
+    },
+
+    async plexInit() {
+        try {
+            const res  = await fetch('/api/plex/config');
+            const data = await res.json();
+            const urlEl   = document.getElementById('plex-url');
+            const tokenEl = document.getElementById('plex-token');
+            if (urlEl)   urlEl.value   = data.plex_url   || '';
+            if (tokenEl) tokenEl.value = data.plex_token || '';
+            const badge = document.getElementById('plex-status-badge');
+            if (badge) {
+                if (data.plex_url && data.plex_token) {
+                    badge.textContent = 'Configurato';
+                    badge.className   = 'badge badge-success';
+                } else {
+                    badge.textContent = 'Non configurato';
+                    badge.className   = 'badge badge-secondary';
+                }
+            }
+        } catch(e) { console.error('plexInit', e); }
+    },
+
+    async plexSave() {
+        const url   = (document.getElementById('plex-url')?.value   || '').trim();
+        const token = (document.getElementById('plex-token')?.value || '').trim();
+        try {
+            const res  = await fetch('/api/plex/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ plex_url: url, plex_token: token }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('✅ Impostazioni Plex salvate', 'success');
+                await this.plexInit();
+            } else {
+                this.showToast('❌ ' + (data.error || 'Errore salvataggio'), 'error');
+            }
+        } catch(e) { this.showToast('❌ Errore connessione', 'error'); }
+    },
+
+    async plexTestRefresh() {
+        const resultEl = document.getElementById('plex-test-result');
+        if (resultEl) resultEl.textContent = '⏳ Test in corso...';
+        try {
+            const res  = await fetch('/api/plex/test-refresh', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                if (resultEl) { resultEl.textContent = '✅ Refresh OK'; resultEl.style.color = 'var(--success)'; }
+                this.showToast('✅ Plex Library Refresh inviato con successo', 'success');
+            } else {
+                if (resultEl) { resultEl.textContent = '❌ ' + (data.error || 'Errore'); resultEl.style.color = 'var(--danger)'; }
+                this.showToast('❌ ' + (data.error || 'Errore'), 'error');
+            }
+        } catch(e) {
+            if (resultEl) { resultEl.textContent = '❌ Errore connessione'; resultEl.style.color = 'var(--danger)'; }
+            this.showToast('❌ Errore connessione', 'error');
         }
     },
 

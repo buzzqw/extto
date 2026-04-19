@@ -639,6 +639,50 @@ class LibtorrentClient:
         except Exception:
             pass        
 
+    @classmethod
+    def _trigger_mediaserver_refresh(cls, torrent_name: str = ''):
+        """Notifica Jellyfin e Plex di aggiornare la libreria dopo move/rename.
+        No-op silenzioso se URL/credenziali non configurati.
+        Eseguito in thread separato per non bloccare il loop alert.
+        """
+        import threading
+        def _bg():
+            try:
+                import core.config_db as _cdb_ms
+                s       = _cdb_ms.get_all_settings()
+                label   = f"'{torrent_name}'" if torrent_name else ''
+
+                jf_url = str(s.get('jellyfin_url',     '') or '').strip().rstrip('/')
+                jf_key = str(s.get('jellyfin_api_key', '') or '').strip()
+                if jf_url and jf_key:
+                    try:
+                        import requests as _req
+                        r = _req.post(f"{jf_url}/Library/Refresh",
+                                      headers={"X-Emby-Token": jf_key}, timeout=10)
+                        if r.status_code in (200, 204):
+                            logger.info(f"[Jellyfin] ✅ Library Refresh inviato {label}")
+                        else:
+                            logger.warning(f"[Jellyfin] Refresh HTTP {r.status_code} {label}")
+                    except Exception as _je:
+                        logger.warning(f"[Jellyfin] _trigger_mediaserver_refresh: {_je}")
+
+                px_url   = str(s.get('plex_url',   '') or '').strip().rstrip('/')
+                px_token = str(s.get('plex_token', '') or '').strip()
+                if px_url and px_token:
+                    try:
+                        import requests as _req
+                        r = _req.get(f"{px_url}/library/sections/all/refresh",
+                                     params={"X-Plex-Token": px_token}, timeout=10)
+                        if r.status_code in (200, 204):
+                            logger.info(f"[Plex] ✅ Library Refresh inviato {label}")
+                        else:
+                            logger.warning(f"[Plex] Refresh HTTP {r.status_code} {label}")
+                    except Exception as _pe:
+                        logger.warning(f"[Plex] _trigger_mediaserver_refresh: {_pe}")
+            except Exception as _e:
+                logger.warning(f"[MediaServer] _trigger_mediaserver_refresh: {_e}")
+        threading.Thread(target=_bg, daemon=True).start()
+
     # ------------------------------------------------------------------
     # SEASON PACK HANDLER
     # ------------------------------------------------------------------
@@ -1077,6 +1121,7 @@ class LibtorrentClient:
                                     cls._handle_season_pack(h, curr_save, nas_path, full_cfg)
                                     # Scan archivio aggiornato (thread background)
                                     cls._trigger_folder_scan(h)
+                                    cls._trigger_mediaserver_refresh(h.name() or '')
 
                                 elif move_enabled and curr_save != target_norm:
                                     # ── EPISODIO SINGOLO con NAS diverso ─────────────────
@@ -1103,6 +1148,7 @@ class LibtorrentClient:
                                     _rename_path  = _torrent_file if os.path.isfile(_torrent_file) else curr_save
                                     cls._trigger_renamer(h, _rename_path)
                                     cls._trigger_folder_scan(h)
+                                    cls._trigger_mediaserver_refresh(h.name() or '')
                                     # ── NOTIFICA POST-PROCESSING (ramo no-move) ───────────
                                     try:
                                         _s2 = h.status()
@@ -1183,6 +1229,7 @@ class LibtorrentClient:
                                 rename_save_path = torrent_file if os.path.isfile(torrent_file) else new_path
                                 cls._trigger_renamer(h, rename_save_path)
                                 cls._trigger_folder_scan(h)
+                                cls._trigger_mediaserver_refresh(h.name() or '')
                                 # --- 4. NOTIFICA POST-PROCESSING ---
                                 try:
                                     s = h.status()

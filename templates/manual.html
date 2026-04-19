@@ -52,7 +52,8 @@
                             <a href="#man-i18n" onclick="manualGoTo('man-i18n')">32. Multilingua — Interfaccia e Traduzioni</a>
                             <a href="#man-configdb" onclick="manualGoTo('man-configdb')">33. Configurazione su Database (v40+)</a>
                             <a href="#man-trakt" onclick="manualGoTo('man-trakt')">34. Trakt.tv — Watchlist e Calendar</a>
-                            <a href="#man-amule" onclick="manualGoTo('man-amule')">35. aMule / ed2k — Installazione e Configurazione</a>
+                            <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">35. Jellyfin / Plex — Library Refresh</a>
+                            <a href="#man-amule" onclick="manualGoTo('man-amule')">36. aMule / ed2k — Installazione e Configurazione</a>
                         </div>
                     </div>
 
@@ -1910,10 +1911,94 @@
                             </div>
                         </div>
 
-                        <!-- SEZIONE 35: AMULE / ED2K -->
-                        <div class="man-section" id="man-amule">
+                        <!-- SEZIONE 35: JELLYFIN / PLEX -->
+                        <div class="man-section" id="man-mediaserver">
                             <div class="man-section-header">
                                 <span class="man-section-num">35</span>
+                                <h2>Jellyfin / Plex — Library Refresh Automatico</h2>
+                                <i class="fa-solid fa-chevron-down man-chevron"></i>
+                            </div>
+                            <div class="man-section-body">
+
+                                <p>Dopo che EXTTO sposta e rinomina un file sul NAS, Jellyfin e Plex non lo vedono immediatamente: devono aspettare la prossima scansione schedulata. L'integrazione con i media server risolve questo problema inviando una chiamata API di refresh al termine di ogni post-processing automatico — il file compare nella libreria in pochi secondi.</p>
+
+                                <div class="man-subsection">Setup Jellyfin</div>
+                                <ol>
+                                    <li>In Jellyfin: <strong>Pannello di controllo → Chiavi API</strong> → crea una nuova chiave.</li>
+                                    <li>In EXTTO: <strong>Configurazione → Jellyfin/Plex</strong> → sezione <strong>Jellyfin</strong>.</li>
+                                    <li>Inserisci l'URL del server (es. <code>http://nas:8096</code>) e la API Key.</li>
+                                    <li>Clicca <strong>Salva</strong>, poi <strong>Testa Refresh</strong> per verificare la connessione.</li>
+                                </ol>
+
+                                <div class="man-subsection">Setup Plex</div>
+                                <ol>
+                                    <li>Ottieni il tuo <strong>X-Plex-Token</strong>: accedi a Plex Web, apri le impostazioni account e cerca il token nell'URL XML delle preferenze, oppure consulta la <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank">guida ufficiale</a>.</li>
+                                    <li>In EXTTO: <strong>Configurazione → Jellyfin/Plex</strong> → sezione <strong>Plex</strong>.</li>
+                                    <li>Inserisci l'URL del server (es. <code>http://nas:32400</code>) e il token.</li>
+                                    <li>Clicca <strong>Salva</strong>, poi <strong>Testa Refresh</strong> per verificare la connessione.</li>
+                                </ol>
+
+                                <div class="man-note">
+                                    Jellyfin e Plex sono <strong>indipendenti</strong>: puoi configurarli entrambi, uno solo, o nessuno. Se URL e credenziali non sono inseriti, la funzione è semplicemente inattiva — nessun errore viene generato.
+                                </div>
+
+                                <div class="man-subsection">Quando viene inviato il refresh</div>
+                                <p>Il refresh viene inviato automaticamente al termine del post-processing di ogni download libtorrent, in tutti e tre gli scenari possibili:</p>
+                                <table class="man-table">
+                                    <thead><tr><th>Scenario</th><th>Quando scatta</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><strong>Episodio singolo → NAS</strong></td><td>Dopo che libtorrent conferma lo spostamento sul NAS (<code>storage_moved_alert</code>) e la rinomina è completata.</td></tr>
+                                        <tr><td><strong>Season pack → NAS</strong></td><td>Dopo che tutti gli episodi del pack sono stati copiati e rinominati nella cartella archivio.</td></tr>
+                                        <tr><td><strong>File già nella dir corretta</strong></td><td>Dopo la rinomina in loco, quando il file era già nella destinazione finale (move disabilitato o stessa cartella).</td></tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="man-note">
+                                    Il refresh viene inviato in un <strong>thread separato</strong> per non bloccare il loop di download. Se il media server non è raggiungibile, l'errore viene registrato nel log ma non interrompe nessuna operazione.
+                                </div>
+
+                                <div class="man-subsection">Parametri salvati</div>
+                                <table class="man-table">
+                                    <thead><tr><th>Parametro</th><th>Descrizione</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><code>jellyfin_url</code></td><td>URL base del server Jellyfin, senza slash finale. Es: <code>http://192.168.1.10:8096</code></td></tr>
+                                        <tr><td><code>jellyfin_api_key</code></td><td>API Key generata dal pannello Jellyfin.</td></tr>
+                                        <tr><td><code>plex_url</code></td><td>URL base del server Plex, senza slash finale. Es: <code>http://192.168.1.10:32400</code></td></tr>
+                                        <tr><td><code>plex_token</code></td><td>X-Plex-Token dell'account Plex.</td></tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="man-subsection">Endpoint API chiamati</div>
+                                <table class="man-table">
+                                    <thead><tr><th>Media Server</th><th>Endpoint</th><th>Metodo</th></tr></thead>
+                                    <tbody>
+                                        <tr><td><strong>Jellyfin</strong></td><td><code>/Library/Refresh</code> — header <code>X-Emby-Token</code></td><td>POST</td></tr>
+                                        <tr><td><strong>Plex</strong></td><td><code>/library/sections/all/refresh</code> — param <code>X-Plex-Token</code></td><td>GET</td></tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="man-note">
+                                    L'header <code>X-Emby-Token</code> funziona sia con Jellyfin che con Emby, essendo compatibili a livello di API.
+                                </div>
+
+                                <div class="man-subsection">Risoluzione problemi</div>
+                                <table class="man-table">
+                                    <thead><tr><th>Problema</th><th>Causa</th><th>Soluzione</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Testa Refresh restituisce errore HTTP</td><td>URL errato o porta sbagliata</td><td>Verifica l'URL dal browser: deve essere raggiungibile dal NAS</td></tr>
+                                        <tr><td>HTTP 401 Unauthorized</td><td>API Key / Token non valido o scaduto</td><td>Rigenera le credenziali dal pannello del media server</td></tr>
+                                        <tr><td>Il refresh non appare nel log</td><td>Log level impostato su WARNING o ERROR</td><td>I messaggi di successo sono a livello INFO — abbassa il log level temporaneamente</td></tr>
+                                        <tr><td>File non appare dopo il refresh</td><td>La cartella NAS non è inclusa in nessuna libreria del media server</td><td>Verifica che la cartella archivio sia configurata come sorgente in Jellyfin/Plex</td></tr>
+                                    </tbody>
+                                </table>
+
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE 36: AMULE / ED2K -->
+                        <div class="man-section" id="man-amule">
+                            <div class="man-section-header">
+                                <span class="man-section-num">36</span>
                                 <h2>aMule / ed2k — Installazione e Configurazione</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
