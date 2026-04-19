@@ -640,14 +640,39 @@ class LibtorrentClient:
             pass        
 
     @classmethod
-    def _trigger_mediaserver_refresh(cls, torrent_name: str = ''):
+    def _trigger_mediaserver_refresh(cls, torrent_name: str = '', save_path: str = ''):
         """Notifica Jellyfin e Plex di aggiornare la libreria dopo move/rename.
+        Inviato solo se il path contiene almeno un file video — evita refresh
+        inutili per ebook, fumetti, PDF e altri contenuti non-video.
         No-op silenzioso se URL/credenziali non configurati.
         Eseguito in thread separato per non bloccare il loop alert.
         """
+        _VIDEO_EXTS = {'.mkv', '.mp4', '.avi', '.m4v', '.ts', '.mov', '.wmv', '.webm'}
+
+        def _has_video(path):
+            """True se path è un file video o una cartella che ne contiene almeno uno."""
+            if not path:
+                return True  # path sconosciuto: invia comunque per sicurezza
+            try:
+                if os.path.isfile(path):
+                    return os.path.splitext(path)[1].lower() in _VIDEO_EXTS
+                if os.path.isdir(path):
+                    for root, _, files in os.walk(path):
+                        for f in files:
+                            if os.path.splitext(f)[1].lower() in _VIDEO_EXTS:
+                                return True
+                    return False
+            except Exception:
+                return True  # in caso di errore: invia per sicurezza
+            return True
+
         import threading
         def _bg():
             try:
+                if not _has_video(save_path):
+                    logger.debug(f"[MediaServer] Nessun file video in '{torrent_name}' — refresh skippato")
+                    return
+
                 import core.config_db as _cdb_ms
                 s       = _cdb_ms.get_all_settings()
                 label   = f"'{torrent_name}'" if torrent_name else ''
@@ -1121,7 +1146,7 @@ class LibtorrentClient:
                                     cls._handle_season_pack(h, curr_save, nas_path, full_cfg)
                                     # Scan archivio aggiornato (thread background)
                                     cls._trigger_folder_scan(h)
-                                    cls._trigger_mediaserver_refresh(h.name() or '')
+                                    cls._trigger_mediaserver_refresh(h.name() or '', nas_path)
 
                                 elif move_enabled and curr_save != target_norm:
                                     # ── EPISODIO SINGOLO con NAS diverso ─────────────────
@@ -1148,7 +1173,7 @@ class LibtorrentClient:
                                     _rename_path  = _torrent_file if os.path.isfile(_torrent_file) else curr_save
                                     cls._trigger_renamer(h, _rename_path)
                                     cls._trigger_folder_scan(h)
-                                    cls._trigger_mediaserver_refresh(h.name() or '')
+                                    cls._trigger_mediaserver_refresh(h.name() or '', _rename_path)
                                     # ── NOTIFICA POST-PROCESSING (ramo no-move) ───────────
                                     try:
                                         _s2 = h.status()
@@ -1229,7 +1254,7 @@ class LibtorrentClient:
                                 rename_save_path = torrent_file if os.path.isfile(torrent_file) else new_path
                                 cls._trigger_renamer(h, rename_save_path)
                                 cls._trigger_folder_scan(h)
-                                cls._trigger_mediaserver_refresh(h.name() or '')
+                                cls._trigger_mediaserver_refresh(h.name() or '', rename_save_path)
                                 # --- 4. NOTIFICA POST-PROCESSING ---
                                 try:
                                     s = h.status()
