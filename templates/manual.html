@@ -539,6 +539,8 @@
                                     <div class="man-param"><div class="man-param-name">email_from / email_to</div><div class="man-param-desc">Indirizzo mittente e destinatario. Possono coincidere.</div></div>
                                     <div class="man-param"><div class="man-param-name">email_password</div><div class="man-param-desc">Password SMTP. Per Gmail, generare una <em>App Password</em> in Impostazioni Account → Sicurezza → Password per le app.</div></div>
                                 </div>
+                                <div class="man-subsection">Jellyfin / Plex — Library Refresh</div>
+                                <p>Oltre a Telegram ed Email, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Jellyfin/Plex</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a> per i dettagli.</p>
                             </div>
                         </div>
 
@@ -1022,7 +1024,7 @@
                                         <div class="man-flow-num">5</div>
                                         <div class="man-flow-content">
                                             <strong>Download e Pulizia Duplicati</strong>
-                                            <p>I magnet link vengono inviati al client attivo. Con libtorrent: download in <code>libtorrent_temp_dir</code>, poi spostamento in <code>libtorrent_dir</code>. Se abilitata la <strong>pulizia duplicati</strong> (<code>@cleanup_upgrades = yes</code>): i file di qualità inferiore vengono spostati automaticamente in <code>@trash_path</code> dopo ogni upgrade.</p>
+                                            <p>I magnet link vengono inviati al client attivo. Con libtorrent: download in <code>libtorrent_temp_dir</code>, poi spostamento in <code>libtorrent_dir</code>. Se abilitata la <strong>pulizia duplicati</strong> (<code>@cleanup_upgrades = yes</code>): i file di qualità inferiore vengono spostati automaticamente in <code>@trash_path</code> dopo ogni upgrade. Al termine del post-processing (spostamento + rinomina), se configurati, viene inviato un <strong>Library Refresh</strong> a Jellyfin e/o Plex (vedi <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a>).</p>
                                         </div>
                                     </div>
                                     <div class="man-flow-step">
@@ -1803,6 +1805,7 @@
                                             <tr><td><strong>Client</strong></td><td>libtorrent (tutti i parametri), qBittorrent, Transmission, aria2</td></tr>
                                             <tr><td><strong>Sorgenti</strong></td><td>URL sorgenti scraping, Jackett URL/API, Prowlarr URL/API, parametri ricerca</td></tr>
                                             <tr><td><strong>Notifiche</strong></td><td>Telegram (bot token, chat ID), Email (SMTP, from, to, password)</td></tr>
+                                            <tr><td><strong>Jellyfin / Plex</strong></td><td>URL e credenziali per Jellyfin (API Key) e Plex (X-Plex-Token) — library refresh automatico post-download</td></tr>
                                             <tr><td><strong>Avanzate</strong></td><td>Blacklist, wantedlist, debug flags, livello log, pulizia archivio automatica</td></tr>
                                             <tr><td><strong>Punteggi</strong></td><td>Score per risoluzione, sorgente, codec, audio, Dolby Vision, custom score gruppi release</td></tr>
                                             <tr><td><strong>Backup</strong></td><td>Directory backup locale, retention giorni, schedule automatico, cloud FTP/Dropbox, invio Telegram</td></tr>
