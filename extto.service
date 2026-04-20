@@ -1,17 +1,17 @@
-[Unit]
-Description=EXTTO Automation Service
+[Unit] Description=EXTTO Automation Service 
 After=network.target
 
 [Service]
 Type=simple
-User=andres
-Group=andres
+# Sostituire con l'utente e il gruppo del sistema
+User=<NOME_UTENTE>
+Group=<NOME_GRUPPO>
 
-# NUOVO PERCORSO
-WorkingDirectory=/home/andres/extto
+# Percorso della directory principale dell'applicazione
+WorkingDirectory=<PERCORSO_BASE_APP>
 
-# NUOVO PERCORSO PYTHON (Virtual Environment)
-ExecStart=/home/andres/extto/.venv/bin/python3 /home/andres/extto/extto3.py
+# Percorso di Python nel Virtual Environment e dello script principale
+ExecStart=<PERCORSO_BASE_APP>/.venv/bin/python3 <PERCORSO_BASE_APP>/extto3.py
 
 # Riavvia sempre in caso di crash
 Restart=always
@@ -22,4 +22,3 @@ Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
-
