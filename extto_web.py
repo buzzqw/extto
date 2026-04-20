@@ -2221,6 +2221,9 @@ def run_backup():
     import shutil
     import logging as _logging
     _blog = _logging.getLogger('extto.backup')
+    # Se il frontend gestisce già l'invio Telegram, non inviarlo anche dal backend
+    _body = request.get_json(silent=True) or {}
+    _skip_notify = bool(_body.get('skip_notify', False))
     try:
         cfg = _load_backup_settings()
         backup_dir = cfg['backup_dir'].strip()
@@ -2324,7 +2327,7 @@ def run_backup():
         try:
             cfg_full = parse_series_config().get('settings', {})
             send_tg  = str(cfg_full.get('backup_send_telegram', 'false')).lower() in ('true', '1', 'yes')
-            if send_tg:
+            if send_tg and not _skip_notify:
                 from core.notifier import Notifier as _Notifier
                 _n = _Notifier(cfg_full)
                 if _n.tg_enabled:

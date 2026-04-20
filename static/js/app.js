@@ -6887,7 +6887,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${t('Backup in corso...')}`; }
         if (status) status.textContent = t('Creazione ZIP in corso, attendere…');
         try {
-            const r = await fetch(`${API_BASE}/api/backup/run`, { method: 'POST' });
+            const r = await fetch(`${API_BASE}/api/backup/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skip_notify: sendTg }) });
             const j = await r.json();
             if (j.success) {
                 const msg = `✅ ${t('Backup creato')}: ${j.filename} (${j.zip_mb} MB, ${j.files} file, ${j.kept} ${t('backup conservati')})`;
