@@ -2186,7 +2186,7 @@ const app = {
                             const lfActionBtn = m.magnet
                                 ? `<button class="btn btn-primary btn-small" style="padding:3px 8px;font-size:.78rem;white-space:nowrap;"
                                     title="Aggiunge questo torrent al client configurato"
-                                    onclick="app.addMagnetFromFeed(${JSON.stringify(m.magnet)}, ${JSON.stringify(m.title)});event.stopPropagation();">
+                                    onclick="app.addMagnetFromFeed('${this.escapeJs(m.magnet)}', '${this.escapeJs(m.title)}');event.stopPropagation();">
                                     <i class="fa-solid fa-download"></i> Scarica
                                   </button>`
                                 : '';
@@ -8252,7 +8252,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                         const [color, icon, label] = failLabels[m.fail_reason] || ['var(--info)', 'fa-clock', m.fail_reason || 'Trovato'];
                         const dateStr = m.found_at ? new Date(m.found_at).toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
                         const dlBtn = m.magnet
-                            ? `<button class="btn btn-primary btn-small" style="padding:3px 8px;font-size:.78rem;" onclick="app.addMagnetFromFeed(${JSON.stringify(m.magnet)}, ${JSON.stringify(m.title)});event.stopPropagation();"><i class="fa-solid fa-download"></i> Scarica</button>`
+                            ? `<button class="btn btn-primary btn-small" style="padding:3px 8px;font-size:.78rem;" onclick="app.addMagnetFromFeed('${this.escapeJs(m.magnet)}', '${this.escapeJs(m.title)}');event.stopPropagation();"><i class="fa-solid fa-download"></i> Scarica</button>`
                             : '';
                         return `<div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 60px 100px 90px;gap:8px;align-items:center;padding:.55rem 1rem;border-bottom:1px solid rgba(255,255,255,.05);font-size:.82rem;">
                             <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${this.escapeHtml(m.title)}">${this.escapeHtml(m.title)}</div>
