@@ -117,6 +117,28 @@ class Notifier:
         except Exception as e:
             logger.warning(f"Telegram send error: {e}")
 
+    def _send_telegram_document(self, file_path: str, caption: str = ''):
+        """Invia un file via Telegram sendDocument usando multipart/form-data."""
+        if not self.tg_enabled or not self.tg_token or not self.tg_chat_id:
+            return
+        try:
+            import requests as _req
+            url = f"https://api.telegram.org/bot{self.tg_token}/sendDocument"
+            fname = os.path.basename(file_path)
+            with open(file_path, 'rb') as doc:
+                r = _req.post(
+                    url,
+                    data={'chat_id': self.tg_chat_id, 'caption': caption,
+                          'parse_mode': 'HTML'},
+                    files={'document': (fname, doc, 'application/zip')},
+                    timeout=300,
+                )
+            if r.status_code != 200:
+                desc = r.json().get('description', 'Errore sconosciuto')
+                logger.warning(f"Telegram sendDocument error: {desc}")
+        except Exception as e:
+            logger.warning(f"Telegram sendDocument error: {e}")
+
     def _send_email(self, subject, text):
         if not self.em_enabled or not self.em_smtp or not self.em_from or not self.em_to or not self.em_pass:
             return
@@ -305,11 +327,13 @@ class Notifier:
         self._send_email(f"EXTTO: {self.t('Monitorato')} - {title}", msg)
 
     def notify_backup_complete(self, zip_name: str, zip_mb: float, file_count: int,
-                               kept: int, cloud_info: str = ''):
+                               kept: int, cloud_info: str = '', zip_path: str = ''):
         """
         Messaggio unico di completamento backup.
         Inviato da extto_web.py al termine del backup ZIP.
         cloud_info: stringa opzionale tipo ' (Caricato su FTP: host)'.
+        zip_path:   percorso assoluto del file ZIP — se presente e valido,
+                    il file viene allegato al messaggio Telegram.
         """
         cloud_str = f"\n☁️ <b>Cloud:</b> {cloud_info.strip()}" if cloud_info.strip() else ""
         msg = (
@@ -320,7 +344,10 @@ class Notifier:
             f"🗂️ <b>{self.t('Conservati')}:</b> {kept}"
             f"{cloud_str}"
         )
-        self._send_telegram(msg)
+        if zip_path and os.path.isfile(zip_path):
+            self._send_telegram_document(zip_path, caption=msg)
+        else:
+            self._send_telegram(msg)
         self._send_email(f"✅ EXTTO: {self.t('Backup Completato')} — {zip_name}", msg)
 
     def notify_system_event(self, event_type, message):

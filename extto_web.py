@@ -2328,7 +2328,7 @@ def run_backup():
                 from core.notifier import Notifier as _Notifier
                 _n = _Notifier(cfg_full)
                 if _n.tg_enabled:
-                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info)
+                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info, zip_path)
                     tg_sent = True
                 else:
                     logger.debug("backup notify: Telegram abilitato nelle impostazioni backup ma token/chat_id mancanti")
