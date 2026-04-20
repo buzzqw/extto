@@ -61,10 +61,6 @@ libtorrent>=2.0.11      # Client torrent embedded. Installato nel venv da PyPI.
 # subprocess, sys, textwrap, threading, time, typing,
 # unicodedata, urllib, warnings, webbrowser, xml.etree
 
-# === PACCHETTI RIMOSSI (erano nel requirements ma non usati nel codice) ===
-# flask-socketio  — non importato in nessun file sorgente
-# netifaces       — non importato; il rilevamento IP usa 'ip addr' via subprocess
-
 # === INSTALLATION ===
 # Non usare pip install -r requirements.txt direttamente.
 # Usare lo script: ./start_extto.sh
