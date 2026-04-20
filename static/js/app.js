@@ -3203,6 +3203,7 @@ const app = {
         set('lt-ipfilter-autoupdate', get('ipfilter_autoupdate', 'no'));
         this._updateIpFilterStatus();
         this.toggleProxyFields();
+        this.loadTagDirRules();
     },
 
     _populateExternalForms(s) {
@@ -3375,7 +3376,114 @@ const app = {
         });
         await this._saveFullConfig({settings: s});
         await fetch(`${API_BASE}/api/torrents/apply_settings`, {method:'POST'});
+        await this.saveTagDirRules();
         this.showToast(t('Libtorrent settings saved and applied'), 'success');
+    },
+
+    // =========================================================================
+    // TAG DIR RULES
+    // =========================================================================
+    _tagDirRules: [],
+
+    async loadTagDirRules() {
+        try {
+            const res = await fetch(`${API_BASE}/api/tag-dir-rules`);
+            this._tagDirRules = res.ok ? (await res.json()) : [];
+        } catch(e) {
+            this._tagDirRules = [];
+        }
+        // Carica i tag esistenti dal DB per popolare i select
+        let knownTags = [];
+        try {
+            const tr = await fetch(`${API_BASE}/api/torrent-tags`);
+            if (tr.ok) {
+                const data = await tr.json();
+                // data è {hash: tag} — estrai tag unici non vuoti
+                knownTags = [...new Set(Object.values(data).filter(Boolean))].sort();
+            }
+        } catch(e) {}
+        this._tagDirKnownTags = knownTags;
+        this._renderTagDirRulesTable();
+    },
+
+    _renderTagDirRulesTable() {
+        const container = document.getElementById('tag-dir-rules-table');
+        if (!container) return;
+        const rules = this._tagDirRules || [];
+        const knownTags = this._tagDirKnownTags || [];
+        // Tag presenti nelle regole + quelli noti dal DB, unificati
+        const allTags = [...new Set([
+            'Film', 'Serie TV', 'Fumetti', 'Manuale',
+            ...knownTags,
+            ...rules.map(r => r.tag).filter(Boolean)
+        ])].sort();
+
+        if (rules.length === 0) {
+            container.innerHTML = `<div style="color:var(--text-muted);font-size:.84rem;padding:.4rem 0;">Nessuna regola configurata. Le cartelle globali vengono usate per tutti i tag.</div>`;
+            return;
+        }
+
+        const rows = rules.map((rule, i) => {
+            const tagOpts = allTags.map(tag =>
+                `<option value="${this.escapeHtml(tag)}" ${rule.tag === tag ? 'selected' : ''}>${this.escapeHtml(tag)}</option>`
+            ).join('');
+            return `<div style="display:grid;grid-template-columns:160px 1fr 1fr 36px;gap:6px;align-items:center;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.06);">
+                <select class="form-input" style="font-size:.82rem;padding:4px 6px;" onchange="app._tagDirRules[${i}].tag=this.value">
+                    ${tagOpts}
+                </select>
+                <div style="display:flex;gap:4px;">
+                    <input type="text" class="form-input" style="flex:1;font-size:.82rem;padding:4px 6px;" placeholder="Cartella temp (default globale)" value="${this.escapeHtml(rule.temp_dir||'')}"
+                        oninput="app._tagDirRules[${i}].temp_dir=this.value"
+                        onfocus="this._origVal=this.value"
+                    >
+                    <button type="button" class="btn btn-secondary btn-small" title="Sfoglia" onclick="app.openDirBrowser('__tdr_temp_${i}__')"><i class="fa-regular fa-folder-open"></i></button>
+                </div>
+                <div style="display:flex;gap:4px;">
+                    <input type="text" class="form-input" style="flex:1;font-size:.82rem;padding:4px 6px;" placeholder="Cartella finale (default globale)" value="${this.escapeHtml(rule.final_dir||'')}"
+                        oninput="app._tagDirRules[${i}].final_dir=this.value"
+                    >
+                    <button type="button" class="btn btn-secondary btn-small" title="Sfoglia" onclick="app.openDirBrowser('__tdr_final_${i}__')"><i class="fa-regular fa-folder-open"></i></button>
+                </div>
+                <button type="button" class="btn btn-small" style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);padding:4px 8px;" onclick="app._removeTagDirRule(${i})"><i class="fa-solid fa-trash"></i></button>
+            </div>`;
+        }).join('');
+
+        const header = `<div style="display:grid;grid-template-columns:160px 1fr 1fr 36px;gap:6px;padding:.25rem 0;font-size:.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;">
+            <div>Tag</div><div>Cartella temporanea</div><div>Cartella definitiva</div><div></div>
+        </div>`;
+        container.innerHTML = header + rows;
+
+        // Intercetta openDirBrowser per i campi __tdr_*__
+        this._tdrDirBrowserActive = true;
+    },
+
+    addTagDirRule() {
+        if (!this._tagDirRules) this._tagDirRules = [];
+        const knownTags = this._tagDirKnownTags || [];
+        const allTags = [...new Set(['Film', 'Serie TV', 'Fumetti', 'Manuale', ...knownTags])];
+        // Suggerisci il primo tag non ancora usato
+        const usedTags = new Set(this._tagDirRules.map(r => r.tag));
+        const nextTag = allTags.find(t => !usedTags.has(t)) || '';
+        this._tagDirRules.push({ tag: nextTag, temp_dir: '', final_dir: '' });
+        this._renderTagDirRulesTable();
+    },
+
+    _removeTagDirRule(i) {
+        this._tagDirRules.splice(i, 1);
+        this._renderTagDirRulesTable();
+    },
+
+    async saveTagDirRules() {
+        try {
+            const rules = (this._tagDirRules || []).filter(r => r.tag && r.tag.trim());
+            await fetch(`${API_BASE}/api/tag-dir-rules`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(rules)
+            });
+        } catch(e) {
+            console.warn('saveTagDirRules:', e);
+        }
     },
 
     async reapplyLtSettings() {
@@ -4259,7 +4367,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         document.getElementById('magnet-form').reset();
     },
     
-    async sendMagnetToClient(magnet, savePath = '', downloadNow = true, noRename = false) {
+    async sendMagnetToClient(magnet, savePath = '', downloadNow = true, noRename = false, tag = '') {
         try {
             if (!this._configData) {
                 const confRes = await fetch(`${API_BASE}/api/config`);
@@ -4283,14 +4391,14 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                     const upData = await upRes.json();
                     if (upData.success) {
                         this.showToast(t('Torrent aggiunto con successo!'), 'success');
-                        if (upData.hash) await this._saveTag(upData.hash, 'Manuale');
+                        if (upData.hash) await this._saveTag(upData.hash, tag || 'Manuale');
                         if (upData.hash && noRename) await this._saveNoRename(upData.hash, true);
                         if (this._torrentPollId !== null) await this.loadTorrents();
                     } else {
                         this.showToast(upData.error || t('Errore invio torrent'), 'error');
                     }
                 } else if (data.is_magnet) {
-                    return this.sendMagnetToClient(data.magnet, savePath, downloadNow, noRename); 
+                    return this.sendMagnetToClient(data.magnet, savePath, downloadNow, noRename, tag); 
                 } else {
                     this.showToast(data.error || t('Errore download URL'), 'error');
                 }
@@ -4301,14 +4409,14 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             if (ltEnabled) {
                 const res = await fetch(`${API_BASE}/api/torrents/add`, {
                     method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({magnet, save_path: savePath})
+                    body: JSON.stringify({magnet, save_path: savePath, tag: tag || 'Manuale'})
                 });
                 if (res.ok) {
                     const d = await res.json();
                     if (d.ok) {
                         this.showToast(t('Torrent inviato a libtorrent'), 'success');
                         const _h = d.hash || this._hashFromMagnet(magnet);
-                        await this._saveTag(_h, 'Manuale');
+                        await this._saveTag(_h, tag || 'Manuale');
                         if (_h && noRename) await this._saveNoRename(_h, true);
                         if (this._torrentPollId !== null) await this.loadTorrents();
                         return;
@@ -4318,12 +4426,12 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             
             const res = await fetch(`${API_BASE}/api/send-magnet`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({magnet, save_path: savePath})
+                body: JSON.stringify({magnet, save_path: savePath, tag: tag || 'Manuale'})
             });
             const d = await res.json();
             if (d.success) {
                 const _h = this._hashFromMagnet(magnet);
-                await this._saveTag(_h, 'Manuale');
+                await this._saveTag(_h, tag || 'Manuale');
                 if (_h && noRename) await this._saveNoRename(_h, true);
                 if (this._torrentPollId !== null) await this.loadTorrents();
             }
@@ -4820,7 +4928,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
 
     async addMagnetFromFeed(magnet, title) {
         if (!magnet) { this.showToast('Magnet non disponibile', 'error'); return; }
-        this._promptNoRename(magnet, '', true, title || '');
+        this._promptNoRename(magnet, '', true, title || '', 'Film');
     },
     handleLanguageChange(prefix) {
         // Mappa prefix → id select e id input custom
@@ -4854,7 +4962,15 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
     openDirBrowser(targetInputId, evt) {
         if (evt) evt.stopPropagation();
         this._dirBrowserTarget = targetInputId;
-        const currentVal = document.getElementById(targetInputId)?.value || '/';
+        let currentVal = '/';
+        const tdrMatch = targetInputId.match(/^__tdr_(temp|final)_(\d+)__$/);
+        if (tdrMatch) {
+            const tipo = tdrMatch[1];
+            const idx  = parseInt(tdrMatch[2]);
+            currentVal = (this._tagDirRules?.[idx]?.[tipo === 'temp' ? 'temp_dir' : 'final_dir']) || '/';
+        } else {
+            currentVal = document.getElementById(targetInputId)?.value || '/';
+        }
         document.getElementById('dir-browser-modal').classList.add('active');
         this._loadDirBrowser(currentVal || '/');
     },
@@ -4869,8 +4985,20 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
 
     confirmDirBrowser() {
         if (this._dirBrowserTarget) {
-            const el = document.getElementById(this._dirBrowserTarget);
-            if (el) el.value = this._dirBrowserPath;
+            // Gestione speciale per le regole tag-dir: id virtuale __tdr_{tipo}_{idx}__
+            const tdrMatch = this._dirBrowserTarget.match(/^__tdr_(temp|final)_(\d+)__$/);
+            if (tdrMatch) {
+                const tipo = tdrMatch[1];
+                const idx  = parseInt(tdrMatch[2]);
+                if (this._tagDirRules && this._tagDirRules[idx] !== undefined) {
+                    if (tipo === 'temp')  this._tagDirRules[idx].temp_dir  = this._dirBrowserPath;
+                    if (tipo === 'final') this._tagDirRules[idx].final_dir = this._dirBrowserPath;
+                    this._renderTagDirRulesTable();
+                }
+            } else {
+                const el = document.getElementById(this._dirBrowserTarget);
+                if (el) el.value = this._dirBrowserPath;
+            }
         }
         this.closeDirBrowser();
     },
@@ -6369,8 +6497,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     },
 
     // Mostra il mini-modal di conferma con checkbox no-rename per flussi senza modal proprio
-    _promptNoRename(magnet, savePath = '', downloadNow = true, title = '') {
-        this._nrPending = { magnet, savePath, downloadNow };
+    _promptNoRename(magnet, savePath = '', downloadNow = true, title = '', tag = '') {
+        this._nrPending = { magnet, savePath, downloadNow, tag };
         const el = document.getElementById('no-rename-confirm-title');
         if (el) el.textContent = title || magnet.substring(0, 80) + '…';
         const cb = document.getElementById('no-rename-confirm-flag');
@@ -6390,9 +6518,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
         // Caso singolo
         if (!this._nrPending) return;
-        const { magnet, savePath, downloadNow } = this._nrPending;
+        const { magnet, savePath, downloadNow, tag } = this._nrPending;
         this._nrPending = null;
-        await this.sendMagnetToClient(magnet, savePath, downloadNow, noRename);
+        await this.sendMagnetToClient(magnet, savePath, downloadNow, noRename, tag);
     },
 
     async confirmSetTorrentTags() {

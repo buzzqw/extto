@@ -5527,8 +5527,24 @@ def send_magnet():
         # Prova libtorrent (embedded)
         if settings.get('libtorrent_enabled') == 'yes':
             try:
+                # Se nessun save_path esplicito, cerca la temp_dir dalla regola del tag
+                _lt_save = save_path
+                if not _lt_save:
+                    try:
+                        _pending_tag = data.get('tag', '').strip()
+                        if _pending_tag:
+                            _rules = _cdb.get_setting('tag_dir_rules', [])
+                            for _r in (_rules if isinstance(_rules, list) else []):
+                                if isinstance(_r, dict) and _r.get('tag', '').strip().lower() == _pending_tag.lower():
+                                    _td = _r.get('temp_dir', '').strip()
+                                    if _td:
+                                        _lt_save = _td
+                                        logger.debug(f"send-magnet: tag='{_pending_tag}' → temp_dir={_lt_save}")
+                                    break
+                    except Exception as _te:
+                        logger.debug(f"tag_dir temp lookup: {_te}")
                 payload = {'magnet': magnet}
-                if save_path: payload['save_path'] = save_path
+                if _lt_save: payload['save_path'] = _lt_save
                 r = requests.post(
                     f'http://127.0.0.1:{get_engine_port()}/api/torrents/add',
                     json=payload,
@@ -5833,6 +5849,45 @@ def set_torrent_tags():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
+
+@app.route('/api/tag-dir-rules', methods=['GET'])
+def get_tag_dir_rules():
+    """Restituisce la lista delle regole cartelle per tag: [{tag, temp_dir, final_dir}, ...]"""
+    try:
+        rules = _cdb.get_setting('tag_dir_rules', [])
+        if not isinstance(rules, list):
+            rules = []
+        return jsonify(rules)
+    except Exception as e:
+        logger.exception(f"get_tag_dir_rules: {e}")
+        return jsonify([]), 500
+
+
+@app.route('/api/tag-dir-rules', methods=['POST'])
+def save_tag_dir_rules():
+    """Salva la lista delle regole cartelle per tag."""
+    try:
+        rules = request.get_json(silent=True)
+        if not isinstance(rules, list):
+            return jsonify({'success': False, 'error': 'Payload non valido'}), 400
+        clean = []
+        for r in rules:
+            if not isinstance(r, dict):
+                continue
+            tag = r.get('tag', '').strip()
+            if not tag:
+                continue
+            clean.append({
+                'tag':       tag,
+                'temp_dir':  r.get('temp_dir',  '').strip(),
+                'final_dir': r.get('final_dir', '').strip(),
+            })
+        _cdb.set_setting('tag_dir_rules', clean)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.exception(f"save_tag_dir_rules: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/torrent-no-rename', methods=['GET'])

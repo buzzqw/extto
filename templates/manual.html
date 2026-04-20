@@ -315,6 +315,10 @@
                                         <div class="man-param-name">libtorrent_temp_dir</div>
                                         <div class="man-param-desc">Cartella temporanea dove viene eseguito il download attivo. Al completamento, i file vengono automaticamente spostati in <code>libtorrent_dir</code>. Consigliato se la destinazione finale è un volume di rete (NAS, NFS) — il download avviene in locale e si sposta solo a completamento, evitando lentezze e corruzione.</div>
                                     </div>
+                                    <div class="man-param">
+                                        <div class="man-param-name">Regole Cartelle per Tag</div>
+                                        <div class="man-param-desc">Tabella configurabile in questa stessa sezione (pulsante <strong>+ Aggiungi regola</strong>). Ogni riga associa un <strong>tag</strong> a una <em>cartella temporanea</em> (download + seeding) e a una <em>cartella definitiva</em> (destinazione post-seed). Se un campo è vuoto, si usa la cartella globale corrispondente. Utile per separare automaticamente Film, Serie TV, Fumetti in cartelle diverse senza intervento manuale. Il tag <strong>Film</strong> viene assegnato automaticamente ai torrent scaricati dalla sezione Film (feed match e lista film).</div>
+                                    </div>
                                 </div>
 
                                 <div class="man-subsection">Rete e Porte</div>
@@ -1473,6 +1477,30 @@
 
                                 <h3>Tag personalizzati</h3>
                                 <p>Seleziona uno o più torrent → pulsante <strong>Tag</strong> nella barra bulk → digita il nome. Puoi usare qualsiasi nome oltre ai quattro standard (es. "4K", "Anime", "Archivio").</p>
+
+                                <div class="man-callout man-callout-info">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <div>I tag sono salvati nella tabella <code>torrent_meta</code> del database <code>extto_series.db</code>. Il file <code>torrent_tags.json</code> (versioni precedenti) viene migrato automaticamente al primo avvio.</div>
+                                </div>
+
+                                <h3>Regole Cartelle per Tag</h3>
+                                <p>In <strong>Impostazioni → libtorrent → Regole Cartelle per Tag</strong> puoi associare ogni tag a una cartella temporanea (usata durante il download e il seeding) e a una cartella definitiva (destinazione dopo il termine del seed).</p>
+                                <table style="width:100%; border-collapse:collapse; font-size:0.88rem; margin-bottom:1rem;">
+                                    <thead><tr style="background:#2E75B6; color:#fff;">
+                                        <th style="padding:6px 10px; text-align:left;">Colonna</th>
+                                        <th style="padding:6px 10px; text-align:left;">Significato</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        <tr><td style="padding:5px 10px; border:1px solid #ddd;"><strong>Tag</strong></td><td style="padding:5px 10px; border:1px solid #ddd;">Scegli dal menu a tendina (popolato con i tag già usati + i quattro standard). Puoi aggiungere regole con tag personalizzati.</td></tr>
+                                        <tr style="background:#f5f9ff;"><td style="padding:5px 10px; border:1px solid #ddd;"><strong>Cartella temporanea</strong></td><td style="padding:5px 10px; border:1px solid #ddd;">Dove viene scaricato il file durante il download e il seeding. Se vuota, usa la cartella ramdisk/temp globale di libtorrent.</td></tr>
+                                        <tr><td style="padding:5px 10px; border:1px solid #ddd;"><strong>Cartella definitiva</strong></td><td style="padding:5px 10px; border:1px solid #ddd;">Dove viene spostato il file al termine del seeding. Se vuota, usa <code>libtorrent_dir</code> globale.</td></tr>
+                                    </tbody>
+                                </table>
+                                <p>Il salvataggio avviene automaticamente cliccando <strong>Salva</strong> nella sezione libtorrent. Usa il pulsante <i class="fa-regular fa-folder-open"></i> per sfogliare le cartelle del server invece di digitare il percorso.</p>
+                                <div class="man-callout man-callout-warn">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <div>Le regole cartelle agiscono <strong>solo con libtorrent embedded</strong>. Con qBittorrent, Transmission o aria2 il tag viene salvato ma lo spostamento post-seed è gestito dal client esterno.</div>
+                                </div>
                             </div>
                         </div>
 

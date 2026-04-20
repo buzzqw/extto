@@ -2280,20 +2280,55 @@ class LibtorrentClient:
                     h.pause()
                     logger.info(f'🔵 Seeding limit reached, torrent permanently paused: {s.name}')
 
-                    # ... Codice di spostamento nel NAS (rimane invariato) ...
+                    # Spostamento post-seeding: usa final_dir dalla regola tag se presente
                     try:
-                        ramdisk_dir = cfg.get('libtorrent_ramdisk_dir', '').strip()
-                        temp_dir    = cfg.get('libtorrent_temp_dir',    '').strip()
-                        final_dir   = cfg.get('libtorrent_dir',         '').strip()
+                        ramdisk_dir  = cfg.get('libtorrent_ramdisk_dir', '').strip()
+                        temp_dir     = cfg.get('libtorrent_temp_dir',    '').strip()
+                        global_final = cfg.get('libtorrent_dir',         '').strip()
+
+                        # Leggi tag del torrent dal DB torrent_meta e cerca regola tag_dir_rules
+                        ih_str    = str(h.info_hash())
+                        tag_final = None
+                        try:
+                            import sqlite3 as _sq3
+                            import core.config_db as _cdb_sl
+                            _tag_row = None
+                            with _sq3.connect(DB_FILE) as _tc:
+                                _tc.row_factory = _sq3.Row
+                                _tag_row = _tc.execute(
+                                    "SELECT tag FROM torrent_meta WHERE hash=?", (ih_str,)
+                                ).fetchone()
+                            _tag = (_tag_row['tag'] or '').strip() if _tag_row else ''
+                            if _tag:
+                                _rules = _cdb_sl.get_setting('tag_dir_rules', [])
+                                if isinstance(_rules, list):
+                                    for _rule in _rules:
+                                        if isinstance(_rule, dict) and _rule.get('tag', '').strip().lower() == _tag.lower():
+                                            _fd = _rule.get('final_dir', '').strip()
+                                            if _fd:
+                                                tag_final = _fd
+                                                logger.info(f'🏷️  Post-seeding: tag="{_tag}" → final_dir={tag_final} per {s.name}')
+                                            break
+                        except Exception as _te2:
+                            logger.debug(f'tag_dir_rules lookup: {_te2}')
+
+                        final_dir = tag_final if tag_final else global_final
                         _tmp_candidates = [d for d in (ramdisk_dir, temp_dir) if d and d != final_dir]
-                        if _tmp_candidates and final_dir:
+                        if final_dir:
                             curr_save = os.path.normpath(os.path.abspath(s.save_path))
-                            _in_tmp = any(curr_save.startswith(os.path.normpath(os.path.abspath(d))) for d in _tmp_candidates)
-                            if _in_tmp:
-                                ih_str = str(h.info_hash())
+                            _in_tmp = bool(_tmp_candidates) and any(
+                                curr_save.startswith(os.path.normpath(os.path.abspath(d))) for d in _tmp_candidates
+                            )
+                            # Sposta anche se già in global_final ma il tag richiede una dir diversa
+                            _in_wrong_final = bool(
+                                tag_final and global_final and
+                                curr_save.startswith(os.path.normpath(os.path.abspath(global_final))) and
+                                os.path.normpath(os.path.abspath(tag_final)) != os.path.normpath(os.path.abspath(global_final))
+                            )
+                            if _in_tmp or _in_wrong_final:
                                 _pending = getattr(cls, '_nas_move_pending', set())
                                 if ih_str in _pending:
-                                    logger.debug(f'📦 Post-seeding: NAS move already in progress for {s.name}, skip libtorrent_dir move')
+                                    logger.debug(f'📦 Post-seeding: NAS move already in progress for {s.name}, skip move')
                                 else:
                                     _already_on_nas = False
                                     try:
@@ -2308,7 +2343,7 @@ class LibtorrentClient:
                                     except Exception: pass
                                     if not _already_on_nas:
                                         h.move_storage(final_dir)
-                                        logger.info(f'📦 Post-seeding: moving from temp → libtorrent_dir: {s.name}')
+                                        logger.info(f'📦 Post-seeding: moving → {final_dir}: {s.name}')
                     except Exception as _te:
                         logger.debug(f'⚠️ temp_dir cleanup after seeding failed for {s.name}: {_te}')
             except Exception:
