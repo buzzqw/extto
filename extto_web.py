@@ -2232,7 +2232,7 @@ def run_backup():
 
         ts       = datetime.now().strftime('%Y-%m-%d--%H-%M-%S')
         zip_name = f'extto-backup-{ts}.zip'
-        zip_path = os.path.join(backup_dir, zip_name)
+        zip_path = os.path.abspath(os.path.join(backup_dir, zip_name))
 
         EXCLUDE_PATTERNS = [
             '__pycache__', '*.pyc', '*.pyo',
