@@ -2386,7 +2386,6 @@ def main():
                             try:
                                 import sqlite3
                                 from core.constants import DB_FILE as _DBF
-                                from core.config_db import ConfigDB as _CDB
                                 # 1. Leggi il tag del torrent dal DB
                                 _t_tag = ''
                                 with sqlite3.connect(_DBF, timeout=5) as _tc:
@@ -2399,7 +2398,7 @@ def main():
 
                                 if _t_tag:
                                     # 2. Cerca la final_dir nella regola corrispondente
-                                    _rules = _CDB().get_setting('tag_dir_rules', [])
+                                    _rules = config_db.get_setting('tag_dir_rules', [])
                                     _final_dir = ''
                                     for _r in (_rules if isinstance(_rules, list) else []):
                                         if isinstance(_r, dict) and _r.get('tag', '').strip().lower() == _t_tag.lower():
