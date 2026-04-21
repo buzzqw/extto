@@ -1834,6 +1834,9 @@ const app = {
             // Salva anche i punteggi
             await this.saveScoresSettings();
             
+            // Salva le regole tag → cartella
+            await this.saveTagDirRules();
+            
             this.showToast(t('All configuration saved successfully!'), 'success');
         } catch(e) {
             this.showToast(t('Error during save.'), 'error');
@@ -4360,7 +4363,8 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                 this.showToast(t('Errore caricamento file'), 'error');
             }
         } else {
-            await this.sendMagnetToClient(m, sp, dn, noRename);
+            const tag = document.getElementById('magnet-tag')?.value?.trim() || '';
+            await this.sendMagnetToClient(m, sp, dn, noRename, tag);
         }
         
         this.closeModal('add-magnet-modal');
@@ -4914,8 +4918,71 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         }
         document.getElementById('movie-editor-modal').classList.add('active');
     },
-    showAddMagnetModal() { document.getElementById('add-magnet-modal').classList.add('active'); },
+
+    // Popola un <select> con tag da tag_dir_rules + tag storici da torrent_meta
+    async _populateTagSelect(sel, selectedTag) {
+        if (!sel) return;
+        try {
+            const [rulesRes, tagsRes] = await Promise.all([
+                fetch(`${API_BASE}/api/tag-dir-rules`).then(r => r.json()).catch(() => []),
+                fetch(`${API_BASE}/api/torrent-tags`).then(r => r.json()).catch(() => ({}))
+            ]);
+            const rules = Array.isArray(rulesRes) ? rulesRes : [];
+            this._tagDirRules = rules;
+            const historicTags = [...new Set(Object.values(tagsRes).filter(Boolean))].sort();
+            const ruleTagSet = new Set(rules.map(r => r.tag));
+            sel.innerHTML = '<option value="">— Nessun tag —</option>';
+            rules.forEach(r => {
+                if (!r.tag) return;
+                const opt = document.createElement('option');
+                opt.value = r.tag;
+                opt.textContent = r.tag;
+                if (r.final_dir) opt.title = '→ ' + r.final_dir;
+                sel.appendChild(opt);
+            });
+            historicTags.forEach(t => {
+                if (ruleTagSet.has(t)) return;
+                const opt = document.createElement('option');
+                opt.value = t; opt.textContent = t;
+                sel.appendChild(opt);
+            });
+            sel.value = selectedTag || '';
+        } catch(e) {}
+    },
+
+    showAddMagnetModal() {
+        document.getElementById('add-magnet-modal').classList.add('active');
+        const sel = document.getElementById('magnet-tag');
+        const hint = document.getElementById('magnet-tag-hint');
+        if (hint) hint.textContent = '';
+        this._populateTagSelect(sel, '');
+    },
     showAddMagnetTorrent() { this.showAddMagnetModal(); },
+    _onMagnetTagChange(tag) {
+        const hint = document.getElementById('magnet-tag-hint');
+        const spInput = document.getElementById('add-magnet-save-path');
+        if (!tag) {
+            if (hint) hint.textContent = '';
+            return;
+        }
+        const rule = (this._tagDirRules || []).find(r => r.tag === tag);
+        if (!rule) {
+            if (hint) hint.textContent = '';
+            return;
+        }
+        // Se c'è una temp_dir, preimposta la cartella di download temporanea
+        if (rule.temp_dir && spInput && !spInput.value.trim()) {
+            spInput.value = rule.temp_dir;
+        }
+        // Hint informativo
+        if (hint) {
+            const parts = [];
+            if (rule.temp_dir) parts.push('Temp: ' + rule.temp_dir);
+            if (rule.final_dir) parts.push('Finale: ' + rule.final_dir);
+            hint.textContent = parts.length ? parts.join('  →  ') : '';
+        }
+    },
+
 
     fileToBase64(file) {
         return new Promise((resolve, reject) => {
@@ -6503,7 +6570,23 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         if (el) el.textContent = title || magnet.substring(0, 80) + '…';
         const cb = document.getElementById('no-rename-confirm-flag');
         if (cb) cb.checked = false;
+        // Popola select tag
+        const sel = document.getElementById('nr-confirm-tag');
+        this._populateTagSelect(sel, tag).then(() => this._onNrConfirmTagChange(sel?.value || ''));
         document.getElementById('no-rename-confirm-modal').classList.add('active');
+    },
+
+    _onNrConfirmTagChange(tag) {
+        const hint = document.getElementById('nr-confirm-tag-hint');
+        if (!tag) { if (hint) hint.textContent = ''; return; }
+        const rule = (this._tagDirRules || []).find(r => r.tag === tag);
+        if (!rule) { if (hint) hint.textContent = ''; return; }
+        if (hint) {
+            const parts = [];
+            if (rule.temp_dir) parts.push('Temp: ' + rule.temp_dir);
+            if (rule.final_dir) parts.push('Finale: ' + rule.final_dir);
+            hint.textContent = parts.join('  →  ');
+        }
     },
 
     async _noRenameConfirmOk() {
@@ -6518,9 +6601,11 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
         // Caso singolo
         if (!this._nrPending) return;
-        const { magnet, savePath, downloadNow, tag } = this._nrPending;
+        const { magnet, savePath, downloadNow } = this._nrPending;
+        const selectedTag = document.getElementById('nr-confirm-tag')?.value?.trim()
+                         || this._nrPending.tag || '';
         this._nrPending = null;
-        await this.sendMagnetToClient(magnet, savePath, downloadNow, noRename, tag);
+        await this.sendMagnetToClient(magnet, savePath, downloadNow, noRename, selectedTag);
     },
 
     async confirmSetTorrentTags() {

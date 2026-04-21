@@ -2370,6 +2370,72 @@ def main():
                                                 logger.debug(f"Error saving anti-amnesia score: {db_err}")
                                             # --- FINE FIX ---
 
+                        # 2b. FILM / DOWNLOAD MANUALE con tag_dir_rules
+                        # Se il torrent non è una serie (ep è None) ma ha un tag
+                        # associato che ha una final_dir configurata, sposta il file lì.
+                        # NOTA: libtorrent può aver già spostato il file dalla temp_dir
+                        # alla libtorrent_dir globale prima che arrivassimo qui,
+                        # quindi t_path potrebbe non esistere. In quel caso cerchiamo
+                        # il file nella libtorrent_dir.
+                        _lt_global_dir = getattr(cfg, 'libtorrent_dir', '').strip()
+                        if not os.path.exists(t_path) and _lt_global_dir:
+                            _candidate = os.path.join(_lt_global_dir, t_name)
+                            if os.path.exists(_candidate):
+                                t_path = _candidate
+                        if not ep and not is_processed and os.path.exists(t_path):
+                            try:
+                                import sqlite3
+                                from core.constants import DB_FILE as _DBF
+                                from core import config_db as _cdb_mod
+                                # 1. Leggi il tag del torrent dal DB
+                                _t_tag = ''
+                                with sqlite3.connect(_DBF, timeout=5) as _tc:
+                                    _row = _tc.execute(
+                                        "SELECT tag FROM torrent_meta WHERE hash=?",
+                                        (t_hash.lower(),)
+                                    ).fetchone()
+                                    if _row:
+                                        _t_tag = (_row[0] or '').strip()
+
+                                if _t_tag:
+                                    # 2. Cerca la final_dir nella regola corrispondente
+                                    _rules = _cdb_mod.get_setting('tag_dir_rules', [])
+                                    _final_dir = ''
+                                    for _r in (_rules if isinstance(_rules, list) else []):
+                                        if isinstance(_r, dict) and _r.get('tag', '').strip().lower() == _t_tag.lower():
+                                            _final_dir = _r.get('final_dir', '').strip()
+                                            break
+
+                                    if _final_dir and os.path.isdir(_final_dir):
+                                        # 3. Raccogli file video
+                                        _video_files = []
+                                        if os.path.isdir(t_path):
+                                            for _root, _, _files in os.walk(t_path):
+                                                for _f in _files:
+                                                    if os.path.splitext(_f)[1].lower() in _VIDEO_EXTS and 'sample' not in _f.lower():
+                                                        _video_files.append(os.path.join(_root, _f))
+                                        elif os.path.splitext(t_path)[1].lower() in _VIDEO_EXTS:
+                                            _video_files.append(t_path)
+
+                                        if _video_files:
+                                            _video_files.sort(key=lambda x: os.path.getsize(x), reverse=True)
+                                            _src = _video_files[0]
+                                            _dst = os.path.join(_final_dir, os.path.basename(_src))
+                                            if not os.path.exists(_dst):
+                                                shutil.move(_src, _dst)
+                                                is_processed = True
+                                                action_log.append(f"📁 <b>Archiviato in:</b>\n<code>{_dst}</code>")
+                                                logger.info(f"📦 [tag_dir] '{t_name}' → '{_dst}' (tag: {_t_tag})")
+                                                # Rimuovi cartella vuota
+                                                if os.path.isdir(t_path) and not os.listdir(t_path):
+                                                    shutil.rmtree(t_path, ignore_errors=True)
+                                            else:
+                                                logger.info(f"[tag_dir] skip: '{_dst}' esiste già")
+                                    elif _final_dir:
+                                        logger.warning(f"[tag_dir] final_dir '{_final_dir}' per tag '{_t_tag}' non esiste o non è una directory")
+                            except Exception as _tde:
+                                logger.error(f"[tag_dir] errore post-processing tag_dir_rules: {_tde}")
+
                         # 3. DELEGA LA NOTIFICA A NOTIFIER.PY
                         if is_processed or is_series:
                             title_for_notify = series_name_disp if is_series else t_name

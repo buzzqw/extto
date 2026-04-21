@@ -3274,7 +3274,7 @@ sudo mount /mnt/ramdisk</div>
             </div>
             <div class="modal-body" style="padding:20px 24px;">
                 <div id="no-rename-confirm-title" style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:20px; word-break:break-word; line-height:1.5;"></div>
-                <div style="margin-bottom:24px; padding:12px 16px; background:var(--bg-input); border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:14px;">
+                <div style="margin-bottom:12px; padding:12px 16px; background:var(--bg-input); border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:14px;">
                     <label class="toggle-switch" style="flex-shrink:0;">
                         <input type="checkbox" id="no-rename-confirm-flag">
                         <span class="toggle-slider"></span>
@@ -3283,6 +3283,17 @@ sudo mount /mnt/ramdisk</div>
                         <div style="font-weight:600;" data-i18n="Non rinominare">Non rinominare</div>
                         <div style="font-size:0.8em; color:var(--text-muted);" data-i18n="Salta la ricerca TMDB e la rinomina automatica del file">Salta la ricerca TMDB e la rinomina automatica del file</div>
                     </div>
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">
+                        <i class="fa-solid fa-tag" style="margin-right:4px; color:var(--text-muted);"></i>
+                        <span data-i18n="Tag">Tag</span>
+                        <span style="color:var(--text-muted); font-weight:400;" data-i18n="(opzionale)">(opzionale)</span>
+                    </label>
+                    <select id="nr-confirm-tag" class="form-input" style="font-size:0.85rem;" onchange="app._onNrConfirmTagChange(this.value)">
+                        <option value="">— <span data-i18n="Nessun tag">Nessun tag</span> —</option>
+                    </select>
+                    <small id="nr-confirm-tag-hint" style="color:var(--text-muted); font-size:0.78rem;"></small>
                 </div>
                 <div style="display:flex; gap:10px;">
                     <button class="btn btn-primary" style="flex:1; padding:10px;" onclick="app._noRenameConfirmOk()">
