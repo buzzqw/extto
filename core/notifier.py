@@ -414,14 +414,24 @@ class Notifier:
                 f"<i>{self.t('File lasciato nella cartella download (Nessuno spostamento configurato).')}</i>"
             )
         else:
-            # Film o altro
+            # Film o altro (download manuale / tag_dir_rules)
             msg = (
                 f"✅ <b>{self.t('Download Completato')}</b>\n"
                 f"🎬 <code>{title_name}</code>\n\n"
                 f"{stats_line}"
             )
+            if renamed_to:
+                msg += f"\n✏️ <b>{self.t('Rinominato in')}:</b> <code>{renamed_to}</code>"
             if final_path:
-                msg += f"\n📂 <b>{self.t('Archiviato in')}:</b> <code>{final_path}</code>"
+                import os as _os
+                # final_path può essere il file completo o solo la cartella
+                if _os.path.isfile(final_path) or (renamed_to and not _os.path.isdir(final_path)):
+                    full_file_path = final_path
+                elif renamed_to:
+                    full_file_path = _os.path.join(final_path, renamed_to)
+                else:
+                    full_file_path = final_path
+                msg += f"\n📂 <b>{self.t('Archiviato in')}:</b> <code>{full_file_path}</code>"
 
         self._send_telegram(msg)
         self._send_email(f"✅ EXTTO: {self.t('Completato')} - {title_name}", msg)

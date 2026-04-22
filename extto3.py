@@ -74,7 +74,14 @@ def _remove_limit(info_hash: str) -> None:
 # --- NUOVA GESTIONE v44 VIA DATABASE ---
 
 def _apply_saved_limits() -> None:
-    """Carica i limiti di banda dal Database e li applica a libtorrent."""
+    """Carica i limiti di banda dal Database e li applica a libtorrent.
+
+    IMPORTANTE: usa set_download_limit/upload_limit direttamente sull'handle
+    invece di chiamare set_torrent_limits(), per evitare di toccare il
+    seed_limits.json (che contiene le regole seed infinito per-torrent).
+    set_torrent_limits() con seed_ratio=-1,seed_days=-1 riscriveva il JSON
+    cancellando le entry infinito salvate.
+    """
     try:
         limits = config_db.get_all_torrent_limits()
         if not limits:
@@ -82,7 +89,11 @@ def _apply_saved_limits() -> None:
         for ih, v in limits.items():
             dl_bytes = int(v.get('dl_bytes', -1))
             ul_bytes = int(v.get('ul_bytes', -1))
-            LibtorrentClient.set_torrent_limits(ih, dl_bytes, ul_bytes)
+            # Applica solo banda: non passa seed_ratio/days per non toccare seed_limits.json
+            h = LibtorrentClient._find(ih)
+            if h:
+                h.set_download_limit(dl_bytes)
+                h.set_upload_limit(ul_bytes)
     except Exception as e:
         logger.debug(f"Error applying saved limits from DB: {e}")
 
@@ -2243,7 +2254,38 @@ def main():
                                         cfg_dict = {k: getattr(cfg, k, '') for k in
                                                     ['rename_episodes','rename_format','rename_template',
                                                      'tmdb_api_key','tmdb_language','tmdb_cache_days']}
-                                        rename_completed_torrent(t_name, dest_dir, cfg_dict, db)
+                                        _did_rename = rename_completed_torrent(t_name, dest_dir, cfg_dict, db)
+                                        # Invia notifica con path/nome corretto anche per file già sul NAS
+                                        try:
+                                            _ep_s = ep['season']
+                                            _ep_e = ep['episode']
+                                            _s_ep = re.compile(
+                                                rf'(?i)[Ss]0*{_ep_s}[._\-\s]*[Ee]0*{_ep_e}\b'
+                                            )
+                                            _notify_fname = None
+                                            _notify_fpath = None
+                                            for _fn in os.listdir(dest_dir):
+                                                _fext = os.path.splitext(_fn)[1].lower()
+                                                if _fext not in _VIDEO_EXTS:
+                                                    continue
+                                                if _s_ep.search(_fn):
+                                                    _notify_fname = _fn
+                                                    _notify_fpath = os.path.join(dest_dir, _fn)
+                                                    break
+                                            _series_disp = f"{match['name']} S{_ep_s:02d}E{_ep_e:02d}"
+                                            _sz = t.get('total_size', 0)
+                                            _tm = t.get('active_time', t.get('time_active', 1))
+                                            if hasattr(notifier, 'notify_post_processing'):
+                                                notifier.notify_post_processing(
+                                                    _series_disp, _sz, _tm, [],
+                                                    is_series=True,
+                                                    is_processed=(_notify_fpath is not None),
+                                                    final_path=_notify_fpath,
+                                                    renamed_to=(_notify_fname if _did_rename else None)
+                                                )
+                                            _pp_mark_notified(t_hash)
+                                        except Exception as _ne:
+                                            logger.debug(f"notify post-NAS rename: {_ne}")
                             elif do_rename and _pp_get_no_rename(t_hash):
                                 logger.info(f"⏭️ [no_rename] Skip rename per '{t_name}' (flag impostato)")
                             if getattr(cfg, 'auto_remove_completed', False):
@@ -2253,6 +2295,7 @@ def main():
                         action_log = []
                         is_processed = False
                         is_series = False
+                        tag_dir_final_dst = None   # path definitivo per film/tag_dir (scope esterno al try)
 
                         # 1. Recupero Statistiche (Da passare al Notifier)
                         size_bytes = t.get('total_size', 0)
@@ -2423,6 +2466,7 @@ def main():
                                             if not os.path.exists(_dst):
                                                 shutil.move(_src, _dst)
                                                 is_processed = True
+                                                tag_dir_final_dst = _dst   # esposto per la notifica
                                                 action_log.append(f"📁 <b>Archiviato in:</b>\n<code>{_dst}</code>")
                                                 logger.info(f"📦 [tag_dir] '{t_name}' → '{_dst}' (tag: {_t_tag})")
                                                 # Rimuovi cartella vuota
@@ -2439,8 +2483,20 @@ def main():
                         if is_processed or is_series:
                             title_for_notify = series_name_disp if is_series else t_name
                             if hasattr(notifier, 'notify_post_processing'):
-                                _final_path  = dst_file if is_processed and 'dst_file' in dir() else None
-                                _renamed_to  = renamed_to if is_processed and 'renamed_to' in dir() else None
+                                # Per le serie: dst_file è il path completo del file archiviato.
+                                # Per i film/tag_dir: dst_file non esiste, usiamo tag_dir_final_dst.
+                                _final_path = None
+                                try:
+                                    _final_path = dst_file  # serie TV con archive_path
+                                except NameError:
+                                    pass
+                                if _final_path is None and tag_dir_final_dst:
+                                    _final_path = tag_dir_final_dst  # film spostato da tag_dir_rules
+                                _renamed_to = None
+                                try:
+                                    _renamed_to = renamed_to if is_processed else None
+                                except NameError:
+                                    pass
                                 notifier.notify_post_processing(title_for_notify, size_bytes, time_sec, action_log, is_series, is_processed, final_path=_final_path, renamed_to=_renamed_to)
                             logger.info(f"📦 Post-processing completed for: {title_for_notify}")
                         else:

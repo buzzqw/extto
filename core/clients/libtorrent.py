@@ -197,9 +197,31 @@ class LibtorrentClient:
                         data = f.read()
                     try:
                         params = lt.read_resume_data(data)
-                        # Se esiste il .torrent salvato, caricalo nei params —
-                        # così libtorrent ha la mappa dei pezzi e non resta in "Attesa Metadati"
                         ih = filename.replace('.fastresume', '')
+
+                        # --- Decodifica il fastresume come dict per leggere lo stato ---
+                        _fr_dict = {}
+                        try:
+                            _fr_dict = lt.bdecode(data) or {}
+                        except Exception:
+                            pass
+
+                        # Un torrent è "già completato" se il fastresume lo dice esplicitamente
+                        # oppure se seeding_time > 0 (stava facendo seed prima dello shutdown).
+                        _fr_finished = bool(_fr_dict.get(b'finished', _fr_dict.get('finished', 0)))
+                        _fr_seeding_time = int(_fr_dict.get(b'seeding time', _fr_dict.get('seeding time', 0)))
+                        _fr_active_time  = int(_fr_dict.get(b'active time', _fr_dict.get('active time', 0)))
+                        # Ratio upload/download: se > 0 stava sicuramente seedando
+                        _fr_ul   = int(_fr_dict.get(b'total_uploaded', _fr_dict.get('total_uploaded', 0)))
+                        _fr_dl   = int(_fr_dict.get(b'total_downloaded', _fr_dict.get('total_downloaded', 0)))
+                        _was_seeding = _fr_finished or _fr_seeding_time > 0 or (_fr_ul > 0 and _fr_dl > 0 and _fr_ul >= _fr_dl * 0.5)
+
+                        # Se esiste il .torrent salvato, caricalo nei params —
+                        # così libtorrent ha la mappa dei pezzi e non resta in "Attesa Metadati".
+                        # ATTENZIONE: impostare params.ti con torrent_info causa un force-recheck
+                        # anche se il fastresume ha skip_checking. Per i torrent già completati
+                        # usiamo il .torrent SOLO per i metadati, e forziamo skip_checking
+                        # tramite il flag torrent_flags.
                         torrent_path = os.path.join(cls.STATE_DIR, f"{ih}.torrent")
                         if os.path.exists(torrent_path):
                             try:
@@ -208,6 +230,34 @@ class LibtorrentClient:
                                 params.ti = ti
                             except Exception as te:
                                 logger.debug(f"load .torrent {ih[:8]}: {te}")
+
+                        # --- SKIP CHECKING per torrent già completati ---
+                        # Se il torrent stava facendo seeding, non ha senso recheckare:
+                        # il file è sul NAS (path diverso da libtorrent_dir) e non è
+                        # raggiungibile dal punto di vista di libtorrent → checking infinito.
+                        # Impostiamo skip_checking sul flags per segnalare a libtorrent
+                        # di fidarsi del fastresume senza verificare i pezzi.
+                        if _was_seeding:
+                            try:
+                                _flags = getattr(params, 'flags', None)
+                                if _flags is not None:
+                                    # libtorrent >= 1.2: params.flags è un bitfield
+                                    _skip_flag = getattr(lt.torrent_flags, 'skip_checking', None)
+                                    if _skip_flag is not None:
+                                        params.flags = _flags | _skip_flag
+                                    else:
+                                        # fallback attributo diretto (alcune versioni)
+                                        params.skip_checking = True
+                                else:
+                                    params.skip_checking = True
+                            except Exception as _sf:
+                                logger.debug(f"skip_checking flag: {_sf}")
+                                try:
+                                    params.skip_checking = True
+                                except Exception:
+                                    pass
+                            logger.debug(f"↩️  Restored (skip_checking) seeded torrent: {ih[:12]}")
+
                         session.add_torrent(params)
                         count += 1
                     except Exception as e:
@@ -1240,6 +1290,34 @@ class LibtorrentClient:
                                 new_path = h.status().save_path
                                 logger.info(f"✅ Storage successfully moved to NAS: '{h.name()}' -> {new_path}")
                                 h.save_resume_data()
+
+                                # --- GUARD ANTI-RECHECK AL RIAVVIO ---
+                                # Il fastresume aggiornato viene scritto in modo asincrono da
+                                # save_resume_data_alert. Se EXTTO riavvia prima che l'alert
+                                # venga processato, il fastresume conserva il vecchio save_path
+                                # e al riavvio scatta un checking_files infinito (file non trovato).
+                                # Patch: aggiorna subito il campo 'save path' nel fastresume su
+                                # disco senza aspettare l'alert, segnando anche 'finished'=1.
+                                try:
+                                    ih_str = str(h.info_hash())
+                                    fr_path = os.path.join(cls.STATE_DIR, f"{ih_str}.fastresume")
+                                    if os.path.exists(fr_path):
+                                        with open(fr_path, 'rb') as _ff:
+                                            _fr = cls._lt.bdecode(_ff.read())
+                                        if isinstance(_fr, dict):
+                                            _fr[b'save path'] = new_path.encode() if isinstance(new_path, str) else new_path
+                                            _fr[b'finished']  = 1
+                                            _tmp_fr = fr_path + '.tmp'
+                                            _new_data = cls._lt.bencode(_fr)
+                                            with open(_tmp_fr, 'wb') as _ff2:
+                                                _ff2.write(_new_data)
+                                                _ff2.flush(); os.fsync(_ff2.fileno())
+                                            os.replace(_tmp_fr, fr_path)
+                                            logger.debug(f"💾 fastresume save_path aggiornato a '{new_path}' per {ih_str[:12]}")
+                                except Exception as _fr_e:
+                                    logger.debug(f"fastresume patch save_path: {_fr_e}")
+                                # --- FINE GUARD ---
+
                                 # Rimuovi dal set "move in corso": il move è completato,
                                 # check_seeding_limits può ora usare il livello 2 (archive_path)
                                 # se per qualsiasi motivo il flag fosse ancora presente.
@@ -1711,8 +1789,8 @@ class LibtorrentClient:
                 'files': files,
                 'dl_limit': h.download_limit() if hasattr(h, 'download_limit') else -1,
                 'ul_limit': h.upload_limit()   if hasattr(h, 'upload_limit')   else -1,
-                'seed_ratio': cls._get_seed_limits_db().get(info_hash, {}).get('ratio', -1),
-                'seed_days': cls._get_seed_limits_db().get(info_hash, {}).get('days', -1),
+                'seed_ratio': cls._get_seed_limits_db().get(info_hash.lower(), {}).get('ratio', -1),
+                'seed_days': cls._get_seed_limits_db().get(info_hash.lower(), {}).get('days', -1),
             }
         except Exception as e:
             logger.error(f"Critical error reading torrent details: {e}")
@@ -1933,7 +2011,10 @@ class LibtorrentClient:
         try:
             import json
             if os.path.exists(p):
-                with open(p, 'r') as f: return json.load(f)
+                with open(p, 'r') as f:
+                    raw = json.load(f)
+                # Normalizza sempre le chiavi a lowercase per evitare mismatch uppercase/lowercase
+                return {k.lower(): v for k, v in raw.items()} if isinstance(raw, dict) else {}
         except Exception: pass
         return {}
 
@@ -1947,6 +2028,8 @@ class LibtorrentClient:
 
     @classmethod
     def set_torrent_limits(cls, info_hash: str, dl_limit: int, ul_limit: int, seed_ratio: float = -1.0, seed_days: float = -1.0) -> bool:
+        # Normalizza sempre l'hash in lowercase per coerenza con le letture
+        info_hash = info_hash.lower().strip()
         h = cls._find(info_hash)
         if h:
             h.set_download_limit(dl_limit)
@@ -1957,12 +2040,22 @@ class LibtorrentClient:
             except Exception as _le:
                 logger.debug(f"set_torrent_limits: DB save failed: {_le}")
                 
-            # Salva le regole di seeding specifiche per questo torrent
+            # Salva le regole di seeding specifiche per questo torrent.
+            # CRITICO: seed_ratio=-1 e seed_days=-1 significano "il chiamante non ha
+            # specificato un valore" (es. _apply_saved_limits che applica solo la banda).
+            # In questo caso NON toccare le regole di seeding esistenti, specialmente
+            # se il torrent aveva seed infinito (ratio=0 o days=0).
             s_db = cls._get_seed_limits_db()
+            # Normalizza le chiavi esistenti a lowercase (migrazione dati vecchi)
+            s_db = {k.lower(): v for k, v in s_db.items()}
             if seed_ratio < 0 and seed_days < 0:
-                s_db.pop(info_hash, None)
+                # Aggiorna solo la banda — NON toccare le regole seeding
+                # (sia che non ci siano, sia che ci sia un infinito salvato)
+                pass
             else:
-                if info_hash not in s_db: s_db[info_hash] = {}
+                # L'utente ha esplicitamente impostato un valore (anche 0 = infinito)
+                if info_hash not in s_db:
+                    s_db[info_hash] = {}
                 s_db[info_hash]['ratio'] = seed_ratio
                 s_db[info_hash]['days'] = seed_days
             cls._save_seed_limits_db(s_db)
