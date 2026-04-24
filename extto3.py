@@ -2113,11 +2113,12 @@ def main():
                     continue
                 
                 c = db.conn.cursor()
-                c.execute("SELECT id FROM movies WHERE name=? AND magnet_link IS NOT NULL", (mov_cfg['name'],))
+                c.execute("SELECT id FROM movies WHERE name=? AND downloaded_at IS NOT NULL", (mov_cfg['name'],))
                 if c.fetchone():
-                    continue
+                    continue  # già scaricato con successo
                 
-                search_str = mov_cfg['name']
+                _year = str(mov_cfg.get('year', '') or '').strip()
+                search_str = f"{mov_cfg['name']} {_year}".strip() if _year else mov_cfg['name']
                 results = eng.archive.search(search_str)
             
                 best_movie_cand = None

@@ -1458,23 +1458,23 @@ class ArchiveDB:
             logger.error(f"❌ Archive write error: {e}")
 
     def search(self, query: str) -> List[Dict]:
+        """Cerca nell'archivio per parole chiave (AND implicito, case-insensitive).
+        Ogni parola della query deve comparire nel titolo (LIKE %parola%).
+        Coerente con search_archive() di extto_web.py: trova titoli torrent
+        con parole extra (anno, qualità, release group, ecc.)."""
         c = self.conn.cursor()
-        # Usa FTS5 per ricerche veloci; fallback a LIKE se la FTS non è disponibile
-        # o se la query contiene caratteri speciali FTS (es. ":", "*").
+        words = [w for w in query.split() if w]
+        if not words:
+            return []
         try:
-            # FTS5 tokenizza per parole: ogni parola nella query deve apparire nel titolo.
-            # Racchiudiamo in virgolette per trattare la query come frase esatta.
-            fts_query = f'"{query}"'
-            c.execute('''
-                SELECT a.title, a.magnet, a.source
-                FROM archive_fts
-                JOIN archive a ON archive_fts.rowid = a.id
-                WHERE archive_fts MATCH ?
-                LIMIT 50
-            ''', (fts_query,))
+            conditions = " AND ".join(["title LIKE ?" for _ in words])
+            params = [f"%{w}%" for w in words]
+            c.execute(
+                f"SELECT title, magnet, source FROM archive WHERE {conditions} LIMIT 200",
+                params
+            )
         except Exception:
-            # Fallback LIKE se FTS non è disponibile o la query è malformata
-            c.execute("SELECT title, magnet, source FROM archive WHERE title LIKE ? LIMIT 50",
+            c.execute("SELECT title, magnet, source FROM archive WHERE title LIKE ? LIMIT 200",
                       (f"%{query}%",))
         return [{'title': r['title'], 'magnet': r['magnet'], 'source': r['source']}
                 for r in c.fetchall()]

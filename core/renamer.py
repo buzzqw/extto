@@ -151,10 +151,19 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
     episode     = ep['episode']
 
     # Usa il nome configurato in series.txt se disponibile (es. "Marshals" invece di "Marshals A Yellowstone Story")
+    # FIX: se il nome torrent è in italiano (es. "Daredevil Rinascita") e non matcha,
+    # prova anche con solo il primo token (es. "Daredevil") per trovare la serie nel DB tramite alias.
     try:
         from .config import Config as _RenamerCfg
         _rcfg = _RenamerCfg()
         _match = _rcfg.find_series_match(series_name, season)
+        if not _match:
+            # Fallback: cerca per primo token — utile per titoli tradotti ("Daredevil Rinascita" → "Daredevil")
+            _first_token = series_name.split()[0] if series_name else ''
+            if _first_token and _first_token.lower() != series_name.lower():
+                _match = _rcfg.find_series_match(_first_token, season)
+                if _match:
+                    logger.info(f"ℹ️  rename: match parziale per titolo tradotto '{series_name}' → '{_match['name']}' (via token '{_first_token}')")
         if _match:
             series_name = _match['name']
     except Exception as e:
@@ -163,6 +172,12 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
     tmdb_lang   = str(cfg.get('tmdb_language', 'it-IT')).strip()
     tmdb        = TMDBClient(api_key, cache_days=int(cfg.get('tmdb_cache_days', 7)), language=tmdb_lang)
     tmdb_id     = tmdb.get_tmdb_id_for_series(db, series_name) if db else tmdb.resolve_series_id(series_name)
+    # FIX: se TMDB non trova nulla con il nome corrente (può essere un titolo italiano tradotto
+    # che non matcha su TMDB), riprova con il nome originale dal torrent prima di arrendersi.
+    if not tmdb_id and series_name != ep['name'].replace('.', ' ').strip():
+        _orig_name = ep['name'].replace('.', ' ').strip()
+        logger.info(f"ℹ️  rename: TMDB fallback con nome originale torrent '{_orig_name}'")
+        tmdb_id = tmdb.get_tmdb_id_for_series(db, _orig_name) if db else tmdb.resolve_series_id(_orig_name)
     ep_title    = tmdb.fetch_episode_title(tmdb_id, season, episode) if tmdb_id else None
 
     if not ep_title:
@@ -203,20 +218,36 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
             # file di altre serie che hanno lo stesso S/E nella stessa cartella
             if ep_f['season'] != season or ep_f['episode'] != episode:
                 continue
-            if not _series_name_matches(normalize_series_name(ep_f['name']), norm_series):
-                logger.debug(f"rename: skip '{fname}' — series mismatch ('{ep_f['name']}' ≠ '{series_name}')")
-                continue
+            norm_ep_name = normalize_series_name(ep_f['name'])
+            if not _series_name_matches(norm_ep_name, norm_series):
+                # FIX: tolleranza titolo tradotto — "Daredevil Rinascita" vs "Daredevil Born Again"
+                # Accetta se il primo token coincide (es. "daredevil" == "daredevil")
+                _nw = norm_series.split()
+                _ew = norm_ep_name.split()
+                if _nw and _ew and _nw[0] == _ew[0]:
+                    logger.debug(f"rename: match parziale (titolo tradotto) '{ep_f['name']}' ~ '{series_name}'")
+                else:
+                    logger.debug(f"rename: skip '{fname}' — series mismatch ('{ep_f['name']}' ≠ '{series_name}')")
+                    continue
         else:
             # File senza info S/E nel nome: usa ep del torrent come fallback (comportamento originale)
             ep_f = ep
 
         tags = {}
         if rename_fmt != 'base':
-            try:
-                from .mediainfo_helper import get_media_tags
-                tags = get_media_tags(os.path.join(save_path, fname))
-            except Exception as e:
-                logger.debug(f"mediainfo tags series: {e}")
+            _media_path = os.path.join(save_path, fname)
+            if not os.path.isfile(_media_path):
+                logger.warning(f"⚠️  mediainfo: file non trovato per analisi tecnica: '{_media_path}'")
+            else:
+                try:
+                    from .mediainfo_helper import get_media_tags
+                    tags = get_media_tags(_media_path)
+                    if not tags:
+                        logger.warning(f"⚠️  mediainfo: nessun tag estratto da '{_media_path}' — verifica pymediainfo/libmediainfo")
+                    else:
+                        logger.debug(f"   mediainfo tags: {tags}")
+                except Exception as e:
+                    logger.warning(f"⚠️  mediainfo tags series: {e}")
 
         new_name = _build_filename(series_name, season, episode, ep_title, ext,
                                    fmt=rename_fmt, year=year, tags=tags, template_str=rename_template)
