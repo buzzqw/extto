@@ -1084,13 +1084,13 @@
                 </div>
 
                 <div class="config-tabs">
-                    <button class="tab-btn active" data-tab="settings" data-i18n-title="Seleziona il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file." title="Seleziona il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file." onclick="app.switchConfigTab('settings')" data-i18n="Client">Client</button>
+                    <button class="tab-btn active" data-tab="settings" data-i18n-title="Seleziona il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file." title="Seleziona il Client Torrent (interno o esterno) che verrà utilizzato per scaricare i file." onclick="app.switchConfigTab('settings')" data-i18n="Download">Download</button>
+                    <button class="tab-btn" data-tab="settings-advanced" data-i18n-title="Protocolli, proxy, IP filter, scheduler e impostazioni avanzate del client." title="Protocolli, proxy, IP filter, scheduler e impostazioni avanzate del client." onclick="app.switchConfigTab('settings-advanced')" data-i18n="Avanzate DL">Avanzate DL</button>
                     <button class="tab-btn" data-tab="scores" data-i18n-title="Personalizza i punteggi assegnati a risoluzioni, sorgenti e codec." title="Personalizza i punteggi assegnati a risoluzioni, sorgenti e codec." onclick="app.switchConfigTab('scores')" data-i18n="Punteggi">Punteggi</button>
                     <button class="tab-btn" data-tab="notifications" data-i18n-title="Configura avvisi Email o bot Telegram alla fine di un download." title="Configura avvisi Email o bot Telegram alla fine di un download." onclick="app.switchConfigTab('notifications')" data-i18n="Notifiche">Notifiche</button>
                     <button class="tab-btn" data-tab="advanced" data-i18n-title="Opzioni di sistema avanzate." title="Opzioni di sistema avanzate." onclick="app.switchConfigTab('advanced')" data-i18n="Avanzate">Avanzate</button>
                     <button class="tab-btn" data-tab="urls" data-i18n-title="Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli." title="Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli." onclick="app.switchConfigTab('urls')" data-i18n="Fonti">Fonti</button>
-                    <button class="tab-btn" data-tab="trakt" title="Integrazione Trakt.tv: watchlist, calendar e scrobbling" onclick="app.switchConfigTab('trakt')"><i class="fa-solid fa-fire" style="color:#e8323c;"></i> Trakt.tv</button>
-                    <button class="tab-btn" data-tab="mediaserver" title="Integrazione Jellyfin/Plex: library refresh automatico dopo rinomina" onclick="app.switchConfigTab('mediaserver')"><i class="fa-solid fa-photo-film" style="color:#00a4dc;"></i> Jellyfin/Plex</button>
+                    <button class="tab-btn" data-tab="integrazioni" title="Integrazioni con Trakt.tv, Jellyfin e Plex" onclick="app.switchConfigTab('integrazioni')"><i class="fa-solid fa-plug" style="color:#a78bfa;"></i> <span data-i18n="Integrazioni">Integrazioni</span></button>
                 </div>
 
                 <div id="config-settings" class="config-panel active">
@@ -1121,20 +1121,17 @@
                                     <div class="form-group"><label><span data-i18n="Cartella temporanea">Cartella temporanea</span></label><div style="display:flex; gap:8px;"><input type="text" id="lt-temp-dir" class="form-input" style="flex:1;" data-i18n-title="Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare." title="Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare." placeholder="Opzionale" data-i18n-placeholder="Opzionale"><button type="button" class="btn btn-secondary btn-small" data-i18n-title="Sfoglia cartelle del server" title="Sfoglia cartelle del server" onclick="event.stopPropagation(); app.openDirBrowser('lt-temp-dir')"><i class="fa-regular fa-folder-open"></i></button></div></div>
                                     <div class="form-group"><label><span data-i18n="Porta min">Porta min</span></label><input type="number" id="lt-port-min" class="form-input" data-i18n-title="Porta minima TCP/UDP per ricevere connessioni. Ricorda di aprire questa porta sul router (Port Forwarding)." title="Porta minima TCP/UDP per ricevere connessioni. Ricorda di aprire questa porta sul router (Port Forwarding)." placeholder="6881" data-i18n-placeholder="6881"></div>
                                     <div class="form-group"><label><span data-i18n="Porta max">Porta max</span></label><input type="number" id="lt-port-max" class="form-input" data-i18n-title="Porta massima." title="Porta massima." placeholder="6891" data-i18n-placeholder="6891"></div>
-                                    <div class="form-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><select id="lt-paused" class="form-input" data-i18n-title="Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale." title="Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale."><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
-                                    <div class="form-group"><label><span data-i18n="Download Sequenziale">Download Sequenziale</span> <span class="unit" data-i18n-title="Scarica i pezzi sequenzialmente dall'inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi." title="Scarica i pezzi sequenzialmente dall'inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi.">ⓘ</span></label><select id="lt-sequential" class="form-input"><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
+                                    <div class="form-group toggle-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch" title="Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale." data-i18n-title="Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale."><input type="checkbox" id="lt-paused" value="yes"><span class="toggle-slider"></span></label></div>
+                                    <div class="form-group toggle-group"><label><span data-i18n="Download Sequenziale">Download Sequenziale</span> <span class="unit" data-i18n-title="Scarica i pezzi sequenzialmente dall'inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi." title="Scarica i pezzi sequenzialmente dall'inizio alla fine del file, in modo da poter iniziare la riproduzione su VLC/Plex mentre il download non è ancora terminato. Attenzione: può penalizzare la velocità se i peer hanno i pezzi sparsi.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-sequential" value="yes"><span class="toggle-slider"></span></label></div>
                                 </div>
 
                                 <div class="lt-section-title">🐏 <span data-i18n="RAM Disk (Download Temporaneo)">RAM Disk (Download Temporaneo)</span>
                                     <span class="unit" title="Se abilitato, EXTTO scarica i torrent piccoli direttamente in RAM (tmpfs) invece che su disco. Al completamento li sposta nella cartella definitiva. Richiede un tmpfs montato dall'utente in /etc/fstab." data-i18n-title="Se abilitato, EXTTO scarica i torrent piccoli direttamente in RAM (tmpfs) invece che su disco. Al completamento li sposta nella cartella definitiva. Richiede un tmpfs montato dall'utente in /etc/fstab.">ⓘ</span>
                                 </div>
                                 <div class="form-grid lt-grid">
-                                    <div class="form-group">
+                                    <div class="form-group toggle-group">
                                         <label><span data-i18n="RAM Disk abilitato">RAM Disk abilitato</span></label>
-                                        <select id="lt-ramdisk-enabled" class="form-input" onchange="app.toggleRamdisk()">
-                                            <option value="no"  data-i18n="No">No</option>
-                                            <option value="yes" data-i18n="Sì">Sì</option>
-                                        </select>
+                                        <label class="toggle-switch"><input type="checkbox" id="lt-ramdisk-enabled" value="yes" onchange="app.toggleRamdisk()"><span class="toggle-slider"></span></label>
                                     </div>
                                 </div>
                                 <div id="lt-ramdisk-fields" style="display:none;">
@@ -1169,7 +1166,7 @@
                                                 </span>
                                             </div>
                                             <!-- Istruzioni fstab collassabili -->
-                                            <details style="margin-top:0.6rem;">
+                                            <details id="lt-ramdisk-fstab-help" style="margin-top:0.6rem;">
                                                 <summary style="cursor:pointer; font-size:0.8rem; color:var(--text-secondary);" data-i18n="Come creare il RAM disk (fstab)">Come creare il RAM disk (fstab)</summary>
                                                 <div style="margin-top:0.4rem; padding:0.6rem 0.9rem; background:var(--bg-secondary); border-radius:4px; font-size:0.78rem; font-family:monospace; color:var(--text-secondary); white-space:pre-wrap;">sudo mkdir -p /mnt/ramdisk
 # Aggiungi a /etc/fstab:
@@ -1225,7 +1222,7 @@ sudo mount /mnt/ramdisk</div>
 
                                 <div class="lt-section-title" data-i18n="Seeding">Seeding</div>
                                 <div class="form-grid lt-grid">
-                                    <div class="form-group"><label><span data-i18n="Stop automatico al ratio">Stop automatico al ratio</span></label><select id="lt-stop-at-ratio" class="form-input" data-i18n-title="Se attivo, interrompe il torrent una volta raggiunto il target (vedi sotto). Evita il seed all'infinito." title="Se attivo, interrompe il torrent una volta raggiunto il target (vedi sotto). Evita il seed all'infinito."><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
+                                    <div class="form-group toggle-group"><label><span data-i18n="Stop automatico al ratio">Stop automatico al ratio</span></label><label class="toggle-switch" title="Se attivo, interrompe il torrent una volta raggiunto il target (vedi sotto). Evita il seed all'infinito." data-i18n-title="Se attivo, interrompe il torrent una volta raggiunto il target (vedi sotto). Evita il seed all'infinito."><input type="checkbox" id="lt-stop-at-ratio" value="yes"><span class="toggle-slider"></span></label></div>
                                     <div class="form-group"><label><span data-i18n="Seed ratio">Seed ratio</span></label><input type="number" id="lt-seed-ratio" class="form-input" data-i18n-title="Es. 1.0 significa che il torrent si fermerà quando avrai caricato (upload) la stessa quantità di dati che hai scaricato." title="Es. 1.0 significa che il torrent si fermerà quando avrai caricato (upload) la stessa quantità di dati che hai scaricato." placeholder="0" data-i18n-placeholder="0" step="0.1"></div>
                                     <div class="form-group"><label><span data-i18n="Seed time massimo (giorni)">Seed time massimo (giorni)</span></label><input type="number" id="lt-seed-time-days" class="form-input" data-i18n-title="Numero massimo di giorni per il quale un torrent rimarrà in seed, a prescindere dal ratio raggiunto." title="Numero massimo di giorni per il quale un torrent rimarrà in seed, a prescindere dal ratio raggiunto." placeholder="0" data-i18n-placeholder="0" step="0.5" min="0"></div>
                                 </div>
@@ -1248,109 +1245,6 @@ sudo mount /mnt/ramdisk</div>
                                     <div class="form-group"><label data-i18n="Max torrent attivi totali">Max torrent attivi totali</label><input type="number" id="lt-active-limit" class="form-input" data-i18n-title="Limite totale tra download + seeding attivi. Deve essere ≥ dei due valori sopra." title="Limite totale tra download + seeding attivi. Deve essere ≥ dei due valori sopra." placeholder="5" data-i18n-placeholder="5" min="1"></div>
                                 </div>
 
-                                <div class="lt-section-title"><span data-i18n="Torrent Lenti">Torrent Lenti</span> <span class="unit" data-i18n-title="Un torrent 'lento' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri." title="Un torrent 'lento' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri.">ⓘ</span></div>
-                                <div class="form-grid lt-grid">
-                                    <div class="form-group"><label><span data-i18n="Soglia download lento">Soglia download lento</span> <span class="unit">(KB/s)</span></label><input type="number" id="lt-slow-dl" class="form-input" data-i18n-title="Sotto questa velocità di download, il torrent è considerato 'lento' e non occupa uno slot attivo." title="Sotto questa velocità di download, il torrent è considerato 'lento' e non occupa uno slot attivo." placeholder="2" data-i18n-placeholder="2" min="0"></div>
-                                    <div class="form-group"><label><span data-i18n="Soglia upload lento">Soglia upload lento</span> <span class="unit">(KB/s)</span></label><input type="number" id="lt-slow-ul" class="form-input" data-i18n-title="Sotto questa velocità di upload, il torrent è considerato 'lento'." title="Sotto questa velocità di upload, il torrent è considerato 'lento'." placeholder="2" data-i18n-placeholder="2" min="0"></div>
-                                </div>
-
-                                <div class="lt-section-title"><span data-i18n="File">File</span></div>
-                                <div class="form-grid lt-grid">
-                                    <div class="form-group"><label><span data-i18n="Prealloca spazio su disco">Prealloca spazio su disco</span> <span class="unit" data-i18n-title="Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito." title="Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito.">ⓘ</span></label><select id="lt-preallocate" class="form-input"><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
-                                </div>
-
-                                <div class="lt-section-title">🕐 <span data-i18n="Scheduler Velocità">Scheduler Velocità</span></div>
-                                <div class="form-grid lt-grid">
-                                    <div class="form-group lt-span2">
-                                        <label><span data-i18n="Scheduler abilitato">Scheduler abilitato</span>
-                                            <span class="unit" data-i18n-title="Applica limiti di velocità diversi in fasce orarie programmabili. Esempio: velocità piena di notte (01:00-08:00), limitata di giorno per non intralciare lo streaming e lo smart working." title="Applica limiti di velocità diversi in fasce orarie programmabili. Esempio: velocità piena di notte (01:00-08:00), limitata di giorno per non intralciare lo streaming e lo smart working.">ⓘ</span>
-                                        </label>
-                                        <select id="lt-sched-enabled" class="form-input" onchange="app.toggleScheduler()">
-                                            <option value="no" data-i18n="Disabilitato">Disabilitato</option>
-                                            <option value="yes" data-i18n="Abilitato">Abilitato</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group" id="sched-start-group">
-                                        <label><span data-i18n="Orario inizio">Orario inizio</span> <span class="unit"><span data-i18n="(velocità programmata)">(velocità programmata)</span></span></label>
-                                        <input type="time" id="lt-sched-start" class="form-input" data-i18n-title="Orario in cui entrano in vigore i limiti dello Scheduler." title="Orario in cui entrano in vigore i limiti dello Scheduler." value="23:00">
-                                    </div>
-                                    <div class="form-group" id="sched-end-group">
-                                        <label><span data-i18n="Orario fine">Orario fine</span> <span class="unit"><span data-i18n="(ripristino limiti base)">(ripristino limiti base)</span></span></label>
-                                        <input type="time" id="lt-sched-end" class="form-input" data-i18n-title="Orario in cui terminano i limiti dello Scheduler e tornano attivi i limiti generici inseriti sopra." title="Orario in cui terminano i limiti dello Scheduler e tornano attivi i limiti generici inseriti sopra." value="08:00">
-                                    </div>
-                                    <div class="form-group" id="sched-limits-group">
-                                        <label><span data-i18n="Download durante scheduler (KB/s)">Download durante scheduler (KB/s)</span> <span class="unit"><span data-i18n="0 = illimitato">0 = illimitato</span></span></label>
-                                        <input type="number" id="lt-sched-dl" class="form-input" data-i18n-title="Velocità download nel periodo programmato." title="Velocità download nel periodo programmato." placeholder="0" data-i18n-placeholder="0" min="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label><span data-i18n="Upload durante scheduler (KB/s)">Upload durante scheduler (KB/s)</span> <span class="unit"><span data-i18n="0 = illimitato">0 = illimitato</span></span></label>
-                                        <input type="number" id="lt-sched-ul" class="form-input" data-i18n-title="Velocità upload nel periodo programmato." title="Velocità upload nel periodo programmato." placeholder="0" data-i18n-placeholder="0" min="0">
-                                    </div>
-                                    <div class="form-group lt-span2">
-                                        <label><span data-i18n="Giorni attivi">Giorni attivi</span> <span class="unit"><span data-i18n="(lascia vuoto = tutti i giorni)">(lascia vuoto = tutti i giorni)</span></span></label>
-                                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.25rem;" id="sched-days-group" data-i18n-title="Seleziona in quali giorni della settimana attivare lo scheduler orario." title="Seleziona in quali giorni della settimana attivare lo scheduler orario.">
-                                            <label class="sched-day-btn"><input type="checkbox" value="0" id="sched-day-0" class="sched-day-cb"> <span data-i18n="Lun">Lun</span></label>
-                                            <label class="sched-day-btn"><input type="checkbox" value="1" id="sched-day-1" class="sched-day-cb"> <span data-i18n="Mar">Mar</span></label>
-                                            <label class="sched-day-btn"><input type="checkbox" value="2" id="sched-day-2" class="sched-day-cb"> <span data-i18n="Mer">Mer</span></label>
-                                            <label class="sched-day-btn"><input type="checkbox" value="3" id="sched-day-3" class="sched-day-cb"> <span data-i18n="Gio">Gio</span></label>
-                                            <label class="sched-day-btn"><input type="checkbox" value="4" id="sched-day-4" class="sched-day-cb"> <span data-i18n="Ven">Ven</span></label>
-                                            <label class="sched-day-btn"><input type="checkbox" value="5" id="sched-day-5" class="sched-day-cb"> <span data-i18n="Sab">Sab</span></label>
-                                            <label class="sched-day-btn"><input type="checkbox" value="6" id="sched-day-6" class="sched-day-cb"> <span data-i18n="Dom">Dom</span></label>
-                                        </div>
-                                        <small style="color:var(--text-muted); margin-top:0.3rem; display:block;" data-i18n="Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.">Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.</small>
-                                    </div>
-                                </div>
-
-                                <div class="lt-section-title">🛡️ IP Filter / Blocklist</div>
-                                <div class="form-grid lt-grid">
-                                    <div class="form-group lt-span2">
-                                        <label><span data-i18n="URL blocklist">URL blocklist</span> <span class="unit" data-i18n-title="Aumenta esponenzialmente la privacy! URL di una blocklist in formato P2P (eMule dat), PeerGuardian (.p2p), o ZIP/GZ. Blocca la connessione con aziende anti-p2p, governi o peer malevoli." title="Aumenta esponenzialmente la privacy! URL di una blocklist in formato P2P (eMule dat), PeerGuardian (.p2p), o ZIP/GZ. Blocca la connessione con aziende anti-p2p, governi o peer malevoli.">ⓘ</span></label>
-                                        <input type="text" id="lt-ipfilter-url" class="form-input" placeholder="https://www.iblocklist.com/lists.php">
-                                       <small style="color:var(--text-muted); margin-top:0.3rem; display:block;">
-                                            Liste consigliate compatibili:
-                                            <button type="button" class="btn btn-small btn-secondary" style="padding:0.1rem 0.5rem; font-size:0.75rem;" onclick="document.getElementById('lt-ipfilter-url').value='https://mirror.codebucket.de/transmission/blocklist.p2p'">Codebucket (P2P)</button>
-                                            <button type="button" class="btn btn-small btn-secondary" style="padding:0.1rem 0.5rem; font-size:0.75rem;" onclick="document.getElementById('lt-ipfilter-url').value='https://github.com/Aetherinox/blocklists/raw/refs/heads/main/blocklists/transmission/blocklist.gz'">Aetherinox (GZ)</button>
-                                        </small>
-                                    </div>
-                                    <div class="form-group" id="lt-ipfilter-status-group">
-                                        <label data-i18n="Stato">Stato</label>
-                                        <div id="lt-ipfilter-status" style="font-size:0.85rem; color:var(--text-secondary); padding:0.5rem 0;">—</div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label><span data-i18n="Aggiornamento automatico">Aggiornamento automatico</span></label>
-                                        <select id="lt-ipfilter-autoupdate" class="form-input" data-i18n-title="Programma EXTTO per ricaricare la blocklist in automatico. Consigliato: Ogni 24h." title="Programma EXTTO per ricaricare la blocklist in automatico. Consigliato: Ogni 24h.">
-                                            <option value="no" data-i18n="Disabilitato">Disabilitato</option>
-                                            <option value="yes">Ogni 24h</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group lt-span2">
-                                        <button type="button" class="btn btn-secondary" data-i18n-title="Scarica ed esamina la blocklist per applicare subito i divieti IP in libtorrent." title="Scarica ed esamina la blocklist per applicare subito i divieti IP in libtorrent." onclick="app.updateIpFilter()"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="Aggiorna Blocklist Ora">Aggiorna Blocklist Ora</span></button>
-                                    </div>
-                                </div>
-                                <div class="form-grid lt-grid">
-                                    <div class="form-group"><label><span data-i18n="Tipo proxy">Tipo proxy</span></label><select id="lt-proxy-type" class="form-input" data-i18n-title="Seleziona SOCKS5 se disponi di un proxy dedicato per nascondere il traffico P2P (es. offerto dalla tua VPN)." title="Seleziona SOCKS5 se disponi di un proxy dedicato per nascondere il traffico P2P (es. offerto dalla tua VPN)." onchange="app.toggleProxyFields()"><option value="none" data-i18n="Nessuno">Nessuno</option><option value="socks5"><span data-i18n="SOCKS5">SOCKS5</span></option><option value="http">HTTP</option></select></div>
-                                    <div class="form-group" id="lt-proxy-host-group"><label data-i18n="Host">Host</label><input type="text" id="lt-proxy-host" class="form-input" data-i18n-title="Indirizzo IP o dominio del proxy" title="Indirizzo IP o dominio del proxy"></div>
-                                    <div class="form-group" id="lt-proxy-port-group"><label><span data-i18n="Porta">Porta</span></label><input type="number" id="lt-proxy-port" class="form-input" data-i18n-title="Porta del proxy (es. 1080 per socks5)" title="Porta del proxy (es. 1080 per socks5)"></div>
-                                    <div class="form-group" id="lt-proxy-user-group"><label data-i18n="Username">User</label><input type="text" id="lt-proxy-user" class="form-input" data-i18n-title="Opzionale se il proxy richiede autenticazione" title="Opzionale se il proxy richiede autenticazione"></div>
-                                    <div class="form-group" id="lt-proxy-pass-group"><label>Pass</label><input type="password" id="lt-proxy-pass" class="form-input"></div>
-                                </div>
-
-                                <div class="lt-section-title"><span data-i18n="Protocolli">Protocolli</span></div>
-                            <div class="form-grid lt-grid">
-                                <div class="form-group"><label><span data-i18n="Crittografia">Crittografia</span> <span class="unit" data-i18n-title="Evita limitazioni (throttling) da parte dell'ISP. Forzata assicura privacy ma può ridurre il numero di fonti trovate." title="Evita limitazioni (throttling) da parte dell'ISP. Forzata assicura privacy ma può ridurre il numero di fonti trovate.">ⓘ</span></label><select id="lt-encryption" class="form-input"><option value="0"><span data-i18n="Disabilitata">Disabilitata</span></option><option value="1"><span data-i18n="Abilitata (preferita)">Abilitata (preferita)</span></option><option value="2" data-i18n="Forzata">Forzata</option></select></div>
-                                <div class="form-group"><label><span data-i18n="DHT">DHT</span></label><select id="lt-dht" class="form-input" data-i18n-title="Distributed Hash Table: indispensabile per trovare peer senza tracker (Magnet Link puri). Lascialo abilitato." title="Distributed Hash Table: indispensabile per trovare peer senza tracker (Magnet Link puri). Lascialo abilitato."><option value="yes" data-i18n="Abilitato">Abilitato</option><option value="no" data-i18n="Disabilitato">Disabilitato</option></select></div>
-                                <div class="form-group"><label><span data-i18n="PEX (Peer Exchange)">PEX (Peer Exchange)</span></label><select id="lt-pex" class="form-input" data-i18n-title="Scambio di peer: ottiene elenchi di contatti dagli altri utenti collegati, accelerando il download." title="Scambio di peer: ottiene elenchi di contatti dagli altri utenti collegati, accelerando il download."><option value="yes" data-i18n="Abilitato">Abilitato</option><option value="no" data-i18n="Disabilitato">Disabilitato</option></select></div>
-                                <div class="form-group"><label><span data-i18n="LSD (Local Discovery)">LSD (Local Discovery)</span></label><select id="lt-lsd" class="form-input" data-i18n-title="Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici." title="Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici."><option value="yes" data-i18n="Abilitato">Abilitato</option><option value="no" data-i18n="Disabilitato">Disabilitato</option></select></div>
-                                <div class="form-group"><label><span data-i18n="UPnP (apertura porte)">UPnP (apertura porte)</span></label><select id="lt-upnp" class="form-input" data-i18n-title="Tenta di aprire la porta configurata sul router automaticamente. Se fallisce, devi faro manualmente nel pannello router." title="Tenta di aprire la porta configurata sul router automaticamente. Se fallisce, devi faro manualmente nel pannello router."><option value="yes" data-i18n="Abilitato">Abilitato</option><option value="no" data-i18n="Disabilitato">Disabilitato</option></select></div>
-                                <div class="form-group"><label><span data-i18n="NAT-PMP">NAT-PMP</span></label><select id="lt-natpmp" class="form-input" data-i18n-title="Protocollo alternativo a UPnP, tipico dei router Apple/pfSense." title="Protocollo alternativo a UPnP, tipico dei router Apple/pfSense."><option value="yes" data-i18n="Abilitato">Abilitato</option><option value="no" data-i18n="Disabilitato">Disabilitato</option></select></div>
-                                <div class="form-group"><label><span data-i18n="Announce a tutti i tracker">Announce a tutti i tracker</span></label><select id="lt-announce-all" class="form-input" data-i18n-title="Invia la tua presenza a TUTTI i tracker della lista invece che ad uno solo, massimizzando l'elenco di fonti trovate." title="Invia la tua presenza a TUTTI i tracker della lista invece che ad uno solo, massimizzando l'elenco di fonti trovate."><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
-                            </div>
-
-                            <div class="lt-section-title"><span data-i18n="Tracker extra">Tracker extra</span></div>
-                            <div class="form-group">
-                                <label><span data-i18n="Tracker aggiuntivi">Tracker aggiuntivi</span> <span class="unit"><span data-i18n="(separati da |)">(separati da |)</span></span></label>
-                                <textarea id="lt-extra-trackers" class="form-input" rows="3" data-i18n-title="Incolla tracker pubblici per aumentare la velocità in caso di torrent poco diffusi. Il sistema li applicherà a tutti i nuovi download." title="Incolla tracker pubblici per aumentare la velocità in caso di torrent poco diffusi. Il sistema li applicherà a tutti i nuovi download." placeholder="udp://tracker.opentrackr.org:1337/announce | udp://..."></textarea>
-                            </div>
 
                             <div style="margin-top:1.5rem; display:flex; gap:1rem; flex-wrap:wrap;">
                                 <button class="btn btn-secondary" data-i18n-title="Invia i parametri aggiornati all'istanza libtorrent attualmente in corsa in background. Non salva su file config.ini." title="Invia i parametri aggiornati all'istanza libtorrent attualmente in corsa in background. Non salva su file config.ini." onclick="app.reapplyLtSettings()"><i class="fa-solid fa-rotate"></i> <span data-i18n="Riapplica Settings (senza salvare)">Riapplica Settings (senza salvare)</span></button>
@@ -1366,7 +1260,7 @@ sudo mount /mnt/ramdisk</div>
                                     <div class="form-group"><label><span data-i18n="Username">Username</span></label><input type="text" id="qbt-user" class="form-input" data-i18n-title="Utente dell'interfaccia web di qBit" title="Utente dell'interfaccia web di qBit" placeholder="admin"></div>
                                     <div class="form-group"><label><span data-i18n="Password">Password</span></label><input type="password" id="qbt-pass" class="form-input"></div>
                                     <div class="form-group"><label data-i18n="Categoria">Categoria</label><input type="text" id="qbt-category" class="form-input" data-i18n-title="Etichetta passata a qBittorrent per automatizzare spostamenti file." title="Etichetta passata a qBittorrent per automatizzare spostamenti file." placeholder="tv" data-i18n-placeholder="tv"></div>
-                                    <div class="form-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><select id="qbt-paused" class="form-input" data-i18n-title="Passa il link a qBit ma non lo avvia." title="Passa il link a qBit ma non lo avvia."><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
+                                    <div class="form-group toggle-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch" title="Passa il link a qBit ma non lo avvia." data-i18n-title="Passa il link a qBit ma non lo avvia."><input type="checkbox" id="qbt-paused" value="yes"><span class="toggle-slider"></span></label></div>
                                 </div>
                             </div>
                         </div>
@@ -1378,7 +1272,7 @@ sudo mount /mnt/ramdisk</div>
                                     <div class="form-group lt-span2"><label><span data-i18n="URL RPC">URL RPC</span></label><input type="text" id="tr-url" class="form-input" data-i18n-title="L'endpoint deve terminare con /transmission/rpc" title="L'endpoint deve terminare con /transmission/rpc" placeholder="http://localhost:9091/transmission/rpc"></div>
                                     <div class="form-group"><label>Username</label><input type="text" id="tr-user" class="form-input"></div>
                                     <div class="form-group"><label>Password</label><input type="password" id="tr-pass" class="form-input"></div>
-                                    <div class="form-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><select id="tr-paused" class="form-input"><option value="no" data-i18n="No">No</option><option value="yes" data-i18n="Sì">Sì</option></select></div>
+                                    <div class="form-group toggle-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch"><input type="checkbox" id="tr-paused" value="yes"><span class="toggle-slider"></span></label></div>
                                 </div>
                             </div>
                         </div>
@@ -1476,6 +1370,124 @@ sudo mount /mnt/ramdisk</div>
 </div>
                     </div>
                 </div>
+
+                <!-- IMPROVEMENT 2: Avanzate Download tab -->
+                <div id="config-settings-advanced" class="config-panel">
+                    <div class="card" style="margin-bottom:1.5rem;">
+                        <div class="card-header">
+                            <i class="fa-solid fa-microchip"></i> libtorrent — <span data-i18n="Impostazioni Avanzate">Impostazioni Avanzate</span>
+                        </div>
+                        <div class="card-body">
+
+                                <div class="lt-section-title"><span data-i18n="Torrent Lenti">Torrent Lenti</span> <span class="unit" data-i18n-title="Un torrent 'lento' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri." title="Un torrent 'lento' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri.">ⓘ</span></div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group"><label><span data-i18n="Soglia download lento">Soglia download lento</span> <span class="unit">(KB/s)</span></label><input type="number" id="lt-slow-dl" class="form-input" data-i18n-title="Sotto questa velocità di download, il torrent è considerato 'lento' e non occupa uno slot attivo." title="Sotto questa velocità di download, il torrent è considerato 'lento' e non occupa uno slot attivo." placeholder="2" data-i18n-placeholder="2" min="0"></div>
+                                    <div class="form-group"><label><span data-i18n="Soglia upload lento">Soglia upload lento</span> <span class="unit">(KB/s)</span></label><input type="number" id="lt-slow-ul" class="form-input" data-i18n-title="Sotto questa velocità di upload, il torrent è considerato 'lento'." title="Sotto questa velocità di upload, il torrent è considerato 'lento'." placeholder="2" data-i18n-placeholder="2" min="0"></div>
+                                </div>
+
+                                <div class="lt-section-title"><span data-i18n="File">File</span></div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group toggle-group"><label><span data-i18n="Prealloca spazio su disco">Prealloca spazio su disco</span> <span class="unit" data-i18n-title="Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito." title="Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-preallocate" value="yes"><span class="toggle-slider"></span></label></div>
+                                </div>
+
+                                <div class="lt-section-title">🕐 <span data-i18n="Scheduler Velocità">Scheduler Velocità</span></div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group lt-span2">
+                                        <label><span data-i18n="Scheduler abilitato">Scheduler abilitato</span>
+                                            <span class="unit" data-i18n-title="Applica limiti di velocità diversi in fasce orarie programmabili. Esempio: velocità piena di notte (01:00-08:00), limitata di giorno per non intralciare lo streaming e lo smart working." title="Applica limiti di velocità diversi in fasce orarie programmabili. Esempio: velocità piena di notte (01:00-08:00), limitata di giorno per non intralciare lo streaming e lo smart working.">ⓘ</span>
+                                        </label>
+                                        <label class="toggle-switch" style="margin-top:0.3rem;"><input type="checkbox" id="lt-sched-enabled" value="yes" onchange="app.toggleScheduler()"><span class="toggle-slider"></span></label>
+                                    </div>
+                                    <div class="form-group" id="sched-start-group">
+                                        <label><span data-i18n="Orario inizio">Orario inizio</span> <span class="unit"><span data-i18n="(velocità programmata)">(velocità programmata)</span></span></label>
+                                        <input type="time" id="lt-sched-start" class="form-input" data-i18n-title="Orario in cui entrano in vigore i limiti dello Scheduler." title="Orario in cui entrano in vigore i limiti dello Scheduler." value="23:00">
+                                    </div>
+                                    <div class="form-group" id="sched-end-group">
+                                        <label><span data-i18n="Orario fine">Orario fine</span> <span class="unit"><span data-i18n="(ripristino limiti base)">(ripristino limiti base)</span></span></label>
+                                        <input type="time" id="lt-sched-end" class="form-input" data-i18n-title="Orario in cui terminano i limiti dello Scheduler e tornano attivi i limiti generici inseriti sopra." title="Orario in cui terminano i limiti dello Scheduler e tornano attivi i limiti generici inseriti sopra." value="08:00">
+                                    </div>
+                                    <div class="form-group" id="sched-limits-group">
+                                        <label><span data-i18n="Download durante scheduler (KB/s)">Download durante scheduler (KB/s)</span> <span class="unit"><span data-i18n="0 = illimitato">0 = illimitato</span></span></label>
+                                        <input type="number" id="lt-sched-dl" class="form-input" data-i18n-title="Velocità download nel periodo programmato." title="Velocità download nel periodo programmato." placeholder="0" data-i18n-placeholder="0" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label><span data-i18n="Upload durante scheduler (KB/s)">Upload durante scheduler (KB/s)</span> <span class="unit"><span data-i18n="0 = illimitato">0 = illimitato</span></span></label>
+                                        <input type="number" id="lt-sched-ul" class="form-input" data-i18n-title="Velocità upload nel periodo programmato." title="Velocità upload nel periodo programmato." placeholder="0" data-i18n-placeholder="0" min="0">
+                                    </div>
+                                    <div class="form-group lt-span2">
+                                        <label><span data-i18n="Giorni attivi">Giorni attivi</span> <span class="unit"><span data-i18n="(lascia vuoto = tutti i giorni)">(lascia vuoto = tutti i giorni)</span></span></label>
+                                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.25rem;" id="sched-days-group" data-i18n-title="Seleziona in quali giorni della settimana attivare lo scheduler orario." title="Seleziona in quali giorni della settimana attivare lo scheduler orario.">
+                                            <label class="sched-day-btn"><input type="checkbox" value="0" id="sched-day-0" class="sched-day-cb"> <span data-i18n="Lun">Lun</span></label>
+                                            <label class="sched-day-btn"><input type="checkbox" value="1" id="sched-day-1" class="sched-day-cb"> <span data-i18n="Mar">Mar</span></label>
+                                            <label class="sched-day-btn"><input type="checkbox" value="2" id="sched-day-2" class="sched-day-cb"> <span data-i18n="Mer">Mer</span></label>
+                                            <label class="sched-day-btn"><input type="checkbox" value="3" id="sched-day-3" class="sched-day-cb"> <span data-i18n="Gio">Gio</span></label>
+                                            <label class="sched-day-btn"><input type="checkbox" value="4" id="sched-day-4" class="sched-day-cb"> <span data-i18n="Ven">Ven</span></label>
+                                            <label class="sched-day-btn"><input type="checkbox" value="5" id="sched-day-5" class="sched-day-cb"> <span data-i18n="Sab">Sab</span></label>
+                                            <label class="sched-day-btn"><input type="checkbox" value="6" id="sched-day-6" class="sched-day-cb"> <span data-i18n="Dom">Dom</span></label>
+                                        </div>
+                                        <small style="color:var(--text-muted); margin-top:0.3rem; display:block;" data-i18n="Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.">Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.</small>
+                                    </div>
+                                </div>
+
+                                <div class="lt-section-title">🛡️ IP Filter / Blocklist</div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group lt-span2">
+                                        <label><span data-i18n="URL blocklist">URL blocklist</span> <span class="unit" data-i18n-title="Aumenta esponenzialmente la privacy! URL di una blocklist in formato P2P (eMule dat), PeerGuardian (.p2p), o ZIP/GZ. Blocca la connessione con aziende anti-p2p, governi o peer malevoli." title="Aumenta esponenzialmente la privacy! URL di una blocklist in formato P2P (eMule dat), PeerGuardian (.p2p), o ZIP/GZ. Blocca la connessione con aziende anti-p2p, governi o peer malevoli.">ⓘ</span></label>
+                                        <input type="text" id="lt-ipfilter-url" class="form-input" placeholder="https://www.iblocklist.com/lists.php">
+                                       <small style="color:var(--text-muted); margin-top:0.3rem; display:block;">
+                                            Liste consigliate compatibili:
+                                            <button type="button" class="btn btn-small btn-secondary" style="padding:0.1rem 0.5rem; font-size:0.75rem;" onclick="document.getElementById('lt-ipfilter-url').value='https://mirror.codebucket.de/transmission/blocklist.p2p'">Codebucket (P2P)</button>
+                                            <button type="button" class="btn btn-small btn-secondary" style="padding:0.1rem 0.5rem; font-size:0.75rem;" onclick="document.getElementById('lt-ipfilter-url').value='https://github.com/Aetherinox/blocklists/raw/refs/heads/main/blocklists/transmission/blocklist.gz'">Aetherinox (GZ)</button>
+                                        </small>
+                                    </div>
+                                    <div class="form-group" id="lt-ipfilter-status-group">
+                                        <label data-i18n="Stato">Stato</label>
+                                        <div id="lt-ipfilter-status" style="font-size:0.85rem; color:var(--text-secondary); padding:0.5rem 0;">—</div>
+                                    </div>
+                                    <div class="form-group toggle-group">
+                                        <label><span data-i18n="Aggiornamento automatico">Aggiornamento automatico</span> <span class="unit">(ogni 24h)</span></label>
+                                        <label class="toggle-switch" title="Programma EXTTO per ricaricare la blocklist in automatico. Consigliato: Ogni 24h." data-i18n-title="Programma EXTTO per ricaricare la blocklist in automatico. Consigliato: Ogni 24h."><input type="checkbox" id="lt-ipfilter-autoupdate" value="yes"><span class="toggle-slider"></span></label>
+                                    </div>
+                                    <div class="form-group lt-span2">
+                                        <button type="button" class="btn btn-secondary" data-i18n-title="Scarica ed esamina la blocklist per applicare subito i divieti IP in libtorrent." title="Scarica ed esamina la blocklist per applicare subito i divieti IP in libtorrent." onclick="app.updateIpFilter()"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="Aggiorna Blocklist Ora">Aggiorna Blocklist Ora</span></button>
+                                    </div>
+                                </div>
+
+                                <div class="lt-section-title"><span data-i18n="Proxy">Proxy</span></div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group"><label><span data-i18n="Tipo proxy">Tipo proxy</span></label><select id="lt-proxy-type" class="form-input" data-i18n-title="Seleziona SOCKS5 se disponi di un proxy dedicato per nascondere il traffico P2P (es. offerto dalla tua VPN)." title="Seleziona SOCKS5 se disponi di un proxy dedicato per nascondere il traffico P2P (es. offerto dalla tua VPN)." onchange="app.toggleProxyFields()"><option value="none" data-i18n="Nessuno">Nessuno</option><option value="socks5"><span data-i18n="SOCKS5">SOCKS5</span></option><option value="http">HTTP</option></select></div>
+                                    <div class="form-group" id="lt-proxy-host-group"><label data-i18n="Host">Host</label><input type="text" id="lt-proxy-host" class="form-input" data-i18n-title="Indirizzo IP o dominio del proxy" title="Indirizzo IP o dominio del proxy"></div>
+                                    <div class="form-group" id="lt-proxy-port-group"><label><span data-i18n="Porta">Porta</span></label><input type="number" id="lt-proxy-port" class="form-input" data-i18n-title="Porta del proxy (es. 1080 per socks5)" title="Porta del proxy (es. 1080 per socks5)"></div>
+                                    <div class="form-group" id="lt-proxy-user-group"><label data-i18n="Username">User</label><input type="text" id="lt-proxy-user" class="form-input" data-i18n-title="Opzionale se il proxy richiede autenticazione" title="Opzionale se il proxy richiede autenticazione"></div>
+                                    <div class="form-group" id="lt-proxy-pass-group"><label>Pass</label><input type="password" id="lt-proxy-pass" class="form-input"></div>
+                                </div>
+
+                                <div class="lt-section-title"><span data-i18n="Protocolli">Protocolli</span></div>
+                            <div class="form-grid lt-grid" style="margin-bottom:0.5rem;">
+                                <div class="form-group"><label><span data-i18n="Crittografia">Crittografia</span> <span class="unit" data-i18n-title="Evita limitazioni (throttling) da parte dell'ISP. Forzata assicura privacy ma può ridurre il numero di fonti trovate." title="Evita limitazioni (throttling) da parte dell'ISP. Forzata assicura privacy ma può ridurre il numero di fonti trovate.">ⓘ</span></label><select id="lt-encryption" class="form-input"><option value="0"><span data-i18n="Disabilitata">Disabilitata</span></option><option value="1"><span data-i18n="Abilitata (preferita)">Abilitata (preferita)</span></option><option value="2" data-i18n="Forzata">Forzata</option></select></div>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group toggle-group"><label><span data-i18n="DHT">DHT</span> <span class="unit" data-i18n-title="Distributed Hash Table: indispensabile per trovare peer senza tracker (Magnet Link puri). Lascialo abilitato." title="Distributed Hash Table: indispensabile per trovare peer senza tracker (Magnet Link puri). Lascialo abilitato.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-dht" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div class="form-group toggle-group"><label><span data-i18n="PEX (Peer Exchange)">PEX (Peer Exchange)</span> <span class="unit" data-i18n-title="Scambio di peer: ottiene elenchi di contatti dagli altri utenti collegati, accelerando il download." title="Scambio di peer: ottiene elenchi di contatti dagli altri utenti collegati, accelerando il download.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-pex" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div class="form-group toggle-group"><label><span data-i18n="LSD (Local Discovery)">LSD (Local Discovery)</span> <span class="unit" data-i18n-title="Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici." title="Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-lsd" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div class="form-group toggle-group"><label><span data-i18n="UPnP (apertura porte)">UPnP (apertura porte)</span> <span class="unit" data-i18n-title="Tenta di aprire la porta configurata sul router automaticamente. Se fallisce, devi faro manualmente nel pannello router." title="Tenta di aprire la porta configurata sul router automaticamente. Se fallisce, devi faro manualmente nel pannello router.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-upnp" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div class="form-group toggle-group"><label><span data-i18n="NAT-PMP">NAT-PMP</span> <span class="unit" data-i18n-title="Protocollo alternativo a UPnP, tipico dei router Apple/pfSense." title="Protocollo alternativo a UPnP, tipico dei router Apple/pfSense.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-natpmp" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div class="form-group toggle-group"><label><span data-i18n="Announce a tutti i tracker">Announce a tutti i tracker</span> <span class="unit" data-i18n-title="Invia la tua presenza a TUTTI i tracker della lista invece che ad uno solo, massimizzando l'elenco di fonti trovate." title="Invia la tua presenza a TUTTI i tracker della lista invece che ad uno solo, massimizzando l'elenco di fonti trovate.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-announce-all" value="yes"><span class="toggle-slider"></span></label></div>
+                            </div>
+
+                            <div class="lt-section-title"><span data-i18n="Tracker extra">Tracker extra</span></div>
+                            <div class="form-group">
+                                <label><span data-i18n="Tracker aggiuntivi">Tracker aggiuntivi</span> <span class="unit"><span data-i18n="(separati da |)">(separati da |)</span></span></label>
+                                <textarea id="lt-extra-trackers" class="form-input" rows="3" data-i18n-title="Incolla tracker pubblici per aumentare la velocità in caso di torrent poco diffusi. Il sistema li applicherà a tutti i nuovi download." title="Incolla tracker pubblici per aumentare la velocità in caso di torrent poco diffusi. Il sistema li applicherà a tutti i nuovi download." placeholder="udp://tracker.opentrackr.org:1337/announce | udp://..."></textarea>
+                            </div>
+
+                            <div style="margin-top:1.5rem; display:flex; gap:1rem; flex-wrap:wrap;">
+                                <button class="btn btn-secondary" data-i18n-title="Invia i parametri aggiornati all'istanza libtorrent attualmente in corsa in background. Non salva su file config.ini." title="Invia i parametri aggiornati all'istanza libtorrent attualmente in corsa in background. Non salva su file config.ini." onclick="app.reapplyLtSettings()"><i class="fa-solid fa-rotate"></i> <span data-i18n="Riapplica Settings (senza salvare)">Riapplica Settings (senza salvare)</span></button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div><!-- fine config-settings-advanced -->
 
                 <div id="config-notifications" class="config-panel">
                     
@@ -1677,7 +1689,9 @@ sudo mount /mnt/ramdisk</div>
                     </div>
                 </div>
 
-                <div id="config-trakt" class="config-panel">
+                <div id="config-integrazioni" class="config-panel">
+                  <h3 style="margin:0 0 1.25rem 0; font-size:1rem; color:var(--text-secondary); display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-fire" style="color:#e8323c;"></i> Trakt.tv</h3>
+                  <div id="config-trakt-inner">
 
                   <!-- STATO CONNESSIONE -->
                   <div class="card" style="margin-bottom:1.5rem;">
@@ -1767,13 +1781,10 @@ sudo mount /mnt/ramdisk</div>
                             data-i18n-title="Quanti giorni avanti mostrare nel calendar Trakt (max 31)" title="Quanti giorni avanti mostrare nel calendar Trakt (max 31)">ⓘ</span></label>
                           <input type="number" id="trakt-calendar-days" class="form-input" value="7" min="1" max="31">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group toggle-group">
                           <label><span data-i18n="Scrobbling">Scrobbling</span> <span class="unit"
                             data-i18n-title="Se abilitato, permette di segnare episodi come visti su Trakt tramite l'endpoint /api/trakt/scrobble" title="Se abilitato, permette di segnare episodi come visti su Trakt tramite l'endpoint /api/trakt/scrobble">ⓘ</span></label>
-                          <select id="trakt-scrobble-enabled" class="form-input">
-                            <option value="false" data-i18n="Disabilitato">Disabilitato</option>
-                            <option value="true" data-i18n="Abilitato">Abilitato</option>
-                          </select>
+                          <label class="toggle-switch"><input type="checkbox" id="trakt-scrobble-enabled" value="true"><span class="toggle-slider"></span></label>
                         </div>
                       </div>
                       <button class="btn btn-primary" style="margin-top:.5rem;" onclick="app.traktSaveOptions()">
@@ -1828,9 +1839,11 @@ sudo mount /mnt/ramdisk</div>
                     </div>
                   </div>
 
-                </div><!-- fine config-trakt -->
+                  </div><!-- fine config-trakt-inner -->
 
-                <div id="config-mediaserver" class="config-panel">
+                  <hr style="border:none; border-top:1px solid var(--border); margin:2rem 0;">
+                  <h3 style="margin:0 0 1.25rem 0; font-size:1rem; color:var(--text-secondary); display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-photo-film" style="color:#00a4dc;"></i> Jellyfin / Plex</h3>
+                  <div id="config-mediaserver-inner">
 
                   <!-- JELLYFIN -->
                   <div class="card" style="margin-bottom:1.5rem;">
@@ -1909,7 +1922,8 @@ sudo mount /mnt/ramdisk</div>
                     </div>
                   </div>
 
-                </div><!-- fine config-mediaserver -->
+                  </div><!-- fine config-mediaserver-inner -->
+                </div><!-- fine config-integrazioni -->
             </div>
             
             <div id="view-maintenance" class="view" style="overflow-y:auto; overflow-x:hidden;">

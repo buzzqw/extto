@@ -656,8 +656,6 @@ select option {
     cursor: pointer; margin: 0; flex: 1; user-select: none;
 }
 
-.toggle-switch { display: contents; }
-.toggle-slider { display: none; }
 
 /* ------------------------------------------------------------------
    10. MODALI
@@ -2437,3 +2435,32 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 .amule-sort-col { cursor: pointer; user-select: none; }
 .amule-sort-col:hover { color: var(--primary-light); }
 .amule-sort-col span { font-size: 0.68em; margin-left: 2px; }
+
+/* ============================================================================
+   IMPROVEMENT 1 — Toggle Switch
+   ============================================================================ */
+.toggle-wrap { display: inline-flex; align-items: center; gap: 8px; }
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #555; border-radius: 24px; transition: .2s; }
+.toggle-slider:before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+input:checked + .toggle-slider { background: #3b82f6; }
+input:checked + .toggle-slider:before { transform: translateX(20px); }
+.toggle-switch input:disabled + .toggle-slider { opacity: 0.5; cursor: not-allowed; }
+
+/* form-group containing a toggle: align label and switch side by side */
+.lt-grid .form-group.toggle-group,
+.form-group.toggle-group { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.form-group.toggle-group label:not(.toggle-switch) { margin-bottom: 0; flex: 1; }
+
+/* ============================================================================
+   IMPROVEMENT 4 — Two-column layout for protocol fields
+   ============================================================================ */
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+.form-grid-2 .form-group { margin-bottom: 0; }
+
+/* ============================================================================
+   IMPROVEMENT 6 — Dirty indicator (red dot) per tab
+   ============================================================================ */
+.tab-btn { position: relative; }
+.tab-btn.dirty::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; }

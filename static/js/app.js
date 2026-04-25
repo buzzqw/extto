@@ -1706,21 +1706,22 @@ const app = {
         const checkedDays = allDays.filter(d => cb(`sched-day-${d}`));
         const schedDaysStr = checkedDays.length === 7 || checkedDays.length === 0 ? '' : checkedDays.join(',');
 
+        const tg = id => this._getToggle(id);
         Object.assign(s, {
             libtorrent_dir: v('lt-dir'),
-            libtorrent_sequential: v('lt-sequential'),
+            libtorrent_sequential: tg('lt-sequential'),
             libtorrent_temp_dir: v('lt-temp-dir'),
-            libtorrent_ramdisk_enabled:      v('lt-ramdisk-enabled'),
+            libtorrent_ramdisk_enabled:      tg('lt-ramdisk-enabled'),
             libtorrent_ramdisk_dir:          v('lt-ramdisk-dir'),
             libtorrent_ramdisk_threshold_gb: v('lt-ramdisk-threshold') || '3.5',
             libtorrent_ramdisk_margin_gb:    v('lt-ramdisk-margin')    || '0.5',
-            libtorrent_interface: v('lt-interface'), 
-            libtorrent_paused: v('lt-paused'),
+            libtorrent_interface: v('lt-interface'),
+            libtorrent_paused: tg('lt-paused'),
             libtorrent_port_min: v('lt-port-min'),
             libtorrent_port_max: v('lt-port-max'),
             libtorrent_dl_limit: String(parseInt(v('lt-dl-limit'))||0),
             libtorrent_ul_limit: String(parseInt(v('lt-ul-limit'))||0),
-            libtorrent_sched_enabled: v('lt-sched-enabled'),
+            libtorrent_sched_enabled: tg('lt-sched-enabled'),
             libtorrent_sched_start: v('lt-sched-start'),
             libtorrent_sched_end: v('lt-sched-end'),
             libtorrent_sched_dl_limit: String(parseInt(v('lt-sched-dl'))||0),
@@ -1728,7 +1729,7 @@ const app = {
             libtorrent_sched_days: schedDaysStr,
             libtorrent_connections_limit: v('lt-conn-limit'),
             libtorrent_upload_slots: v('lt-upload-slots'),
-            libtorrent_stop_at_ratio: v('lt-stop-at-ratio'),
+            libtorrent_stop_at_ratio: tg('lt-stop-at-ratio'),
             libtorrent_seed_ratio: v('lt-seed-ratio'),
             libtorrent_seed_time_days: v('lt-seed-time-days'),
             libtorrent_active_downloads: v('lt-active-downloads'),
@@ -1736,15 +1737,15 @@ const app = {
             libtorrent_active_limit: v('lt-active-limit'),
             libtorrent_slow_dl_threshold: v('lt-slow-dl'),
             libtorrent_slow_ul_threshold: v('lt-slow-ul'),
-            libtorrent_preallocate: v('lt-preallocate'),
+            libtorrent_preallocate: tg('lt-preallocate'),
             libtorrent_incomplete_ext: v('lt-incomplete-ext'),
             libtorrent_encryption: v('lt-encryption'),
-            libtorrent_dht: v('lt-dht'),
-            libtorrent_pex: v('lt-pex'),
-            libtorrent_lsd: v('lt-lsd'),
-            libtorrent_upnp: v('lt-upnp'),
-            libtorrent_natpmp: v('lt-natpmp'),
-            libtorrent_announce_to_all: v('lt-announce-all'),
+            libtorrent_dht: tg('lt-dht'),
+            libtorrent_pex: tg('lt-pex'),
+            libtorrent_lsd: tg('lt-lsd'),
+            libtorrent_upnp: tg('lt-upnp'),
+            libtorrent_natpmp: tg('lt-natpmp'),
+            libtorrent_announce_to_all: tg('lt-announce-all'),
             libtorrent_proxy_type: v('lt-proxy-type'),
             libtorrent_proxy_host: v('lt-proxy-host'),
             libtorrent_proxy_port: v('lt-proxy-port'),
@@ -1752,13 +1753,13 @@ const app = {
             libtorrent_proxy_password: v('lt-proxy-pass'),
             libtorrent_extra_trackers: v('lt-extra-trackers'),
             libtorrent_ipfilter_url: v('lt-ipfilter-url'),
-            libtorrent_ipfilter_autoupdate: v('lt-ipfilter-autoupdate'),
-            refresh_interval: v('setting-refresh_interval') 
+            libtorrent_ipfilter_autoupdate: tg('lt-ipfilter-autoupdate'),
+            refresh_interval: v('setting-refresh_interval')
         });
 
         Object.assign(s, {
-            qbittorrent_url: v('qbt-url'), qbittorrent_username: v('qbt-user'), qbittorrent_password: v('qbt-pass'), qbittorrent_category: v('qbt-category'), qbittorrent_paused: v('qbt-paused'),
-            transmission_url: v('tr-url'), transmission_username: v('tr-user'), transmission_password: v('tr-pass'), transmission_paused: v('tr-paused'),
+            qbittorrent_url: v('qbt-url'), qbittorrent_username: v('qbt-user'), qbittorrent_password: v('qbt-pass'), qbittorrent_category: v('qbt-category'), qbittorrent_paused: tg('qbt-paused'),
+            transmission_url: v('tr-url'), transmission_username: v('tr-user'), transmission_password: v('tr-pass'), transmission_paused: tg('tr-paused'),
             aria2_rpc_url: v('ar-rpc-url'), aria2_rpc_secret: v('ar-secret'), aria2_dir: v('ar-dir'), aria2c_path: v('ar-path'),
             aria2_max_connection: v('ar-max-conn'), aria2_split: v('ar-split'), aria2_dl_limit: v('ar-dl-limit'), aria2_ul_limit: v('ar-ul-limit')
         });
@@ -1838,6 +1839,8 @@ const app = {
             await this.saveTagDirRules();
             
             this.showToast(t('All configuration saved successfully!'), 'success');
+            // Improvement 6: clear dirty indicators for all config tabs after save
+            ['settings','settings-advanced','scores','notifications','advanced','urls','integrazioni'].forEach(t2 => this.clearDirty(t2));
         } catch(e) {
             this.showToast(t('Error during save.'), 'error');
         }
@@ -3070,6 +3073,11 @@ const app = {
             let refVal = parseInt(s.refresh_interval) || 120;
             if (refVal > 1000) refVal = Math.round(refVal / 60); // Migrazione dal vecchio config
             document.getElementById('setting-refresh_interval').value = refVal;
+            // Improvements 5 & 6: accordion persistence + dirty tracking
+            setTimeout(() => {
+                this.initAccordionPersistence();
+                this.initDirtyTracking();
+            }, 100);
         } catch(e) { console.error(e); }
     },
 
@@ -3152,22 +3160,22 @@ const app = {
                 }
             }
         });
-        set('lt-sequential', get('sequential', 'no'));
+        this._setToggle('lt-sequential', get('sequential', 'no'));
         set('lt-dir',           get('dir', '/downloads'));
         set('lt-temp-dir',      get('temp_dir', ''));
-        set('lt-ramdisk-enabled',   get('ramdisk_enabled',   'no'));
+        this._setToggle('lt-ramdisk-enabled', get('ramdisk_enabled', 'no'));
         set('lt-ramdisk-dir',       get('ramdisk_dir',       ''));
         set('lt-ramdisk-threshold', get('ramdisk_threshold_gb', '3.5'));
         set('lt-ramdisk-margin',    get('ramdisk_margin_gb',    '0.5'));
         this.toggleRamdisk();
-        set('lt-paused',        get('paused', 'no'));
+        this._setToggle('lt-paused', get('paused', 'no'));
         const parseLimit = (val) => { let v = parseInt(val)||0; return v > 1000000 ? Math.round(v/1024) : v; };
         
         set('lt-port-min',      get('port_min', '6881'));
         set('lt-port-max',      get('port_max', '6891'));
         set('lt-dl-limit',      parseLimit(get('dl_limit','0')));
         set('lt-ul-limit',      parseLimit(get('ul_limit','0')));
-        set('lt-sched-enabled', get('sched_enabled','no'));
+        this._setToggle('lt-sched-enabled', get('sched_enabled','no'));
         set('lt-sched-start',   get('sched_start','23:00'));
         set('lt-sched-end',     get('sched_end','08:00'));
         set('lt-sched-dl',      parseLimit(get('sched_dl_limit','0')));
@@ -3180,7 +3188,7 @@ const app = {
         this.toggleScheduler();
         set('lt-conn-limit',    get('connections_limit', '200'));
         set('lt-upload-slots',  get('upload_slots', '4'));
-        set('lt-stop-at-ratio', get('stop_at_ratio', 'no'));
+        this._setToggle('lt-stop-at-ratio', get('stop_at_ratio', 'no'));
         set('lt-seed-ratio',    get('seed_ratio', '0'));
         set('lt-seed-time-days', get('seed_time_days', get('seed_time', '0')));
         set('lt-active-downloads', get('active_downloads', '3'));
@@ -3188,14 +3196,14 @@ const app = {
         set('lt-active-limit',     get('active_limit', '5'));
         set('lt-slow-dl',          get('slow_dl_threshold', '2'));
         set('lt-slow-ul',          get('slow_ul_threshold', '2'));
-        set('lt-preallocate',      get('preallocate', 'no'));
+        this._setToggle('lt-preallocate', get('preallocate', 'no'));
         set('lt-encryption',    get('encryption', '1'));
-        set('lt-dht',           get('dht', 'yes'));
-        set('lt-pex',           get('pex', 'yes'));
-        set('lt-lsd',           get('lsd', 'yes'));
-        set('lt-upnp',          get('upnp', 'yes'));
-        set('lt-natpmp',        get('natpmp', 'yes'));
-        set('lt-announce-all',  get('announce_to_all', 'no'));
+        this._setToggle('lt-dht',          get('dht', 'yes'));
+        this._setToggle('lt-pex',          get('pex', 'yes'));
+        this._setToggle('lt-lsd',          get('lsd', 'yes'));
+        this._setToggle('lt-upnp',         get('upnp', 'yes'));
+        this._setToggle('lt-natpmp',       get('natpmp', 'yes'));
+        this._setToggle('lt-announce-all', get('announce_to_all', 'no'));
         set('lt-proxy-type',    get('proxy_type', 'none'));
         set('lt-proxy-host',    get('proxy_host', ''));
         set('lt-proxy-port',    get('proxy_port', '1080'));
@@ -3203,7 +3211,7 @@ const app = {
         set('lt-proxy-pass',    get('proxy_password', ''));
         set('lt-extra-trackers',get('extra_trackers', ''));
         set('lt-ipfilter-url',        get('ipfilter_url', ''));
-        set('lt-ipfilter-autoupdate', get('ipfilter_autoupdate', 'no'));
+        this._setToggle('lt-ipfilter-autoupdate', get('ipfilter_autoupdate', 'no'));
         this._updateIpFilterStatus();
         this.toggleProxyFields();
         this.loadTagDirRules();
@@ -3215,11 +3223,11 @@ const app = {
         set('qbt-user',     s.qbittorrent_username  || 'admin');
         set('qbt-pass',     s.qbittorrent_password  || '');
         set('qbt-category', s.qbittorrent_category  || 'tv');
-        set('qbt-paused',   s.qbittorrent_paused    || 'no');
+        this._setToggle('qbt-paused', s.qbittorrent_paused || 'no');
         set('tr-url',       s.transmission_url      || 'http://localhost:9091/transmission/rpc');
         set('tr-user',      s.transmission_username  || '');
         set('tr-pass',      s.transmission_password  || '');
-        set('tr-paused',    s.transmission_paused    || 'no');
+        this._setToggle('tr-paused', s.transmission_paused || 'no');
         set('ar-rpc-url',   s.aria2_rpc_url    || '');
         set('ar-secret',    s.aria2_rpc_secret  || '');
         set('ar-dir',       s.aria2_dir         || '');
@@ -3233,7 +3241,8 @@ const app = {
     },
 
     toggleScheduler() {
-        const enabled = document.getElementById('lt-sched-enabled')?.value === 'yes';
+        const el = document.getElementById('lt-sched-enabled');
+        const enabled = el ? (el.type === 'checkbox' ? el.checked : el.value === 'yes') : false;
         ['sched-start-group','sched-end-group','sched-limits-group'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.opacity = enabled ? '1' : '0.4';
@@ -3252,7 +3261,8 @@ const app = {
     },
 
     toggleRamdisk() {
-        const enabled = document.getElementById('lt-ramdisk-enabled')?.value === 'yes';
+        const rdEl = document.getElementById('lt-ramdisk-enabled');
+        const enabled = rdEl ? (rdEl.type === 'checkbox' ? rdEl.checked : rdEl.value === 'yes') : false;
         const fields  = document.getElementById('lt-ramdisk-fields');
         if (fields) fields.style.display = enabled ? '' : 'none';
         if (!enabled) this._clearRamdiskStatus();
@@ -3325,25 +3335,26 @@ const app = {
         if (!this._configData) return;
         const s = this._configData.settings || {};
         const v = id => document.getElementById(id)?.value ?? '';
+        const tg = id => this._getToggle(id);
         const allDays = [0,1,2,3,4,5,6];
         const checkedDays = allDays.filter(d => document.getElementById(`sched-day-${d}`)?.checked);
         const schedDaysStr = checkedDays.length === 7 || checkedDays.length === 0 ? '' : checkedDays.join(',');
         Object.assign(s, {
-			libtorrent_enabled:            'yes',
+            libtorrent_enabled:            'yes',
             libtorrent_dir:                v('lt-dir'),
-            libtorrent_sequential:         v('lt-sequential'),
+            libtorrent_sequential:         tg('lt-sequential'),
             libtorrent_temp_dir:           v('lt-temp-dir'),
-            libtorrent_ramdisk_enabled:    v('lt-ramdisk-enabled'),
+            libtorrent_ramdisk_enabled:    tg('lt-ramdisk-enabled'),
             libtorrent_ramdisk_dir:        v('lt-ramdisk-dir'),
             libtorrent_ramdisk_threshold_gb: v('lt-ramdisk-threshold') || '3.5',
             libtorrent_ramdisk_margin_gb:    v('lt-ramdisk-margin')    || '0.5',
-            libtorrent_interface:          v('lt-interface'), 
-            libtorrent_paused:             v('lt-paused'),
+            libtorrent_interface:          v('lt-interface'),
+            libtorrent_paused:             tg('lt-paused'),
             libtorrent_port_min:           v('lt-port-min'),
             libtorrent_port_max:           v('lt-port-max'),
             libtorrent_dl_limit:           String(parseInt(v('lt-dl-limit'))||0),
             libtorrent_ul_limit:           String(parseInt(v('lt-ul-limit'))||0),
-            libtorrent_sched_enabled:      v('lt-sched-enabled'),
+            libtorrent_sched_enabled:      tg('lt-sched-enabled'),
             libtorrent_sched_start:        v('lt-sched-start'),
             libtorrent_sched_end:          v('lt-sched-end'),
             libtorrent_sched_dl_limit:     String(parseInt(v('lt-sched-dl'))||0),
@@ -3351,7 +3362,7 @@ const app = {
             libtorrent_sched_days:         schedDaysStr,
             libtorrent_connections_limit:  v('lt-conn-limit'),
             libtorrent_upload_slots:       v('lt-upload-slots'),
-            libtorrent_stop_at_ratio:      v('lt-stop-at-ratio'),
+            libtorrent_stop_at_ratio:      tg('lt-stop-at-ratio'),
             libtorrent_seed_ratio:         v('lt-seed-ratio'),
             libtorrent_seed_time_days:     v('lt-seed-time-days'),
             libtorrent_active_downloads:   v('lt-active-downloads'),
@@ -3359,14 +3370,14 @@ const app = {
             libtorrent_active_limit:       v('lt-active-limit'),
             libtorrent_slow_dl_threshold:  v('lt-slow-dl'),
             libtorrent_slow_ul_threshold:  v('lt-slow-ul'),
-            libtorrent_preallocate:        v('lt-preallocate'),
+            libtorrent_preallocate:        tg('lt-preallocate'),
             libtorrent_encryption:         v('lt-encryption'),
-            libtorrent_dht:                v('lt-dht'),
-            libtorrent_pex:                v('lt-pex'),
-            libtorrent_lsd:                v('lt-lsd'),
-            libtorrent_upnp:               v('lt-upnp'),
-            libtorrent_natpmp:             v('lt-natpmp'),
-            libtorrent_announce_to_all:    v('lt-announce-all'),
+            libtorrent_dht:                tg('lt-dht'),
+            libtorrent_pex:                tg('lt-pex'),
+            libtorrent_lsd:                tg('lt-lsd'),
+            libtorrent_upnp:               tg('lt-upnp'),
+            libtorrent_natpmp:             tg('lt-natpmp'),
+            libtorrent_announce_to_all:    tg('lt-announce-all'),
             libtorrent_proxy_type:         v('lt-proxy-type'),
             libtorrent_proxy_host:         v('lt-proxy-host'),
             libtorrent_proxy_port:         v('lt-proxy-port'),
@@ -3374,13 +3385,15 @@ const app = {
             libtorrent_proxy_password:     v('lt-proxy-pass'),
             libtorrent_extra_trackers:     v('lt-extra-trackers'),
             libtorrent_ipfilter_url:       v('lt-ipfilter-url'),
-            libtorrent_ipfilter_autoupdate: v('lt-ipfilter-autoupdate'),
+            libtorrent_ipfilter_autoupdate: tg('lt-ipfilter-autoupdate'),
             refresh_interval: v('setting-refresh_interval'),
         });
         await this._saveFullConfig({settings: s});
         await fetch(`${API_BASE}/api/torrents/apply_settings`, {method:'POST'});
         await this.saveTagDirRules();
         this.showToast(t('Libtorrent settings saved and applied'), 'success');
+        this.clearDirty('settings');
+        this.clearDirty('settings-advanced');
     },
 
     // =========================================================================
@@ -3523,13 +3536,82 @@ const app = {
     switchConfigTab(tab) {
         document.querySelectorAll('.config-panel').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-        const panel = document.getElementById(`config-${tab}`);
+        // Map logical tab names to panel IDs
+        const panelId = tab === 'settings-advanced' ? 'config-settings-advanced'
+                      : tab === 'integrazioni'       ? 'config-integrazioni'
+                      : `config-${tab}`;
+        const panel = document.getElementById(panelId);
         if (panel) panel.classList.add('active');
-        
+
         // Usiamo 'app.' per evitare l'errore "this.loadScoresSettings is not a function"
         if (tab === 'scores') app.loadScoresSettings();
-        if (tab === 'trakt')  app.traktInit();
+        if (tab === 'integrazioni') { app.traktInit(); app.jellyfinInit(); app.plexInit(); }
+        // Legacy support for direct calls
+        if (tab === 'trakt')       { app.traktInit(); }
         if (tab === 'mediaserver') { app.jellyfinInit(); app.plexInit(); }
+        // Accordion persistence after tab switch
+        app.initAccordionPersistence();
+    },
+
+    // =========================================================================
+    // IMPROVEMENT 1 — Toggle switch helpers
+    // =========================================================================
+    _getToggle(id) {
+        const el = document.getElementById(id);
+        if (!el) return 'no';
+        if (el.type === 'checkbox') return el.checked ? (el.value || 'yes') : 'no';
+        return el.value; // fallback for non-converted selects
+    },
+    _setToggle(id, val) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') {
+            el.checked = (val === 'yes' || val === 'true' || val === '1' || val === true);
+        } else {
+            el.value = val;
+        }
+    },
+
+    // =========================================================================
+    // IMPROVEMENT 5 — Accordion persistence
+    // =========================================================================
+    initAccordionPersistence() {
+        document.querySelectorAll('#view-config details[id]').forEach(d => {
+            // avoid double-binding
+            if (d._accordionBound) return;
+            d._accordionBound = true;
+            const key = 'accordion_' + d.id;
+            const saved = localStorage.getItem(key);
+            if (saved !== null) d.open = saved === '1';
+            d.addEventListener('toggle', () => {
+                localStorage.setItem(key, d.open ? '1' : '0');
+            });
+        });
+    },
+
+    // =========================================================================
+    // IMPROVEMENT 6 — Dirty tracking
+    // =========================================================================
+    initDirtyTracking() {
+        document.querySelectorAll('#view-config input, #view-config select, #view-config textarea').forEach(el => {
+            if (el._dirtyBound) return;
+            el._dirtyBound = true;
+            el.addEventListener('change', () => {
+                const tabContent = el.closest('.config-panel');
+                if (!tabContent) return;
+                const tabId = tabContent.id;
+                // Map panel ID back to tab data-tab value
+                const tabKey = tabId === 'config-settings-advanced' ? 'settings-advanced'
+                             : tabId === 'config-integrazioni'       ? 'integrazioni'
+                             : tabId.replace('config-', '');
+                const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabKey}"]`);
+                if (tabBtn) tabBtn.classList.add('dirty');
+            });
+        });
+    },
+    clearDirty(tabId) {
+        const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+        if (tabBtn) tabBtn.classList.remove('dirty');
     },
 
     renderNotifications(settings) {
@@ -9317,7 +9399,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             setVal('trakt-import-quality',   data.import_quality);
             setVal('trakt-import-language',  data.import_language);
             setVal('trakt-calendar-days',    data.calendar_days);
-            setVal('trakt-scrobble-enabled', data.scrobble_enabled ? 'true' : 'false');
+            this._setToggle('trakt-scrobble-enabled', data.scrobble_enabled ? 'true' : 'false');
         } catch(e) { console.error('traktInit', e); }
     },
 
@@ -9341,7 +9423,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const quality  = document.getElementById('trakt-import-quality')?.value  || '720p+';
         const language = document.getElementById('trakt-import-language')?.value || 'ita';
         const days     = parseInt(document.getElementById('trakt-calendar-days')?.value) || 7;
-        const scrobble = document.getElementById('trakt-scrobble-enabled')?.value === 'true';
+        const scrobble = this._getToggle('trakt-scrobble-enabled') === 'true';
         try {
             const r = await fetch('/api/trakt/settings', {
                 method: 'POST',

@@ -2123,21 +2123,24 @@ def main():
             
                 best_movie_cand = None
                 best_movie_score = -1
-            
+                _reject_reasons = []
+
                 for item in results:
                     lang_req = mov_cfg.get('language', mov_cfg.get('lang', 'ita'))
                     if not cfg._lang_ok(item['title'], lang_req):
+                        _reject_reasons.append('lingua')
                         continue
-                    
+
                     mov_p = Parser.parse_movie(item['title'])
                     if not mov_p:
+                        _reject_reasons.append('parse')
                         continue
-                    
+
                     match = cfg.find_movie_match(mov_p['name'], mov_p['year'])
                     if match and match['name'] == mov_cfg['name']:
                         mov_p['config_name'] = match['name']
                         safe_magnet = sanitize_magnet(item['magnet'], item['title']) or item['magnet']
-                    
+
                         dl_ok, msg = db.check_movie(mov_p, safe_magnet, match.get('qual', match.get('quality', '')))
                         if dl_ok:
                             score = mov_p['quality'].score() if hasattr(mov_p['quality'], 'score') else 0
@@ -2145,7 +2148,11 @@ def main():
                                 best_movie_score = score
                                 source = item.get('uploader') or "Archivio"
                                 best_movie_cand = (mov_p, safe_magnet, match, source, item['title'])
-                            
+                        else:
+                            _reject_reasons.append(msg)
+                    else:
+                        _reject_reasons.append('titolo/anno')
+
                 if best_movie_cand:
                     mov_p, safe_magnet, match, source, raw_title = best_movie_cand
                     ok_send, used_cl = _send_with_fallback(safe_magnet)
@@ -2158,7 +2165,9 @@ def main():
                 else:
                     if results:
                         sample = results[0]['title'][:50]
-                        logger.info(f"   ℹ️ Filters not met for '{mov_cfg['name']}'. (Sample found: {sample}...)")
+                        unique_reasons = list(dict.fromkeys(_reject_reasons))
+                        reason_str = f" [{', '.join(unique_reasons)}]" if unique_reasons else ''
+                        logger.info(f"   ℹ️ Filters not met for '{mov_cfg['name']}'{reason_str}. (Sample: {sample}...)")
 
 
         # 5. Report & pulizia trigger
