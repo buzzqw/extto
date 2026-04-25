@@ -1285,17 +1285,20 @@ class LibtorrentClient:
                         elif 'storage_moved_alert' in a_type:
                             h = a.handle
                             try:
-                                new_path = h.status().save_path
-                                logger.info(f"✅ Storage successfully moved to NAS: '{h.name()}' -> {new_path}")
+                                _st      = h.status()
+                                new_path = _st.save_path
+                                _is_done = (getattr(_st, 'is_seeding',  False) or
+                                            getattr(_st, 'is_finished', False) or
+                                            float(getattr(_st, 'progress', 0)) >= 1.0)
+                                logger.info(
+                                    f"{'✅' if _is_done else '🔄'} Storage moved: "
+                                    f"'{h.name()}' -> {new_path}"
+                                    + ('' if _is_done else ' (download in corso, skip post-processing)')
+                                )
                                 h.save_resume_data()
 
-                                # --- GUARD ANTI-RECHECK AL RIAVVIO ---
-                                # Il fastresume aggiornato viene scritto in modo asincrono da
-                                # save_resume_data_alert. Se EXTTO riavvia prima che l'alert
-                                # venga processato, il fastresume conserva il vecchio save_path
-                                # e al riavvio scatta un checking_files infinito (file non trovato).
-                                # Patch: aggiorna subito il campo 'save path' nel fastresume su
-                                # disco senza aspettare l'alert, segnando anche 'finished'=1.
+                                # Aggiorna subito save_path nel fastresume su disco — guard anti-recheck
+                                # al riavvio se EXTTO si spegne prima che save_resume_data_alert arrivi.
                                 try:
                                     ih_str = str(h.info_hash())
                                     fr_path = os.path.join(cls.STATE_DIR, f"{ih_str}.fastresume")
@@ -1304,7 +1307,8 @@ class LibtorrentClient:
                                             _fr = cls._lt.bdecode(_ff.read())
                                         if isinstance(_fr, dict):
                                             _fr[b'save path'] = new_path.encode() if isinstance(new_path, str) else new_path
-                                            _fr[b'finished']  = 1
+                                            if _is_done:
+                                                _fr[b'finished'] = 1
                                             _tmp_fr = fr_path + '.tmp'
                                             _new_data = cls._lt.bencode(_fr)
                                             with open(_tmp_fr, 'wb') as _ff2:
@@ -1314,15 +1318,17 @@ class LibtorrentClient:
                                             logger.debug(f"💾 fastresume save_path aggiornato a '{new_path}' per {ih_str[:12]}")
                                 except Exception as _fr_e:
                                     logger.debug(f"fastresume patch save_path: {_fr_e}")
-                                # --- FINE GUARD ---
 
-                                # Rimuovi dal set "move in corso": il move è completato,
-                                # check_seeding_limits può ora usare il livello 2 (archive_path)
-                                # se per qualsiasi motivo il flag fosse ancora presente.
                                 try:
                                     getattr(cls, '_nas_move_pending', set()).discard(str(h.info_hash()))
                                 except Exception:
                                     pass
+
+                                if not _is_done:
+                                    # Spostamento intermedio (RAM disk fallback, temp→temp):
+                                    # il torrent non è ancora completato, skip post-processing.
+                                    continue
+
                                 # --- 3. RINOMINA DOPO LO SPOSTAMENTO ---
                                 # Se il torrent è un singolo file, passa il path diretto al file
                                 # così rename_completed_torrent non fa listdir sull'intera cartella NAS
