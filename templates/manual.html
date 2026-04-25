@@ -544,7 +544,7 @@
                                     <div class="man-param"><div class="man-param-name">email_password</div><div class="man-param-desc">Password SMTP. Per Gmail, generare una <em>App Password</em> in Impostazioni Account → Sicurezza → Password per le app.</div></div>
                                 </div>
                                 <div class="man-subsection">Jellyfin / Plex — Library Refresh</div>
-                                <p>Oltre a Telegram ed Email, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Jellyfin/Plex</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a> per i dettagli.</p>
+                                <p>Oltre a Telegram ed Email, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Integrazioni</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a> per i dettagli.</p>
                             </div>
                         </div>
 
@@ -915,6 +915,18 @@
                                     <i class="fa-solid fa-circle-info"></i>
                                     <div>I film non vengono rimossi automaticamente dalla lista Configurati dopo il download. Una volta che il badge <strong>Scaricato</strong> compare, puoi rimuoverli manualmente con il pulsante cestino <i class="fa-solid fa-trash-can"></i> per mantenere la lista pulita.</div>
                                 </div>
+
+                                <div class="man-subsection">Re-download dopo rimozione dalla tab Scaricati</div>
+                                <p>Se rimuovi un film dalla tab <strong>Scaricati</strong> (cestino nella lista download) ma lo mantieni nella tab <strong>Configurati</strong>, EXTTO interpreterà la rimozione come una richiesta di nuovo download. Al ciclo successivo — o al primo <em>Ricontrolla Film</em> — il film verrà cercato e scaricato nuovamente da zero.</p>
+                                <p>Questo comportamento è intenzionale: permette di forzare il re-download di un file corrotto o di una versione di qualità inferiore già acquisita, senza dover riconfigurare il film. Se invece vuoi smettere definitivamente di monitorare un film, rimuovilo anche dalla tab <strong>Configurati</strong>.</p>
+
+                                <div class="man-subsection">Log "Filters not met" — motivo dello scarto</div>
+                                <p>Quando nessun candidato trovato per un film soddisfa tutti i filtri, il log a livello INFO riporta esplicitamente quali filtri hanno causato lo scarto:</p>
+                                <div class="man-syntax">
+                                    <div class="man-syntax-label">Esempio log</div>
+                                    <code>ℹ️ Filters not met for 'Titolo Film' [lingua, titolo/anno]. (Sample: Titolo.Film.2024...)</code>
+                                </div>
+                                <p>I tag possibili sono: <code>lingua</code> (lingua audio non corrispondente), <code>parse</code> (titolo non riconosciuto dal parser), <code>titolo/anno</code> (nome o anno non corrispondono al film configurato), o messaggi dal DB come <code>duplicate</code> o <code>quality</code> (già scaricato a qualità uguale/superiore).</p>
                             </div>
                         </div>
 
@@ -1384,7 +1396,7 @@
                                     </div>
                                 </div>
 
-                                <p>Il loop di attesa tra un ciclo e l'altro controlla questi file ogni 5 secondi. Alla prima rilevazione interrompe il sleep e avvia un ciclo immediato. I trigger vengono rimossi alla fine del ciclo. Il log mostra la modalità attiva all'inizio di ogni ciclo:</p>
+                                <p>Il loop di attesa tra un ciclo e l'altro controlla questi file ogni 5 secondi. Alla prima rilevazione interrompe il sleep e avvia un ciclo immediato. Al termine del ciclo i trigger vengono rimossi — ma solo quelli che esistevano <em>prima</em> dell'inizio del ciclo. Se premi un pulsante Ricontrolla <strong>mentre</strong> un ciclo è già in esecuzione, il trigger viene creato durante il ciclo, non viene cancellato a fine ciclo e viene onorato nel ciclo immediatamente successivo. Il log mostra la modalità attiva all'inizio di ogni ciclo:</p>
                                 <div class="man-syntax">
                                     <div class="man-syntax-label">Esempio log</div>
                                     <code>🔄 Modalità: CICLO COMPLETO (run_now)</code><br>
@@ -1748,7 +1760,7 @@
                                         <strong>Due concetti separati:</strong>
                                         <ul style="margin:0.5rem 0 0 1.2rem;">
                                             <li><strong>Lingua UI</strong> — la lingua in cui appaiono tutti i testi dell'interfaccia (italiano, inglese, francese, tedesco, spagnolo). Si cambia dal selettore nell'header in alto a destra.</li>
-                                            <li><strong>Lingua contenuti</strong> — la lingua audio richiesta per i torrent (es. <code>ita</code>, <code>eng</code>). Si configura per ogni serie/film oppure come default globale in <em>Configurazione → Generale → Lingua Default Contenuti</em>.</li>
+                                            <li><strong>Lingua contenuti</strong> — la lingua audio richiesta per i torrent (es. <code>ita</code>, <code>eng</code>). Si configura per ogni serie/film oppure come default globale in <em>Configurazione → Avanzate → Lingua Default Contenuti</em>.</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -1759,7 +1771,7 @@
                                 <div class="man-subsection">Lingua suggerita per i nuovi contenuti</div>
                                 <p>Quando aggiungi una nuova serie o un film, il select della lingua audio viene precompilato seguendo questo ordine di priorità:</p>
                                 <ol style="margin:0.5rem 0 0.5rem 1.5rem; line-height:1.9;">
-                                    <li><strong>Lingua Default Contenuti</strong> configurata in <em>Configurazione → Generale</em> (es. <code>ita</code>) — vince sempre se impostata esplicitamente.</li>
+                                    <li><strong>Lingua Default Contenuti</strong> configurata in <em>Configurazione → Avanzate</em> (es. <code>ita</code>) — vince sempre se impostata esplicitamente.</li>
                                     <li><strong>Lingua UI corrente come fallback</strong> — se la lingua default contenuti è vuota, il select propone automaticamente la lingua corrispondente alla UI: interfaccia inglese → <code>eng</code>, italiana → <code>ita</code>, tedesca → <code>deu</code>, ecc.</li>
                                 </ol>
 
@@ -1829,14 +1841,13 @@
                                     <table class="man-table">
                                         <thead><tr><th>Scheda</th><th>Contenuto</th></tr></thead>
                                         <tbody>
-                                            <tr><td><strong>Generale</strong></td><td>Intervallo ciclo, lingua default contenuti, TMDB API key, rinomina file, format template</td></tr>
-                                            <tr><td><strong>Client</strong></td><td>libtorrent (tutti i parametri), qBittorrent, Transmission, aria2</td></tr>
-                                            <tr><td><strong>Sorgenti</strong></td><td>URL sorgenti scraping, Jackett URL/API, Prowlarr URL/API, parametri ricerca</td></tr>
-                                            <tr><td><strong>Notifiche</strong></td><td>Telegram (bot token, chat ID), Email (SMTP, from, to, password)</td></tr>
-                                            <tr><td><strong>Jellyfin / Plex</strong></td><td>URL e credenziali per Jellyfin (API Key) e Plex (X-Plex-Token) — library refresh automatico post-download</td></tr>
-                                            <tr><td><strong>Avanzate</strong></td><td>Blacklist, wantedlist, debug flags, livello log, pulizia archivio automatica</td></tr>
+                                            <tr><td><strong>Download</strong></td><td>Selezione client attivo (libtorrent, qBittorrent, Transmission, aria2), percorsi cartelle, porte, velocità, seeding, RAM disk, tag torrent</td></tr>
+                                            <tr><td><strong>Avanzate DL</strong></td><td>Protocolli (DHT, PEX, LSD, UPnP, NAT-PMP), Scheduler velocità, Privacy (proxy, IP filter/blocklist), opzioni avanzate client</td></tr>
                                             <tr><td><strong>Punteggi</strong></td><td>Score per risoluzione, sorgente, codec, audio, Dolby Vision, custom score gruppi release</td></tr>
-                                            <tr><td><strong>Backup</strong></td><td>Directory backup locale, retention giorni, schedule automatico, cloud FTP/Dropbox, invio Telegram</td></tr>
+                                            <tr><td><strong>Notifiche</strong></td><td>Telegram (bot token, chat ID), Email (SMTP, from, to, password)</td></tr>
+                                            <tr><td><strong>Avanzate</strong></td><td>Livello di logging, intervallo ciclo, blacklist, wantedlist, debug flags, pulizia archivio, backup automatico</td></tr>
+                                            <tr><td><strong>Fonti</strong></td><td>URL sorgenti scraping (ExtTo, Corsaro, RSS), Jackett URL/API key, Prowlarr URL/API key</td></tr>
+                                            <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -1880,7 +1891,7 @@
                                     <li>Vai su <a href="https://trakt.tv/oauth/applications/new" target="_blank">trakt.tv/oauth/applications/new</a> e crea una nuova applicazione.</li>
                                     <li>Come <strong>Redirect URI</strong> inserisci esattamente: <code>urn:ietf:wg:oauth:2.0:oob</code></li>
                                     <li>Copia il <strong>Client ID</strong> e il <strong>Client Secret</strong> generati.</li>
-                                    <li>In EXTTO: <strong>Configurazione → Trakt.tv</strong> → incolla le credenziali e clicca <strong>Salva Credenziali</strong>.</li>
+                                    <li>In EXTTO: <strong>Configurazione → Integrazioni → Trakt.tv</strong> → incolla le credenziali e clicca <strong>Salva Credenziali</strong>.</li>
                                     <li>Clicca <strong>Collega Trakt</strong>: verrà mostrato un codice di 8 caratteri.</li>
                                     <li>Vai su <a href="https://trakt.tv/activate" target="_blank">trakt.tv/activate</a>, inserisci il codice e autorizza.</li>
                                     <li>EXTTO rileva l'autorizzazione automaticamente entro pochi secondi.</li>
@@ -1925,7 +1936,7 @@
                                 <p>EXTTO ha due calendar distinti:</p>
                                 <ul>
                                     <li><strong>Calendar TMDB</strong> (in Configurazione → Avanzate): mostra i prossimi episodi solo per le serie già monitorate in EXTTO, tramite l'API TMDB.</li>
-                                    <li><strong>Calendar Trakt</strong> (in Configurazione → Trakt.tv): mostra i prossimi episodi per <em>tutte</em> le serie che segui su Trakt, anche quelle non ancora in EXTTO. Utile per scoprire cosa aggiungere.</li>
+                                    <li><strong>Calendar Trakt</strong> (in Configurazione → Integrazioni → Trakt.tv): mostra i prossimi episodi per <em>tutte</em> le serie che segui su Trakt, anche quelle non ancora in EXTTO. Utile per scoprire cosa aggiungere.</li>
                                 </ul>
 
                                 <div class="man-subsection">Risoluzione problemi</div>
@@ -1956,7 +1967,7 @@
                                 <div class="man-subsection">Setup Jellyfin</div>
                                 <ol>
                                     <li>In Jellyfin: <strong>Pannello di controllo → Chiavi API</strong> → crea una nuova chiave.</li>
-                                    <li>In EXTTO: <strong>Configurazione → Jellyfin/Plex</strong> → sezione <strong>Jellyfin</strong>.</li>
+                                    <li>In EXTTO: <strong>Configurazione → Integrazioni</strong> → sezione <strong>Jellyfin</strong>.</li>
                                     <li>Inserisci l'URL del server (es. <code>http://nas:8096</code>) e la API Key.</li>
                                     <li>Clicca <strong>Salva</strong>, poi <strong>Testa Refresh</strong> per verificare la connessione.</li>
                                 </ol>
@@ -1964,7 +1975,7 @@
                                 <div class="man-subsection">Setup Plex</div>
                                 <ol>
                                     <li>Ottieni il tuo <strong>X-Plex-Token</strong>: accedi a Plex Web, apri le impostazioni account e cerca il token nell'URL XML delle preferenze, oppure consulta la <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank">guida ufficiale</a>.</li>
-                                    <li>In EXTTO: <strong>Configurazione → Jellyfin/Plex</strong> → sezione <strong>Plex</strong>.</li>
+                                    <li>In EXTTO: <strong>Configurazione → Integrazioni</strong> → sezione <strong>Plex</strong>.</li>
                                     <li>Inserisci l'URL del server (es. <code>http://nas:32400</code>) e il token.</li>
                                     <li>Clicca <strong>Salva</strong>, poi <strong>Testa Refresh</strong> per verificare la connessione.</li>
                                 </ol>
