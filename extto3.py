@@ -1171,6 +1171,7 @@ def main():
             return False
 
     while True:
+        _cycle_start = time.time()
         error_catcher.captured_errors.clear() # Svuota la memoria errori del ciclo precedente
         start_server_watchdog()
         stats.reset()
@@ -2782,15 +2783,16 @@ def main():
                 logger.info(f"   ↳ ... and {len(unique_errs)-15} more issues detected.")
         # ------------------------------------------------------
 
-        # Pulisce tutti i trigger file usati in questo ciclo
+        # Pulisce i trigger file usati in questo ciclo, ma solo quelli creati PRIMA
+        # dell'inizio del ciclo (mtime < _cycle_start). Trigger creati durante il ciclo
+        # appartengono alla prossima richiesta e non devono essere cancellati.
         for _tf in ('/tmp/extto_run_now', '/tmp/extto_run_series',
                     '/tmp/extto_run_movies', '/tmp/extto_run_comics'):
-            if os.path.exists(_tf):
-                try:
+            try:
+                if os.path.exists(_tf) and os.path.getmtime(_tf) < _cycle_start:
                     os.remove(_tf)
-                except Exception as e:
-                    logger.debug(f"trigger file remove: {e}")
-                    pass
+            except Exception as e:
+                logger.debug(f"trigger file remove: {e}")
         
         # --- NUOVO: CONTROLLO SALUTE E NOTIFICHE (Disco e Sovraccarico) ---
         try:
