@@ -387,7 +387,7 @@ class Notifier:
             # Serie spostata e/o rinominata
             lines = [
                 f"✅ <b>{self.t('Download Completato')}</b>",
-                f"📺 <b>{title_name}</b>",
+                f"{'📺' if is_series else '🎬'} <b>{title_name}</b>",
                 f"",
                 stats_line,
             ]

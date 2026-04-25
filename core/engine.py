@@ -273,7 +273,9 @@ class Engine:
     # SCRAPING
     # ------------------------------------------------------------------
 
-    def scrape_all(self, urls):
+    def scrape_all(self, urls, domain: str = 'all'):
+        """domain: 'all' | 'series' | 'movies' | 'comics' — skippa le query
+        Jackett/Prowlarr non pertinenti al dominio richiesto."""
         items = []
         
         # 1. Scraping Fonti Tradizionali (ExtTo / Corsaro)
@@ -321,7 +323,7 @@ class Engine:
                 series_list = getattr(cfg_obj, 'series', [])
                 movies_list = getattr(cfg_obj, 'movies', [])
 
-                for s in series_list:
+                for s in (series_list if domain != 'movies' else []):
                     enabled = s.get('enabled', False) if isinstance(s, dict) else getattr(s, 'enabled', False)
                     name    = s.get('name', '')       if isinstance(s, dict) else getattr(s, 'name', '')
                     lang    = (s.get('language') or s.get('lang') or '') if isinstance(s, dict) else getattr(s, 'language', getattr(s, 'lang', ''))
@@ -379,7 +381,7 @@ class Engine:
                     items.extend(ix_items)
                     time.sleep(3)
 
-                for m in movies_list:
+                for m in (movies_list if domain != 'series' else []):
                     enabled = m.get('enabled', False) if isinstance(m, dict) else getattr(m, 'enabled', False)
                     name    = m.get('name', '')       if isinstance(m, dict) else getattr(m, 'name', '')
                     lang    = (m.get('language') or m.get('lang') or '') if isinstance(m, dict) else getattr(m, 'language', getattr(m, 'lang', ''))

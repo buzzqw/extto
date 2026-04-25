@@ -14,7 +14,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .constants import (
-    DB_FILE, ARCHIVE_FILE, CACHE_FILE, ARCHIVE_CREDENTIALS, logger
+    DB_FILE, ARCHIVE_FILE, CACHE_FILE, ARCHIVE_CREDENTIALS, logger, _extract_btih
 )
 from .models import stats, Parser, Quality
 
@@ -979,17 +979,25 @@ class Database:
     def check_movie(self, mov: dict, magnet: str, quality_req: str):
         from .config import Config
 
-        h = re.search(r'btih:([a-fA-F0-9]{40})', magnet, re.I)
-        if not h:
+        hash_val = _extract_btih(magnet)
+        if not hash_val:
             return False, "No hash"
-        hash_val = h.group(1).lower()
 
         c = self.conn.cursor()
-        c.execute("SELECT id FROM movies WHERE magnet_hash = ?", (hash_val,))
-        if c.fetchone():
-            stats.duplicates.append(f"{mov['config_name']} ({mov['year']})")
-            self.record_movie_discard(mov['config_name'], mov['year'], 'duplicate_hash')
-            return False, "Duplicate hash"
+        c.execute("SELECT id, removed_at FROM movies WHERE magnet_hash = ?", (hash_val,))
+        row_hash = c.fetchone()
+        if row_hash:
+            if row_hash['removed_at'] is None:
+                stats.duplicates.append(f"{mov['config_name']} ({mov['year']})")
+                self.record_movie_discard(mov['config_name'], mov['year'], 'duplicate_hash')
+                return False, "Duplicate hash"
+            else:
+                # stesso magnet ma film rimosso manualmente: ripristina
+                c.execute("UPDATE movies SET removed_at=NULL, downloaded_at=? WHERE id=?",
+                          (datetime.now(timezone.utc).isoformat(), row_hash['id']))
+                self.conn.commit()
+                stats.movies_matched.append(f"{mov['config_name']} ({mov['year']}) [ripristinato]")
+                return True, "Restored"
 
         min_rank  = Config._min_res_from_qual_req(quality_req)
         max_rank  = Config._max_res_from_qual_req(quality_req)
@@ -1003,7 +1011,7 @@ class Database:
             self.record_movie_discard(mov['config_name'], mov['year'], 'above_quality')
             return False, "Above maximum quality"
 
-        c.execute("SELECT quality_score FROM movies WHERE name = ? AND year = ?",
+        c.execute("SELECT quality_score FROM movies WHERE name = ? AND year = ? AND removed_at IS NULL",
                   (mov['config_name'], mov['year']))
         row       = c.fetchone()
         new_score = mov['quality'].score()
@@ -1012,7 +1020,7 @@ class Database:
             if new_score > row['quality_score']:
                 c.execute("""UPDATE movies SET quality_score=?, magnet_hash=?,
                             magnet_link=?, title=?, downloaded_at=?
-                            WHERE name=? AND year=?""",
+                            WHERE name=? AND year=? AND removed_at IS NULL""",
                          (new_score, hash_val, magnet, mov['title'],
                           datetime.now(timezone.utc).isoformat(), mov['config_name'], mov['year']))
                 self.conn.commit()

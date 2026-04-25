@@ -207,6 +207,7 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
 
     from .models import normalize_series_name, _series_name_matches
     norm_series = normalize_series_name(series_name)
+    video_files = [f for f in entries if os.path.splitext(f)[1].lower() in _VIDEO_EXTS]
 
     for fname in entries:
         ext = os.path.splitext(fname)[1].lower()
@@ -230,8 +231,14 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
                     logger.debug(f"rename: skip '{fname}' — series mismatch ('{ep_f['name']}' ≠ '{series_name}')")
                     continue
         else:
-            # File senza info S/E nel nome: usa ep del torrent come fallback (comportamento originale)
-            ep_f = ep
+            if Parser.parse_movie(fname):
+                logger.debug(f"rename: skip '{fname}' — riconosciuto come film, non episodio serie")
+                continue
+            if len(video_files) == 1:
+                logger.info(f"ℹ️  rename: '{fname}' — nessun pattern S/E nel nome, rinomina impossibile")
+            else:
+                logger.debug(f"rename: skip '{fname}' — nessun pattern S/E riconoscibile nel nome file")
+            continue
 
         tags = {}
         if rename_fmt != 'base':

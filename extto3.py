@@ -1354,10 +1354,10 @@ def main():
             live = []
         elif series_only_cycle:
             logger.info("📺 Series-only cycle: RSS scraping for TV series")
-            live = eng.scrape_all(cfg.urls)
+            live = eng.scrape_all(cfg.urls, domain='series')
         elif movies_only_cycle:
             logger.info("🎬 Movies-only cycle: RSS scraping for movies")
-            live = eng.scrape_all(cfg.urls)
+            live = eng.scrape_all(cfg.urls, domain='movies')
         elif run_now_triggered:
             saved_age_filter = getattr(eng, 'age_filter', None)
             saved_max_pages  = _MP
@@ -2113,7 +2113,7 @@ def main():
                     continue
                 
                 c = db.conn.cursor()
-                c.execute("SELECT id FROM movies WHERE name=? AND downloaded_at IS NOT NULL", (mov_cfg['name'],))
+                c.execute("SELECT id FROM movies WHERE name=? AND downloaded_at IS NOT NULL AND removed_at IS NULL", (mov_cfg['name'],))
                 if c.fetchone():
                     continue  # già scaricato con successo
                 

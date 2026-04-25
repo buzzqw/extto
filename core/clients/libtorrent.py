@@ -289,9 +289,7 @@ class LibtorrentClient:
         if not cls.session_available():
             return
         try:
-            result = []
-            s_db = cls._get_seed_limits_db()
-            if not isinstance(s_db, dict): s_db = {}
+            snapshot = {}
             for h in cls._session.get_torrents():
                 try:
                     s = h.status()
@@ -1667,7 +1665,7 @@ class LibtorrentClient:
                         physical_file = os.path.exists(os.path.join(save_p, n))
                     
                     # 2. Estrazione a prova di crash dei limiti di questo specifico torrent
-                    my_lim = s_db.get(str(h.info_hash()))
+                    my_lim = s_db.get(str(h.info_hash()).lower())
                     if not isinstance(my_lim, dict): 
                         my_lim = {}
                     infinito = (my_lim.get('ratio', -1) == 0) or (my_lim.get('days', -1) == 0)
@@ -1764,7 +1762,8 @@ class LibtorrentClient:
             ratio = round(storico_ul / max(1, downloaded), 2)
             
             state_str = str(s.state).split('.')[-1] if '.' in str(s.state) else str(s.state)
-            
+            _slimits  = cls._get_seed_limits_db().get(info_hash.lower(), {})
+
             return {
                 'success': True,
                 'hash': info_hash,
@@ -1789,8 +1788,8 @@ class LibtorrentClient:
                 'files': files,
                 'dl_limit': h.download_limit() if hasattr(h, 'download_limit') else -1,
                 'ul_limit': h.upload_limit()   if hasattr(h, 'upload_limit')   else -1,
-                'seed_ratio': cls._get_seed_limits_db().get(info_hash.lower(), {}).get('ratio', -1),
-                'seed_days': cls._get_seed_limits_db().get(info_hash.lower(), {}).get('days', -1),
+                'seed_ratio': _slimits.get('ratio', -1),
+                'seed_days':  _slimits.get('days',  -1),
             }
         except Exception as e:
             logger.error(f"Critical error reading torrent details: {e}")
@@ -2339,7 +2338,7 @@ class LibtorrentClient:
                     continue
                 
                 # --- CALCOLO REGOLE PER IL SINGOLO TORRENT ---
-                my_limits = s_db.get(str(h.info_hash()), {})
+                my_limits = s_db.get(str(h.info_hash()).lower(), {})
                 my_ratio = my_limits.get('ratio', -1)
                 my_days = my_limits.get('days', -1)
                 
