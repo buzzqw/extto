@@ -1287,18 +1287,27 @@ const app = {
         try {
             const res = await fetch(`${API_BASE}/api/series/completeness`);
             const completeness = await res.json();
-            
+
             document.querySelectorAll('.series-status-badge').forEach(badge => {
                 const name = badge.dataset.seriesName;
-                if (completeness[name] === true) {
-                    // Animazione e cambio stile per le serie completate al 100%
-                    badge.classList.remove('badge-success');
+                const entry = completeness[name];
+                if (!entry) return;
+                if (entry.is_completed) {
+                    badge.classList.remove('badge-success', 'badge-warning');
                     badge.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.3))';
                     badge.style.color = '#34d399';
                     badge.style.borderColor = 'rgba(52, 211, 153, 0.5)';
                     badge.style.boxShadow = '0 0 12px rgba(52, 211, 153, 0.25)';
                     badge.innerHTML = '<i class="fa-solid fa-check-double"></i>';
                     badge.title = 'Serie Completata: terminata su TMDB e collezione al 100%!';
+                } else if (entry.is_ended) {
+                    badge.classList.remove('badge-success', 'badge-warning');
+                    badge.style.background = 'rgba(245,158,11,.15)';
+                    badge.style.color = '#f59e0b';
+                    badge.style.borderColor = 'rgba(245,158,11,.4)';
+                    badge.style.boxShadow = '0 0 8px rgba(245,158,11,.2)';
+                    badge.innerHTML = '<i class="fa-solid fa-flag-checkered"></i>';
+                    badge.title = 'Serie terminata su TMDB — episodi mancanti';
                 }
             });
         } catch(e) { console.error('Errore durante il controllo completezza', e); }
@@ -1993,9 +2002,7 @@ const app = {
                 }
             }
             
-            // Badge nella vista dettaglio — tre stati distinti:
-            
-            // Badge nella vista dettaglio — tre stati distinti:
+            // Badge nella vista dettaglio — tre stati:
             // ✅ COMPLETATA  = serie finita su TMDB + tutti gli episodi scaricati
             // 🏁 TERMINATA   = serie finita su TMDB, ma mancano ancora episodi
             // (nessun badge) = serie in corso

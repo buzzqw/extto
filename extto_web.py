@@ -1733,15 +1733,15 @@ def get_series_last_found(series_id):
     
 @app.route('/api/series/completeness', methods=['GET'])
 def get_series_completeness():
-    """Restituisce istantaneamente dal DB locale quali serie sono marcate come completate dal motore."""
+    """Restituisce dal DB quali serie sono marcate come completate o terminate dal motore."""
     try:
         c = db.conn.cursor()
-        # Se la colonna non esiste ancora (motore non riavviato), fallisce in modo silenzioso
-        c.execute('SELECT name FROM series WHERE is_completed=1')
-        results = {row['name']: True for row in c.fetchall()}
+        c.execute('SELECT name, is_completed, is_ended FROM series WHERE is_completed=1 OR is_ended=1')
+        results = {row['name']: {'is_completed': bool(row['is_completed']), 'is_ended': bool(row['is_ended'])}
+                   for row in c.fetchall()}
         return jsonify(results)
     except Exception as e:
-        logger.debug(f"get_downloaded_series: {e}")
+        logger.debug(f"get_series_completeness: {e}")
         return jsonify({})
     
 @app.route('/api/series/stats', methods=['GET'])

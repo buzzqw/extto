@@ -36,6 +36,7 @@ class LibtorrentClient:
     _alert_thread = None
     _running      = False
     _cfg_snapshot: dict = {}
+    _restored_seeding: set = set()  # info_hash dei torrent già in seeding al momento del restore
     STATE_DIR      = STATE_DIR
 
     _ENC_MAP = {
@@ -208,9 +209,11 @@ class LibtorrentClient:
 
                         # Un torrent è "già completato" se il fastresume lo dice esplicitamente
                         # oppure se seeding_time > 0 (stava facendo seed prima dello shutdown).
-                        _fr_finished = bool(_fr_dict.get(b'finished', _fr_dict.get('finished', 0)))
-                        _fr_seeding_time = int(_fr_dict.get(b'seeding time', _fr_dict.get('seeding time', 0)))
-                        _fr_active_time  = int(_fr_dict.get(b'active time', _fr_dict.get('active time', 0)))
+                        # Nota: libtorrent usa underscore nelle chiavi bdecode (seeding_time, active_time,
+                        # finished_time), NON spazi. I fallback con spazio erano errati.
+                        _fr_finished     = bool(int(_fr_dict.get(b'finished_time', _fr_dict.get('finished_time', 0))))
+                        _fr_seeding_time = int(_fr_dict.get(b'seeding_time', _fr_dict.get('seeding_time', 0)))
+                        _fr_active_time  = int(_fr_dict.get(b'active_time',  _fr_dict.get('active_time',  0)))
                         # Ratio upload/download: se > 0 stava sicuramente seedando
                         _fr_ul   = int(_fr_dict.get(b'total_uploaded', _fr_dict.get('total_uploaded', 0)))
                         _fr_dl   = int(_fr_dict.get(b'total_downloaded', _fr_dict.get('total_downloaded', 0)))
@@ -238,6 +241,7 @@ class LibtorrentClient:
                         # Impostiamo skip_checking sul flags per segnalare a libtorrent
                         # di fidarsi del fastresume senza verificare i pezzi.
                         if _was_seeding:
+                            cls._restored_seeding.add(ih.lower())
                             try:
                                 _flags = getattr(params, 'flags', None)
                                 if _flags is not None:
@@ -1126,6 +1130,13 @@ class LibtorrentClient:
                         elif 'torrent_finished_alert' in a_type:
                             h   = a.handle
                             h.save_resume_data()
+
+                            # Salta notifica e post-processing per torrent già in seeding al restore
+                            _ih_key = str(h.info_hash()).lower()
+                            if _ih_key in cls._restored_seeding:
+                                cls._restored_seeding.discard(_ih_key)
+                                logger.debug(f"↩️  torrent_finished_alert ignorato (già in seeding al restore): {h.name()}")
+                                continue
 
                             # Carica config completa dal DB (include tmdb_api_key, rename_episodes, ecc.)
                             full_cfg = cls._load_full_cfg()
