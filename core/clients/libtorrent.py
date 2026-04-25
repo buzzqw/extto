@@ -1222,52 +1222,7 @@ class LibtorrentClient:
                                     cls._trigger_renamer(h, _rename_path)
                                     cls._trigger_folder_scan(h)
                                     cls._trigger_mediaserver_refresh(h.name() or '', _rename_path)
-                                    # ── NOTIFICA POST-PROCESSING (ramo no-move) ───────────
-                                    try:
-                                        _s2 = h.status()
-                                        try:
-                                            import core.config_db as _cdb4
-                                            _pp_cfg2 = _cdb4.get_all_settings()
-                                        except Exception:
-                                            _pp_cfg2 = dict(full_cfg)
-                                        from ..notifier import Notifier as _Notif2
-                                        _notif2 = _Notif2(_pp_cfg2)
-                                        # Cerca il file rinominato nella directory
-                                        _renamed_to2 = None
-                                        try:
-                                            import time as _time3
-                                            _video_exts3 = {'.mkv', '.mp4', '.avi', '.m4v', '.ts', '.mov', '.wmv', '.webm'}
-                                            _now3 = _time3.time()
-                                            _RECENT_SECS3 = 300
-                                            _scan_dir = curr_save if os.path.isdir(curr_save) else os.path.dirname(curr_save)
-                                            _candidates2 = []
-                                            for _fn2 in os.listdir(_scan_dir):
-                                                if os.path.splitext(_fn2)[1].lower() not in _video_exts3:
-                                                    continue
-                                                _fp2 = os.path.join(_scan_dir, _fn2)
-                                                try:
-                                                    _mtime2 = os.path.getmtime(_fp2)
-                                                except Exception:
-                                                    continue
-                                                if (_now3 - _mtime2) <= _RECENT_SECS3:
-                                                    _candidates2.append((_mtime2, _fn2))
-                                            if _candidates2:
-                                                _candidates2.sort(key=lambda x: x[0], reverse=True)
-                                                _renamed_to2 = _candidates2[0][1]
-                                        except Exception:
-                                            pass
-                                        _notif2.notify_post_processing(
-                                            title_name   = h.name() or 'Sconosciuto',
-                                            size_bytes   = _s2.total_wanted_done,
-                                            time_sec     = _s2.active_time,
-                                            action_log   = [],
-                                            is_series    = True,
-                                            is_processed = True,
-                                            final_path   = curr_save,
-                                            renamed_to   = _renamed_to2,
-                                        )
-                                    except Exception as _ne2:
-                                        logger.warning(f"⚠️ Post-processing notification error (no-move): {_ne2}")
+                                    
                                     # --- AUTO-REMOVE POST-RENAME (no-move) ---
                                     try:
                                         _ar_cfg2 = cls._cfg_snapshot or {}
@@ -1337,61 +1292,7 @@ class LibtorrentClient:
                                 cls._trigger_renamer(h, rename_save_path)
                                 cls._trigger_folder_scan(h)
                                 cls._trigger_mediaserver_refresh(h.name() or '', rename_save_path)
-                                # --- 4. NOTIFICA POST-PROCESSING ---
-                                try:
-                                    s = h.status()
-                                    try:
-                                        import core.config_db as _cdb3
-                                        _pp_cfg = _cdb3.get_all_settings()
-                                    except Exception:
-                                        _pp_cfg = dict(cls._cfg_snapshot)
-                                    from ..notifier import Notifier as _Notif
-                                    _notif = _Notif(_pp_cfg)
-                                    # Cerca il file rinominato nel nuovo path.
-                                    # NON si basa sul conteggio dei file (fallisce su cartelle NAS
-                                    # già popolate con episodi precedenti): usa la data di modifica
-                                    # per identificare il file appena scritto (max 5 minuti fa).
-                                    _renamed_to = None
-                                    try:
-                                        import os as _os2
-                                        import time as _time2
-                                        _video_exts2 = {'.mkv', '.mp4', '.avi', '.m4v', '.ts', '.mov', '.wmv', '.webm'}
-                                        _now2 = _time2.time()
-                                        _RECENT_SECS = 300  # 5 minuti
-                                        if _os2.path.isfile(new_path):
-                                            # new_path è già il file diretto
-                                            _renamed_to = _os2.path.basename(new_path)
-                                        elif _os2.path.isdir(new_path):
-                                            # Cerca il video toccato più di recente entro la finestra
-                                            _candidates = []
-                                            for _fn in _os2.listdir(new_path):
-                                                if _os2.path.splitext(_fn)[1].lower() not in _video_exts2:
-                                                    continue
-                                                _fp = _os2.path.join(new_path, _fn)
-                                                try:
-                                                    _mtime = _os2.path.getmtime(_fp)
-                                                except Exception:
-                                                    continue
-                                                if (_now2 - _mtime) <= _RECENT_SECS:
-                                                    _candidates.append((_mtime, _fn))
-                                            if _candidates:
-                                                # Prende il più recente in caso di più candidati
-                                                _candidates.sort(key=lambda x: x[0], reverse=True)
-                                                _renamed_to = _candidates[0][1]
-                                    except Exception:
-                                        pass
-                                    _notif.notify_post_processing(
-                                        title_name   = h.name() or 'Sconosciuto',
-                                        size_bytes   = s.total_wanted_done,
-                                        time_sec     = s.active_time,
-                                        action_log   = [],
-                                        is_series    = True,
-                                        is_processed = True,
-                                        final_path   = new_path,
-                                        renamed_to   = _renamed_to,
-                                    )
-                                except Exception as _ne:
-                                    logger.warning(f"⚠️ Post-processing notification error: {_ne}")
+                                
                                 # --- 5. AUTO-REMOVE POST-RENAME ---
                                 # Se auto_remove_completed=yes, rimuove il torrent dalla sessione
                                 # (senza cancellare i file) così al prossimo avvio non fa recheck
