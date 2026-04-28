@@ -645,19 +645,19 @@ def web_task():
                             continue
 
                         # ---> SALVA DIMENSIONE PRIMA DI PULIRE <---
-                            try:
-                                total_b = t.get('total_size', 0)
-                                t_hash = t.get('hash', '')
-                                if total_b > 0 and t_hash:
-                                    c_sz = db.conn.cursor()
-                                    c_sz.execute("UPDATE episodes SET size_bytes=? WHERE magnet_hash=? AND size_bytes=0", (total_b, t_hash))
-                                    c_sz.execute("UPDATE movies SET size_bytes=? WHERE magnet_hash=? AND size_bytes=0", (total_b, t_hash))
-                                    db.conn.commit()
-                            except Exception: pass
-                            # ------------------------------------------
+                        try:
+                            total_b = t.get('total_size', 0)
+                            t_hash = t.get('hash', '')
+                            if total_b > 0 and t_hash:
+                                c_sz = db.conn.cursor()
+                                c_sz.execute("UPDATE episodes SET size_bytes=? WHERE magnet_hash=? AND size_bytes=0", (total_b, t_hash))
+                                c_sz.execute("UPDATE movies SET size_bytes=? WHERE magnet_hash=? AND size_bytes=0", (total_b, t_hash))
+                                db.conn.commit()
+                        except Exception: pass
+                        # ------------------------------------------
 
-                            LibtorrentClient.remove_torrent(t['hash'], delete_files=False)
-                            removed.append(t['name'])
+                        LibtorrentClient.remove_torrent(t['hash'], delete_files=False)
+                        removed.append(t['name'])
 
                     # ---> PULIZIA FILE .torrent ORFANI DA extto_torrents_state/ <---
                     # Rimuove .torrent senza .fastresume corrispondente (orfani)

@@ -1965,15 +1965,13 @@ def remove_completed_torrents():
                 is_completed = False
 
                 # CASO 1: È già al 100% nel client (Risolve il Weekly Pack in pausa!)
-                # ESCLUDI i torrent in seeding infinito (is_infinite=True dal backend)
-                # o in seeding attivo — il Pulisci non deve togliere torrent che seedano
+                # ESCLUDI solo i torrent in seeding infinito (is_infinite=True dal backend)
                 t_state      = str(t.get('state', '')).lower()
-                t_is_seeding = any(k in t_state for k in ('seeding', 'finished'))
                 t_is_infinite = bool(t.get('is_infinite', False))
                 if t_prog >= 1.0:
-                    # Non rimuovere se: seeding infinito OPPURE in seeding attivo
-                    if t_is_infinite or t_is_seeding:
-                        pass  # Salta — torrent in seeding
+                    # Non rimuovere solo se seeding infinito (ratio=0 o days=0)
+                    if t_is_infinite:
+                        pass  # Salta — torrent con seeding infinito configurato
                     else:
                         is_completed = True
 
