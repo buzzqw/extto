@@ -2236,6 +2236,7 @@ def run_backup():
             '__pycache__', '*.pyc', '*.pyo',
             'backups/', '*.log', '.git/', '.venv/',
             'extto_torrents_state/',   # dati resume libtorrent: non portabili
+            '*.db-wal', '*.db-shm',   # SQLite WAL/SHM: temporanei, possono superare 60 MB
         ]
 
         def _should_exclude(rel_path: str) -> bool:
@@ -2329,12 +2330,14 @@ def run_backup():
                 from core.notifier import Notifier as _Notifier
                 _n = _Notifier(cfg_full)
                 if _n.tg_enabled:
-                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info, zip_path)
+                    # Telegram Bot API limite: 50 MB per sendDocument
+                    _attach = zip_path if zip_size < 49 * 1024 * 1024 else ''
+                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info, _attach)
                     tg_sent = True
                 else:
-                    logger.debug("backup notify: Telegram abilitato nelle impostazioni backup ma token/chat_id mancanti")
+                    logger.warning("backup notify: Telegram abilitato nelle impostazioni backup ma token/chat_id mancanti")
         except Exception as _ne:
-            logger.debug(f"backup notify: {_ne}")
+            logger.warning(f"backup notify: {_ne}")
         tg_str = " 📨 Telegram ✓" if tg_sent else ""
         _blog.info(f"✅ Backup completato: {zip_name} ({round(zip_size/1024**2,1)} MB, {file_count} file, {kept} backup conservati){tg_str}")
         return jsonify({
