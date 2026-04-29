@@ -2235,7 +2235,7 @@ def run_backup():
 
         EXCLUDE_PATTERNS = [
             '__pycache__', '*.pyc', '*.pyo',
-            'backups/', '*.log', '.git/', '.venv/',
+            'backups/', '*.log', '.git/', '.venv/', '.claude/',
             'extto_torrents_state/',   # dati resume libtorrent: non portabili
             '*.db-wal', '*.db-shm',   # SQLite WAL/SHM: temporanei, possono superare 60 MB
         ]
