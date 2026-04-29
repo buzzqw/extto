@@ -688,15 +688,14 @@ def web_task():
                     payload = self._read_json_body()
                     hash_val = payload.get('hash', '').strip()
                     
-                    # ---> NUOVO: RIMOZIONE SINGOLA HTTP <---
-                    if hash_val.startswith('http_'):
+                    # ---> RIMOZIONE SINGOLA HTTP / MEGA <---
+                    if hash_val.startswith(('http_', 'mega_')):
                         try:
                             from core.comics import ACTIVE_HTTP_DOWNLOADS
-                            if hash_val in ACTIVE_HTTP_DOWNLOADS:
-                                del ACTIVE_HTTP_DOWNLOADS[hash_val]
-                                self._json_response({'ok': True})
-                                return
+                            ACTIVE_HTTP_DOWNLOADS.pop(hash_val, None)
                         except Exception: pass
+                        self._json_response({'ok': True})
+                        return
                     # ---------------------------------------
                     
                     # --- ROUTING ARIA2 RIMOZIONE SINGOLA ---
@@ -736,6 +735,33 @@ def web_task():
                     # --- DETTAGLI FITTIZI PER ARIA2 ---
                     if len(info_hash) == 16:
                         self._json_response({'hash': info_hash, 'name': 'Download Aria2', 'state': 'Aria2', 'progress': 0, 'total_size': 0})
+                        return
+                    # --- DETTAGLI HTTP/MEGA (ACTIVE_HTTP_DOWNLOADS) ---
+                    if info_hash.startswith(('http_', 'mega_')):
+                        try:
+                            from core.comics import ACTIVE_HTTP_DOWNLOADS
+                            if info_hash in ACTIVE_HTTP_DOWNLOADS:
+                                e = dict(ACTIVE_HTTP_DOWNLOADS[info_hash])
+                                e['success']      = True
+                                e['seeds']        = e.get('num_seeds', 0)
+                                e['total_seeds']  = e.get('num_seeds', 0)
+                                e['peers']        = e.get('num_peers', 0)
+                                e['total_peers']  = e.get('num_peers', 0)
+                                e['pieces']       = 0
+                                e['piece_size']   = 0
+                                e['active_time']  = int(time.time()) - e.get('added_time', int(time.time()))
+                                e['seeding_time'] = 0
+                                e['dl_limit']     = -1
+                                e['ul_limit']     = -1
+                                e['seed_ratio']   = -1
+                                e['seed_days']    = -1
+                                e['trackers']     = [{'url': e.get('tracker', ''), 'msg': '', 'tier': 0}] if e.get('tracker') else []
+                                e['files']        = []
+                                e['info']         = {}
+                                self._json_response(e)
+                                return
+                        except Exception: pass
+                        self._json_response({'success': False, 'error': 'Download HTTP non più in memoria (riavvio?)'})
                         return
                     data = LibtorrentClient.get_torrent_details(info_hash)
                     self._json_response(data)
@@ -2698,7 +2724,8 @@ def main():
                 result = run_comics_cycle(
                     send_magnet_fn = _comics_send,
                     logger_fn      = logger.info,
-                    notify_fn      = notifier.notify_comic if hasattr(notifier, 'notify_comic') else None
+                    notify_fn      = notifier.notify_comic if hasattr(notifier, 'notify_comic') else None,
+                    notifier       = notifier,
                 )
                 if result['sent'] > 0:
                     logger.info(f"📚 Comics: {result['sent']} new downloads started")

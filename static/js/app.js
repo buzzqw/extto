@@ -5815,19 +5815,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         if (withFiles && !confirm(t('Attenzione: Selezionando questa opzione cancellerai fisicamente i file multimediali dal tuo hard disk. Non è possibile annullare l\'operazione.'))) return;
         document.getElementById('single-remove-drop')?.remove();
         try {
-            // Gli scarichi diretti (HTTP/Mega) hanno hash fittizio con prefisso http_ o mega_
-            // → vanno all'endpoint dedicato, non al motore libtorrent
-            const isHttpDl = hash && (hash.startsWith('http_') || hash.startsWith('mega_'));
-            if (isHttpDl) {
-                const res = await fetch(`${API_BASE}/api/http-downloads/remove`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({hash: hash})
-                });
-                if (!res.ok) throw new Error();
-                this.showToast(t('Download rimosso'), 'success');
-                await this.loadTorrents();
-                return;
-            }
+            // Gli scarichi diretti (HTTP/Mega) hanno hash fittizio: instradati verso l'engine
+            // via /api/torrents/remove che gestisce correttamente i prefissi http_/mega_
 
             const res = await fetch(`${API_BASE}/api/torrents/remove`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
