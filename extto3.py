@@ -625,24 +625,23 @@ def web_task():
                         is_paused = bool(t.get('paused', False))
                         
                         physical_found = t.get('physical_file_found', False)
-                        is_finished_state = st in ('finished', 'finished_t', 'completato', 'finito', 'salvato')
+                        is_finished_state = st in ('finished', 'finished_t', 'completato', 'finito', 'salvato',
+                                                     'seeding (completato)', 'in coda (seeding)')
                         can_remove = (pr >= 1.0 or is_finished_state or physical_found)
-                        
-                        if can_remove:
-                        # ---> INIZIO PROTEZIONE SEED INFINITO <---
-	                        try:
-	                            t_details = LibtorrentClient.get_torrent_details(t['hash'])
-	                            if t_details:
-	                                my_ratio = t_details.get('seed_ratio', -1)
-	                                my_days = t_details.get('seed_days', -1)
-	                                if my_ratio == 0 or my_days == 0:
-	                                    continue # Il torrent è infinito, salta la pulizia!
-	                        except Exception:
-	                            pass
-                        # ---> FINE PROTEZIONE SEED INFINITO <---
 
-                        if is_paused and not (is_finished_state or physical_found):
+                        if not can_remove:
                             continue
+
+                        # Protezione seed infinito: non toccare torrent con ratio/days=0
+                        try:
+                            t_details = LibtorrentClient.get_torrent_details(t['hash'])
+                            if t_details:
+                                my_ratio = t_details.get('seed_ratio', -1)
+                                my_days  = t_details.get('seed_days',  -1)
+                                if my_ratio == 0 or my_days == 0:
+                                    continue
+                        except Exception:
+                            pass
 
                         # ---> SALVA DIMENSIONE PRIMA DI PULIRE <---
                         try:

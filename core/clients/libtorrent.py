@@ -217,7 +217,12 @@ class LibtorrentClient:
                         # Ratio upload/download: se > 0 stava sicuramente seedando
                         _fr_ul   = int(_fr_dict.get(b'total_uploaded', _fr_dict.get('total_uploaded', 0)))
                         _fr_dl   = int(_fr_dict.get(b'total_downloaded', _fr_dict.get('total_downloaded', 0)))
-                        _was_seeding = _fr_finished or _fr_seeding_time > 0 or (_fr_ul > 0 and _fr_dl > 0 and _fr_ul >= _fr_dl * 0.5)
+                        # _fr_finished=True significa solo "download completato", NON "stava seedando".
+                        # Un torrent che aveva seeding_time=0 (appena finito di scaricare, mai partito il seed)
+                        # NON entra in _restored_seeding: il suo torrent_finished_alert deve sparare
+                        # normalmente per completare il post-processing (move NAS, rename) eventualmente
+                        # interrotto da uno shutdown nel mezzo di un move_storage.
+                        _was_seeding = _fr_seeding_time > 0 or (_fr_ul > 0 and _fr_dl > 0 and _fr_ul >= _fr_dl * 0.5)
 
                         # Se esiste il .torrent salvato, caricalo nei params —
                         # così libtorrent ha la mappa dei pezzi e non resta in "Attesa Metadati".
