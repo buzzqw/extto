@@ -1779,6 +1779,7 @@ const app = {
 
         s.url = v('urls-list').split('\n').filter(x=>x.trim());
         s.blacklist = v('blacklist-list').split('\n').filter(x=>x.trim());
+        s.content_filter = v('content-filter-list').split('\n').filter(x=>x.trim());
         s.wantedlist = v('wantedlist-list').split('\n').filter(x=>x.trim());
         s.custom_score = v('customscore-list').split('\n').filter(x=>x.trim());
         s.auto_remove_completed = document.getElementById('auto-remove-completed')?.checked ? 'yes' : 'no';
@@ -4207,6 +4208,8 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         if (urlsEl) urlsEl.value = (Array.isArray(s.url) ? s.url.join('\n') : s.url) || '';
         const blacklistEl = document.getElementById('blacklist-list');
         if (blacklistEl) blacklistEl.value = (Array.isArray(s.blacklist) ? s.blacklist.join('\n') : s.blacklist) || '';
+        const contentFilterEl = document.getElementById('content-filter-list');
+        if (contentFilterEl) contentFilterEl.value = (Array.isArray(s.content_filter) ? s.content_filter.join('\n') : s.content_filter) || '';
         const wantedEl = document.getElementById('wantedlist-list');
         if (wantedEl) wantedEl.value = (Array.isArray(s.wantedlist) ? s.wantedlist.join('\n') : s.wantedlist) || '';
         const customEl = document.getElementById('customscore-list');

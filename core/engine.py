@@ -427,6 +427,9 @@ class Engine:
             except Exception as e:
                 logger.warning(f"rescore_archive sort: {e}")
                 items_to_archive = items
+            from .models import Parser as _Parser
+            items_to_archive = [i for i in items_to_archive
+                                if not _Parser.is_content_filtered(i.get('title', ''))]
             if items_to_archive:
                 self.archive.save_batch(items_to_archive)
             self.cache.save()

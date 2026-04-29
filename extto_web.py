@@ -774,9 +774,10 @@ def _save_extto_conf(config: dict) -> bool:
             ("archive_root", "Cartelle radice dell'archivio (opzionali)"),
             ("archive_cred", "Credenziali per montaggi remoti (PREFIX|user|pass)"),
             ("url",          "URL Sorgenti (ExtTo, Corsaro)"),
-            ("blacklist",    "Parole vietate nei titoli (es: cam, ts)"),
-            ("wantedlist",   "Parole obbligatorie nei titoli"),
-            ("custom_score", "Punteggi Personalizzati (Parola:Punti)"),
+            ("blacklist",       "Parole vietate nei titoli (es: cam, ts)"),
+            ("wantedlist",      "Parole obbligatorie nei titoli"),
+            ("content_filter",  "Filtro categorie contenuti (es: xxx, anime, hentai)"),
+            ("custom_score",    "Punteggi Personalizzati (Parola:Punti)"),
         ]
         for key, desc in list_keys:
             vals = settings.get(key, [])
@@ -3120,7 +3121,7 @@ def save_full_config():
         with _config_write_lock:
             # Leggi il file corrente solo per le chiavi lista se non fornite
             current = parse_series_config()
-            LIST_KEYS = {'url', 'blacklist', 'wantedlist', 'archive_root', 'archive_cred', 'custom_score'}
+            LIST_KEYS = {'url', 'blacklist', 'wantedlist', 'content_filter', 'archive_root', 'archive_cred', 'custom_score'}
             for k in current['settings']:
                 # Protegge le liste e i punteggi dall'essere cancellati se non presenti nel payload
                 if k in LIST_KEYS or k.startswith('score_'):
@@ -3216,7 +3217,7 @@ def update_settings():
                 return jsonify({'success': False,
                     'error': 'web_port e engine_port non possono essere uguali'}), 400
 
-        LIST_KEYS = {'url', 'blacklist', 'wantedlist', 'archive_root', 'archive_cred', 'custom_score'}
+        LIST_KEYS = {'url', 'blacklist', 'wantedlist', 'content_filter', 'archive_root', 'archive_cred', 'custom_score'}
         # Preserva sia le liste che tutti i punteggi (punti bonus e preferenze)
         preserved = {k: v for k, v in config['settings'].items() if k in LIST_KEYS or k.startswith('score_')}
         config['settings'] = {**preserved, **new_settings} # FIX: Permette il salvataggio corretto delle liste!
@@ -3513,15 +3514,17 @@ def update_urls_filters():
         data = request.json or {}
         config = parse_series_config()
         
-        # Aggiorna URL, blacklist, wantedlist
+        # Aggiorna URL, blacklist, wantedlist, content_filter
         urls = data.get('urls', [])
         blacklist = data.get('blacklist', [])
         wantedlist = data.get('wantedlist', [])
-        
+        content_filter = data.get('content_filter', [])
+
         # Sostituisci gli array
         config['settings']['url'] = urls
         config['settings']['blacklist'] = blacklist
         config['settings']['wantedlist'] = wantedlist
+        config['settings']['content_filter'] = content_filter
         
         if save_series_config(config):
             try:

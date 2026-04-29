@@ -1917,7 +1917,7 @@ def main():
                                                 to_arch = [r for r in j_res if not (
                                                     ('Jackett' in r.get('source','') and not cfg.jackett_save_to_archive) or
                                                     ('Prowlarr' in r.get('source','') and not cfg.prowlarr_save_to_archive)
-                                                )]
+                                                ) and not Parser.is_content_filtered(r.get('title', ''))]
                                                 if to_arch:
                                                     eng.archive.save_batch(to_arch)
                                             results.extend(j_res)
@@ -2876,7 +2876,7 @@ def main():
                             _rss_to_arch = [r for r in rss_items if not (
                                 ('Jackett' in r.get('source','') and not cfg_live.jackett_save_to_archive) or
                                 ('Prowlarr' in r.get('source','') and not cfg_live.prowlarr_save_to_archive)
-                            )]
+                            ) and not Parser.is_content_filtered(r.get('title', ''))]
                             if _rss_to_arch:
                                 eng.archive.save_batch(_rss_to_arch)
                             

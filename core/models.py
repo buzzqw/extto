@@ -288,8 +288,19 @@ class Quality:
 # --- PARSER ---
 class Parser:
     DEFAULT_BLACKLIST = ['cam', 'hdcam', 'ts', 'telesync', 'screener', 'sample']
-    BLACKLIST  = DEFAULT_BLACKLIST.copy()
-    WANTEDLIST = []
+    BLACKLIST       = DEFAULT_BLACKLIST.copy()
+    WANTEDLIST      = []
+    CONTENT_FILTER  = []   # filtro categorie contenuti (xxx, anime, …) — escluse anche dall'archivio
+
+    @staticmethod
+    def is_content_filtered(title: str) -> bool:
+        if not title or not Parser.CONTENT_FILTER:
+            return False
+        t_normalized = re.sub(r'[._-]', ' ', title.lower())
+        for p in Parser.CONTENT_FILTER:
+            if re.search(rf'\b{re.escape(p)}\b', t_normalized):
+                return True
+        return False
 
     @staticmethod
     def is_blacklisted(title: str) -> Tuple[bool, Optional[str]]:
@@ -436,6 +447,8 @@ class Parser:
         is_bl, reason = Parser.is_blacklisted(title)
         if is_bl:
             return None
+        if Parser.is_content_filtered(title):
+            return None
         if not Parser.is_wanted(title):
             return None
 
@@ -551,6 +564,8 @@ class Parser:
     def parse_movie(title: str):
         is_bl, reason = Parser.is_blacklisted(title)
         if is_bl:
+            return None
+        if Parser.is_content_filtered(title):
             return None
         if not Parser.is_wanted(title):
             return None

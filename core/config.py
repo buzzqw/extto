@@ -124,10 +124,11 @@ class Config:
         self.series = []
         self.movies = []
 
-        # Reset blacklist/wantedlist del Parser
+        # Reset blacklist/wantedlist/content_filter del Parser
         from .models import Parser
-        Parser.BLACKLIST  = Parser.DEFAULT_BLACKLIST.copy()
-        Parser.WANTEDLIST = []
+        Parser.BLACKLIST       = Parser.DEFAULT_BLACKLIST.copy()
+        Parser.WANTEDLIST      = []
+        Parser.CONTENT_FILTER  = []
 
         # ── Migrazione automatica al primo avvio ─────────────────────────────
         if _cdb.needs_migration():
@@ -161,6 +162,9 @@ class Config:
         for item in (raw.get('wantedlist', []) if isinstance(raw.get('wantedlist'), list) else ([raw['wantedlist']] if raw.get('wantedlist') else [])):
             if item.lower() not in Parser.WANTEDLIST:
                 Parser.WANTEDLIST.append(item.lower())
+        for item in (raw.get('content_filter', []) if isinstance(raw.get('content_filter'), list) else ([raw['content_filter']] if raw.get('content_filter') else [])):
+            if item.lower() not in Parser.CONTENT_FILTER:
+                Parser.CONTENT_FILTER.append(item.lower())
 
         # ── Custom scores ─────────────────────────────────────────────────────
         self.custom_scores = {}
