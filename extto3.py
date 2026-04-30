@@ -632,13 +632,36 @@ def web_task():
                         if not can_remove:
                             continue
 
-                        # Protezione seed infinito: non toccare torrent con ratio/days=0
+                        # Rispetta i limiti di seeding: seed infinito + goal non ancora raggiunti
                         try:
                             t_details = LibtorrentClient.get_torrent_details(t['hash'])
                             if t_details:
                                 my_ratio = t_details.get('seed_ratio', -1)
                                 my_days  = t_details.get('seed_days',  -1)
+
+                                # Seed infinito: mai rimuovere con Pulisci
                                 if my_ratio == 0 or my_days == 0:
+                                    continue
+
+                                # Calcola target da config globale o regola per-torrent
+                                _snap = LibtorrentClient._cfg_snapshot or {}
+                                global_ratio = float(_snap.get('libtorrent_seed_ratio', 0))
+                                global_days  = float(_snap.get('libtorrent_seed_time_days', 0))
+                                global_mins  = int(_snap.get('libtorrent_seed_time', 0))
+                                global_time  = int(global_days * 86400) if global_days > 0 else (global_mins * 60)
+
+                                target_ratio = my_ratio if my_ratio >= 0 else global_ratio
+                                target_time  = int(my_days * 86400) if my_days >= 0 else global_time
+
+                                current_ratio    = float(t.get('ratio', 0))
+                                current_seed_sec = int(t.get('seeding_time', 0))
+                                downloaded       = int(t.get('downloaded', 0))
+
+                                ratio_ok = target_ratio > 0 and downloaded > 0 and current_ratio >= target_ratio
+                                time_ok  = target_time  > 0 and current_seed_sec >= target_time
+
+                                # Goal configurato ma non ancora raggiunto: non rimuovere
+                                if (target_ratio > 0 or target_time > 0) and not (ratio_ok or time_ok):
                                     continue
                         except Exception:
                             pass
