@@ -6243,6 +6243,37 @@ def rescore_episodes():
 
 
 
+@app.route('/api/db/prune/preview', methods=['POST'])
+def prune_archive_preview():
+    """Anteprima dei record che verrebbero eliminati dalla pulizia archivio."""
+    try:
+        days = int((request.json or {}).get('days', 30))
+        if not os.path.exists(ARCHIVE_FILE):
+            return jsonify({'success': False, 'error': 'Archivio non trovato'})
+        from datetime import timezone, timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_iso = cutoff.isoformat()
+        with sqlite3.connect(ARCHIVE_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM archive")
+            total = c.fetchone()[0]
+            c.execute("SELECT COUNT(*) FROM archive WHERE added_at < ?", (cutoff_iso,))
+            to_delete = c.fetchone()[0]
+            c.execute("""SELECT source, COUNT(*) as cnt FROM archive
+                         WHERE added_at < ? GROUP BY source ORDER BY cnt DESC LIMIT 10""", (cutoff_iso,))
+            sources = [{'source': r['source'] or 'N/D', 'count': r['cnt']} for r in c.fetchall()]
+            c.execute("""SELECT title, source, added_at FROM archive
+                         WHERE added_at < ? ORDER BY added_at ASC LIMIT 5""", (cutoff_iso,))
+            samples = [{'title': r['title'], 'source': r['source'] or '',
+                        'added_at': (r['added_at'] or '')[:10]} for r in c.fetchall()]
+        return jsonify({'success': True, 'total': total, 'to_delete': to_delete,
+                        'keep': total - to_delete, 'cutoff_date': cutoff_iso[:10],
+                        'sources': sources, 'samples': samples})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/db/prune', methods=['POST'])
 def prune_archive():
     """Elimina i record vecchi dall'archivio e registra nel log."""
@@ -6250,71 +6281,114 @@ def prune_archive():
         days = int((request.json or {}).get('days', 30))
         if not os.path.exists(ARCHIVE_FILE):
             return jsonify({'success': False, 'error': 'Archivio non trovato'})
-            
+
         log_maintenance(f"🧹 Avvio pulizia Archivio (elementi più vecchi di {days} giorni)...")
+
+        # Calcola il cutoff in Python: i valori added_at sono ISO con T+timezone,
+        # datetime() di SQLite restituisce '2024-01-15 10:30:45' (spazio, no TZ),
+        # la comparazione stringa fallirebbe sempre perché 'T' > ' '.
+        from datetime import timezone, timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_iso = cutoff.isoformat()
 
         with sqlite3.connect(ARCHIVE_FILE) as conn:
             c = conn.cursor()
-            c.execute("DELETE FROM archive WHERE added_at < datetime('now', '-' || ? || ' days')", (str(days),))
+            c.execute("DELETE FROM archive WHERE added_at < ?", (cutoff_iso,))
             deleted = c.rowcount
-        
+
         msg = f'Rimossi {deleted} elementi obsoleti'
         log_maintenance(f"✅ Pulizia completata: {msg}")
-        
+
         return jsonify({'success': True, 'deleted': deleted, 'message': msg})
-        
+
     except Exception as e:
         log_maintenance(f"❌ Errore Pulizia Archivio: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Range Unicode per i token script usati da prune_archive_keyword
+_SCRIPT_RANGES = {
+    '[cjk]':        [(0x4E00, 0x9FFF), (0x3400, 0x4DBF), (0xF900, 0xFAFF),
+                     (0x3040, 0x30FF), (0xAC00, 0xD7AF), (0x3000, 0x303F)],
+    '[cirillico]':  [(0x0400, 0x04FF), (0x0500, 0x052F)],
+    '[arabo]':      [(0x0600, 0x06FF), (0x0750, 0x077F),
+                     (0xFB50, 0xFDFF), (0xFE70, 0xFEFF)],
+    '[ebraico]':    [(0x0590, 0x05FF), (0xFB00, 0xFB4F)],
+    '[thai]':       [(0x0E00, 0x0E7F)],
+    '[non-latino]': None,   # gestito a parte: qualsiasi lettera non latina
+}
+
+def _title_has_script(title: str, token: str) -> bool:
+    """True se title contiene almeno un carattere del blocco Unicode indicato dal token."""
+    ranges = _SCRIPT_RANGES.get(token)
+    if token == '[non-latino]':
+        import unicodedata as _ud
+        return any(_ud.category(c)[0] == 'L' and ord(c) > 0x024F for c in title)
+    if ranges is None:
+        return False
+    return any(any(lo <= ord(c) <= hi for lo, hi in ranges) for c in title)
 
 
 @app.route('/api/db/prune-keyword', methods=['POST'])
 def prune_archive_keyword():
     """
     Ricerca nell'archivio per parole chiave nel titolo.
-    Restituisce la lista completa dei record trovati (id + title + added_at).
+    Supporta token script Unicode: [cjk] [cirillico] [arabo] [ebraico] [thai] [non-latino].
     Body JSON:
-        keywords : str  — parole separate da virgola o spazio (OR implicito)
+        keywords : str  — parole/token separati da virgola o spazio (OR implicito)
         limit    : int  — max risultati da restituire (default 500)
     """
     try:
-        data     = request.json or {}
-        raw      = str(data.get('keywords', '')).strip()
-        limit    = min(int(data.get('limit', 500)), 2000)
+        data  = request.json or {}
+        raw   = str(data.get('keywords', '')).strip()
+        limit = min(int(data.get('limit', 500)), 2000)
 
         if not raw:
             return jsonify({'success': False, 'error': 'Nessuna keyword specificata'})
 
         import re as _re
-        keywords = [k.strip() for k in _re.split(r'[,\s]+', raw) if len(k.strip()) >= 2]
-        if not keywords:
+        all_parts     = [k.strip() for k in _re.split(r'[,\s]+', raw) if k.strip()]
+        script_tokens = [p.lower() for p in all_parts if p.lower() in _SCRIPT_RANGES]
+        regular_kws   = [k for k in all_parts if k.lower() not in _SCRIPT_RANGES and len(k) >= 2]
+
+        if not script_tokens and not regular_kws:
             return jsonify({'success': False, 'error': 'Keyword troppo corte (minimo 2 caratteri)'})
 
         if not os.path.exists(ARCHIVE_FILE):
             return jsonify({'success': False, 'error': 'Archivio non trovato'})
 
-        conditions = ' OR '.join(['title LIKE ?' for _ in keywords])
-        params     = [f'%{k}%' for k in keywords]
-
         with sqlite3.connect(ARCHIVE_FILE) as conn:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute(f"SELECT COUNT(*) FROM archive WHERE {conditions}", params)
-            total = c.fetchone()[0]
-            c.execute(
-                f"SELECT id, title, added_at FROM archive WHERE {conditions} ORDER BY added_at DESC LIMIT ?",
-                params + [limit]
-            )
-            rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['added_at']} for r in c.fetchall()]
 
-        log_maintenance(f"🔍 Keyword-search '{', '.join(keywords)}': {total} record trovati (restituiti {len(rows)})")
-        return jsonify({
-            'success':  True,
-            'total':    total,
-            'returned': len(rows),
-            'keywords': keywords,
-            'rows':     rows,
-        })
+            if not script_tokens:
+                # Fast path: solo SQL LIKE
+                conditions = ' OR '.join(['title LIKE ?' for _ in regular_kws])
+                params = [f'%{k}%' for k in regular_kws]
+                c.execute(f"SELECT COUNT(*) FROM archive WHERE {conditions}", params)
+                total = c.fetchone()[0]
+                c.execute(
+                    f"SELECT id, title, added_at FROM archive WHERE {conditions} ORDER BY added_at DESC LIMIT ?",
+                    params + [limit]
+                )
+                rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['added_at']} for r in c.fetchall()]
+            else:
+                # Scan Python: SQLite LIKE non supporta range Unicode
+                c.execute("SELECT id, title, added_at FROM archive ORDER BY added_at DESC")
+                matched = []
+                for r in c:
+                    title = r['title'] or ''
+                    ok = any(kw.lower() in title.lower() for kw in regular_kws)
+                    ok = ok or any(_title_has_script(title, tok) for tok in script_tokens)
+                    if ok:
+                        matched.append({'id': r['id'], 'title': title, 'added_at': r['added_at']})
+                total = len(matched)
+                rows  = matched[:limit]
+
+        used_kws = regular_kws + script_tokens
+        log_maintenance(f"🔍 Keyword-search '{', '.join(used_kws)}': {total} record trovati (restituiti {len(rows)})")
+        return jsonify({'success': True, 'total': total, 'returned': len(rows),
+                        'keywords': used_kws, 'rows': rows})
 
     except Exception as e:
         log_maintenance(f"❌ Errore keyword-search: {e}")

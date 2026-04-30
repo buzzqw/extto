@@ -7312,7 +7312,20 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             this.showToast(t('Inserire un numero di giorni valido (>= 0).'), 'warning');
             return;
         }
-        if(!confirm(`${t('Elimina')} ${days} ${t('Giorni Retention Cestino')}?`)) return;
+
+        // Carica anteprima prima di chiedere conferma
+        let preview = null;
+        try {
+            const pr = await fetch(`${API_BASE}/api/db/prune/preview`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({days})
+            });
+            const pd = await pr.json();
+            if (pd.success) preview = pd;
+        } catch(e) {}
+
+        const confirmed = await this._pruneConfirmModal(days, preview);
+        if (!confirmed) return;
 
         this.showToast(t('Pulizia in corso...'), 'info');
         try {
@@ -7323,7 +7336,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             });
             const data = await res.json();
             if(data.success) {
-                this.showToast(t(data.message), 'success');
+                this.showToast(data.message, 'success');
                 if((data.deleted || 0) > 1000) {
                     setTimeout(() => {
                         if(confirm(t('Hai eliminato molti record. Vuoi eseguire un VACUUM ora per recuperare i Megabyte sul disco?'))) {
@@ -7341,6 +7354,80 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         } catch(e) {
             this.showToast(t('Errore di rete'), 'error');
         }
+    },
+
+    _pruneConfirmModal(days, preview) {
+        return new Promise(resolve => {
+            const existing = document.getElementById('prune-preview-modal');
+            if (existing) existing.remove();
+
+            let bodyHtml = '';
+            if (preview) {
+                const pct = preview.total > 0 ? Math.round(preview.to_delete / preview.total * 100) : 0;
+                bodyHtml = `<p style="margin:0 0 0.8rem 0;">
+                    Verranno eliminati <strong>${preview.to_delete.toLocaleString()}</strong> record
+                    su <strong>${preview.total.toLocaleString()}</strong> totali (${pct}%)<br>
+                    <span style="font-size:0.82rem;color:var(--text-muted);">Soglia: più vecchi del ${preview.cutoff_date}</span>
+                </p>`;
+                if (preview.sources && preview.sources.length) {
+                    bodyHtml += `<div style="font-size:0.83rem;background:var(--bg-secondary);border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;">
+                        <strong style="display:block;margin-bottom:0.25rem;">Per fonte:</strong>`;
+                    preview.sources.forEach(s => {
+                        bodyHtml += `<div style="display:flex;justify-content:space-between;gap:1rem;">
+                            <span style="color:var(--text-secondary)">${this.escapeHtml(s.source)}</span>
+                            <span>${s.count.toLocaleString()}</span>
+                        </div>`;
+                    });
+                    bodyHtml += `</div>`;
+                }
+                if (preview.samples && preview.samples.length) {
+                    bodyHtml += `<div style="font-size:0.78rem;color:var(--text-muted);">
+                        <strong>I più vecchi:</strong><br>`;
+                    preview.samples.forEach(s => {
+                        const title = s.title.length > 58 ? s.title.slice(0,58) + '…' : s.title;
+                        bodyHtml += `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                            title="${this.escapeHtml(s.title)}">${s.added_at} — ${this.escapeHtml(title)}</div>`;
+                    });
+                    bodyHtml += `</div>`;
+                }
+                if (preview.to_delete === 0) {
+                    bodyHtml = `<p style="color:var(--text-muted);font-style:italic;">
+                        Nessun record da eliminare con questa soglia (${days} giorni).</p>`;
+                }
+            } else {
+                bodyHtml = `<p>Eliminare i record più vecchi di <strong>${days} giorni</strong>?</p>`;
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'prune-preview-modal';
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:480px;">
+                    <div class="modal-header">
+                        <h3 style="margin:0;font-size:1rem;">
+                            <i class="fa-solid fa-broom" style="color:var(--warning);margin-right:8px;"></i>
+                            Anteprima Pulizia Archivio
+                        </h3>
+                        <button class="modal-close" id="prune-modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">${bodyHtml}</div>
+                    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+                        <button class="btn btn-secondary" id="prune-modal-cancel">Annulla</button>
+                        <button class="btn btn-warning" id="prune-modal-confirm"
+                            ${preview && preview.to_delete === 0 ? 'disabled' : ''}>
+                            <i class="fa-solid fa-trash"></i>
+                            ${preview && preview.to_delete > 0 ? `Elimina ${preview.to_delete.toLocaleString()} record` : 'Elimina'}
+                        </button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+
+            const cleanup = result => { modal.remove(); resolve(result); };
+            document.getElementById('prune-modal-close').onclick  = () => cleanup(false);
+            document.getElementById('prune-modal-cancel').onclick = () => cleanup(false);
+            document.getElementById('prune-modal-confirm').onclick = () => cleanup(true);
+            modal.addEventListener('click', e => { if (e.target === modal) cleanup(false); });
+        });
     },
 
     async pruneByKeywordSearch() {
@@ -7367,12 +7454,34 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
     },
 
+    pruneAddScriptFilter(token) {
+        const el = document.getElementById('prune-keyword-input');
+        if (!el) return;
+        const cur = el.value.trim();
+        if (!cur.includes(token)) el.value = cur ? cur + ', ' + token : token;
+        el.focus();
+    },
+
+    contentFilterAddScript(token) {
+        const el = document.getElementById('content-filter-list');
+        if (!el) return;
+        const lines = el.value.split('\n').map(l => l.trim()).filter(Boolean);
+        if (!lines.includes(token)) { lines.push(token); el.value = lines.join('\n'); }
+        el.focus();
+    },
+
     _pruneKwRenderResults(data, resBox) {
         if (!resBox) return;
         const rows  = data.rows || [];
         const total = data.total || 0;
         const ret   = data.returned || rows.length;
-        const kws   = (data.keywords || []).map(k => `<code style="background:rgba(239,68,68,0.15);padding:1px 5px;border-radius:3px;">${k}</code>`).join(' ');
+        const _SCRIPT_TOKENS = ['[cjk]','[cirillico]','[arabo]','[ebraico]','[thai]','[non-latino]'];
+        const kws = (data.keywords || []).map(k => {
+            const isScript = _SCRIPT_TOKENS.includes(k.toLowerCase());
+            return isScript
+                ? `<code style="background:rgba(99,102,241,0.2);padding:1px 5px;border-radius:3px;"><i class="fa-solid fa-globe" style="font-size:.7em;margin-right:2px;"></i>${this.escapeHtml(k)}</code>`
+                : `<code style="background:rgba(239,68,68,0.15);padding:1px 5px;border-radius:3px;">${this.escapeHtml(k)}</code>`;
+        }).join(' ');
 
         if (total === 0) {
             resBox.innerHTML = `<div style="color:var(--success);padding:0.4rem 0;">✅ ${t('Nessun record trovato')} ${t('per')} ${kws}</div>`;

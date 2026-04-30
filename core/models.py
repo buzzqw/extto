@@ -292,14 +292,36 @@ class Parser:
     WANTEDLIST      = []
     CONTENT_FILTER  = []   # filtro categorie contenuti (xxx, anime, …) — escluse anche dall'archivio
 
+    # Token script Unicode utilizzabili nel Filtro Categorie (e nel pruning archivio)
+    SCRIPT_RANGES: dict = {
+        '[cjk]':        [(0x4E00, 0x9FFF), (0x3400, 0x4DBF), (0xF900, 0xFAFF),
+                         (0x3040, 0x30FF), (0xAC00, 0xD7AF), (0x3000, 0x303F)],
+        '[cirillico]':  [(0x0400, 0x04FF), (0x0500, 0x052F)],
+        '[arabo]':      [(0x0600, 0x06FF), (0x0750, 0x077F),
+                         (0xFB50, 0xFDFF), (0xFE70, 0xFEFF)],
+        '[ebraico]':    [(0x0590, 0x05FF), (0xFB00, 0xFB4F)],
+        '[thai]':       [(0x0E00, 0x0E7F)],
+        '[non-latino]': None,   # qualsiasi lettera non latina (ord > U+024F)
+    }
+
     @staticmethod
     def is_content_filtered(title: str) -> bool:
         if not title or not Parser.CONTENT_FILTER:
             return False
-        t_normalized = re.sub(r'[._-]', ' ', title.lower())
+        t_norm = None   # calcolato una sola volta al primo pattern regolare
         for p in Parser.CONTENT_FILTER:
-            if re.search(rf'\b{re.escape(p)}\b', t_normalized):
-                return True
+            if p in Parser.SCRIPT_RANGES:
+                ranges = Parser.SCRIPT_RANGES[p]
+                if p == '[non-latino]':
+                    if any(unicodedata.category(c)[0] == 'L' and ord(c) > 0x024F for c in title):
+                        return True
+                elif ranges and any(any(lo <= ord(c) <= hi for lo, hi in ranges) for c in title):
+                    return True
+            else:
+                if t_norm is None:
+                    t_norm = re.sub(r'[._-]', ' ', title.lower())
+                if re.search(rf'\b{re.escape(p)}\b', t_norm):
+                    return True
         return False
 
     @staticmethod

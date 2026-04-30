@@ -1684,7 +1684,15 @@ sudo mount /mnt/ramdisk</div>
                     </div>
                     <div class="form-grid">
                         <div class="urls-section"><h4>⛔ Blacklist</h4><textarea id="blacklist-list" data-i18n-title="Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato." title="Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato."></textarea></div>
-                        <div class="urls-section"><h4>🚫 Filtro Categorie</h4><textarea id="content-filter-list" placeholder="xxx&#10;porno&#10;hentai&#10;anime&#10;cartoon" title="Filtra intere categorie di contenuti: i titoli che contengono queste parole vengono ignorati E non vengono nemmeno archiviati. Una parola per riga."></textarea></div>
+                        <div class="urls-section"><h4>🚫 Filtro Categorie</h4><textarea id="content-filter-list" placeholder="xxx&#10;porno&#10;hentai&#10;anime&#10;cartoon" title="Filtra intere categorie di contenuti: i titoli che contengono queste parole vengono ignorati E non vengono nemmeno archiviati. Una parola per riga. Supporta token script: [non-latino] [cjk] [cirillico] [arabo] [ebraico] [thai]"></textarea>
+                        <div style="display:flex; gap:0.3rem; flex-wrap:wrap; margin-top:0.35rem;">
+                            <button class="btn btn-small btn-secondary" onclick="app.contentFilterAddScript('[non-latino]')" title="Escludi qualsiasi titolo con caratteri non latini (cinese, russo, arabo, ecc.)">Non-Latino ✦</button>
+                            <button class="btn btn-small btn-secondary" onclick="app.contentFilterAddScript('[cjk]')" title="CJK — cinese, giapponese, coreano">CJK</button>
+                            <button class="btn btn-small btn-secondary" onclick="app.contentFilterAddScript('[cirillico]')" title="Cirillico — russo, ucraino, ecc.">Cirillico</button>
+                            <button class="btn btn-small btn-secondary" onclick="app.contentFilterAddScript('[arabo]')" title="Arabo">Arabo</button>
+                            <button class="btn btn-small btn-secondary" onclick="app.contentFilterAddScript('[ebraico]')" title="Ebraico">Ebraico</button>
+                            <button class="btn btn-small btn-secondary" onclick="app.contentFilterAddScript('[thai]')" title="Thai">Thai</button>
+                        </div></div>
                         <div class="urls-section"><h4>✅ Wantedlist</h4><textarea id="wantedlist-list" data-i18n-title="Lista preferenziale: I file che contengono queste parole guadagnano priorità assoluta di download (es: PROPER, REPACK, MIRCrew)." title="Lista preferenziale: I file che contengono queste parole guadagnano priorità assoluta di download (es: PROPER, REPACK, MIRCrew)."></textarea></div>
                         <div class="urls-section"><h4>🎯 Punteggi Custom</h4><textarea id="customscore-list" placeholder="MIRCrew:500&#10;QxR:400&#10;YIFY:-200" data-i18n-placeholder="MIRCrew:500&#10;QxR:400&#10;YIFY:-200" data-i18n-title="Assegna punti bonus o malus. Formato -> Parola:Punti (es. MIRCrew:500)" title="Assegna punti bonus o malus. Formato -> Parola:Punti (es. MIRCrew:500)"></textarea></div>
                     </div>
@@ -2232,6 +2240,15 @@ sudo mount /mnt/ramdisk</div>
                                         title="Cerca nell'archivio i titoli che contengono le parole chiave e mostra la lista selezionabile">
                                         <i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="Cerca">Cerca</span>
                                     </button>
+                                </div>
+                                <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.45rem; align-items:center;">
+                                    <span style="font-size:0.78rem; color:var(--text-muted);" data-i18n="Filtra per script:">Filtra per script:</span>
+                                    <button class="btn btn-small btn-secondary" onclick="app.pruneAddScriptFilter('[non-latino]')" title="Qualsiasi carattere non latino (cinese, russo, arabo, ecc.)"><span data-i18n="Non-Latino">Non-Latino</span> ✦</button>
+                                    <button class="btn btn-small btn-secondary" onclick="app.pruneAddScriptFilter('[cjk]')" title="Cinese / Giapponese / Coreano">CJK</button>
+                                    <button class="btn btn-small btn-secondary" onclick="app.pruneAddScriptFilter('[cirillico]')" title="Russo, ucraino, bulgaro, ecc." data-i18n-title="Russo, ucraino, bulgaro, ecc."><span data-i18n="Cirillico">Cirillico</span></button>
+                                    <button class="btn btn-small btn-secondary" onclick="app.pruneAddScriptFilter('[arabo]')" title="Arabo" data-i18n-title="Arabo"><span data-i18n="Arabo">Arabo</span></button>
+                                    <button class="btn btn-small btn-secondary" onclick="app.pruneAddScriptFilter('[ebraico]')" title="Ebraico" data-i18n-title="Ebraico"><span data-i18n="Ebraico">Ebraico</span></button>
+                                    <button class="btn btn-small btn-secondary" onclick="app.pruneAddScriptFilter('[thai]')" title="Thai">Thai</button>
                                 </div>
                                 <div id="prune-keyword-result" style="margin-top:0.75rem; font-size:0.85rem; min-height:1.2rem;"></div>
                             </div>
