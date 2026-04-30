@@ -729,7 +729,7 @@ def _save_extto_conf(config: dict) -> bool:
             ("NOTIFICHE: TELEGRAM & EMAIL", ["notify_", "telegram_", "email_"]),
             ("NOTIFICHE: JELLYFIN, PLEX & EMBY", ["jellyfin_", "plex_", "emby_"]),
             ("MOTORE: JACKETT, RICERCA E AVANZATE",
-             ["jackett_", "prowlarr_", "min_free_space", "gap_filling", "max_age",
+             ["jackett_", "prowlarr_", "flaresolverr_", "websearch_", "min_free_space", "gap_filling", "max_age",
               "stop_on_", "debug_", "archive_", "rename_episodes", "rename_format", "move_episodes",
               "jackett_save_to_archive", "prowlarr_save_to_archive", "tmdb_language",
               "backup_dir", "backup_retention", "backup_schedule", "refresh_interval",
@@ -8578,6 +8578,33 @@ def plex_test_refresh():
         if resp.status_code in (200, 204):
             return jsonify({'success': True})
         return jsonify({'success': False, 'error': f'HTTP {resp.status_code}'}), 502
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# FLARESOLVERR TEST
+# ============================================================================
+
+@app.route('/api/flaresolverr/test', methods=['POST'])
+def flaresolverr_test():
+    fs_url = str(_cdb.get_setting('flaresolverr_url', '') or '').strip().rstrip('/')
+    if not fs_url:
+        return jsonify({'success': False, 'error': 'FlareSolverr URL non configurato'}), 400
+    try:
+        import requests as _req
+        resp = _req.post(f"{fs_url}/v1",
+            json={"cmd": "request.get", "url": "https://www.google.com", "maxTimeout": 15000},
+            timeout=25)
+        if resp.status_code != 200:
+            return jsonify({'success': False, 'error': f'FlareSolverr HTTP {resp.status_code}'}), 502
+        data = resp.json()
+        if data.get('status') != 'ok':
+            msg = data.get('message', '')
+            return jsonify({'success': False, 'error': f'status: {data.get("status","?")} — {msg}'}), 502
+        sol_status = data.get('solution', {}).get('status', 0)
+        version    = data.get('version', '?')
+        return jsonify({'success': True, 'version': version, 'page_status': sol_status})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

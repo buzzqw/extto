@@ -4,6 +4,7 @@
 
 # === CORE DEPENDENCIES ===
 requests>=2.31.0        # HTTP requests (scraping, Jackett, TMDB, notifier)
+cloudscraper>=1.2.71    # Bypass Cloudflare/anti-bot (scraping ext.to)
 beautifulsoup4>=4.12.0  # HTML parsing (ExtTo, Corsaro scraper)
 flask>=3.0.0            # Web UI (extto_web.py)
 flask-cors>=4.0.0       # CORS headers (extto_web.py)

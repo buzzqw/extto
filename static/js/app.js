@@ -1784,12 +1784,6 @@ const app = {
         s.custom_score = v('customscore-list').split('\n').filter(x=>x.trim());
         s.auto_remove_completed = document.getElementById('auto-remove-completed')?.checked ? 'yes' : 'no';
         
-        // Archive DB toggles — salva come yes/no in extto.conf
-        const jArchEl = document.getElementById('jackett_save_to_archive');
-        if (jArchEl)  s['jackett_save_to_archive']  = jArchEl.checked ? 'yes' : 'no';
-        const pArchEl = document.getElementById('prowlarr_save_to_archive');
-        if (pArchEl)  s['prowlarr_save_to_archive'] = pArchEl.checked ? 'yes' : 'no';
-
         // Salva la lingua TMDB scegliendo tra la tendina o il campo di testo
         const tmdbSelect = document.getElementById('tmdb_lang_select');
         if (tmdbSelect) {
@@ -3553,7 +3547,7 @@ const app = {
 
         // Usiamo 'app.' per evitare l'errore "this.loadScoresSettings is not a function"
         if (tab === 'scores') app.loadScoresSettings();
-        if (tab === 'integrazioni') { app.traktInit(); app.jellyfinInit(); app.plexInit(); }
+        if (tab === 'integrazioni') { app.traktInit(); app.jellyfinInit(); app.plexInit(); app.indexerInit(); }
         // Legacy support for direct calls
         if (tab === 'trakt')       { app.traktInit(); }
         if (tab === 'mediaserver') { app.jellyfinInit(); app.plexInit(); }
@@ -3847,63 +3841,6 @@ const app = {
 
         advContainer.innerHTML = html;
 
-        // ── Jackett & Prowlarr — sezione full-width con due colonne interne ─
-        // ── Jackett & Prowlarr — sezione full-width con due colonne interne ─
-        const jUrl  = (settings['jackett_url']  || '').trim();
-        const pUrl  = (settings['prowlarr_url'] || '').trim();
-
-        html += `
-            <div style="grid-column: 1 / -1; margin-top:0.5rem; padding-top:1rem; border-top:1px solid var(--border);">
-
-                <div style="font-weight:600; font-size:0.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:1rem; display:flex; align-items:center; gap:.5rem;">
-                    <i class="fa-solid fa-satellite-dish"></i> Indexer Torznab (Jackett / Prowlarr)
-                    <span class="tip" data-tip="${t('Puoi configurare Jackett, Prowlarr, o entrambi contemporaneamente. EXTTO li interrogherà tutti e unirà i risultati deduplicando. Entrambi usano il protocollo Torznab — l\'URL di Prowlarr viene rilevato automaticamente dalla porta (9696) o dal nome host.')}"></span>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem 1.5rem; align-items:start;">
-
-                    <div style="display:flex; flex-direction:column; gap:.75rem;">
-                        ${this.renderField({key:'jackett_url', label:'Jackett URL', type:'text', desc:'Indirizzo del server Jackett. Esempio: http://192.168.1.100:9117. Lascia vuoto se non usi Jackett.'}, settings)}
-                        ${this.renderField({key:'jackett_api', label:'Jackett API Key', type:'password', desc:"Chiave API di Jackett (in alto a destra nell'interfaccia web di Jackett). Obbligatoria se hai impostato il Jackett URL."}, settings)}
-                        ${jUrl ? `<span style="font-size:.78rem; background:rgba(59,130,246,.1); color:#60a5fa; border:1px solid rgba(59,130,246,.3); border-radius:.3rem; padding:.2rem .6rem;"><i class="fa-solid fa-plug"></i> Jackett configurato — ${this.escapeHtml(jUrl)}</span>` : ''}
-                        <label style="display:flex; align-items:center; gap:.55rem; cursor:pointer;
-                                      padding:.5rem .75rem; border-radius:.35rem;
-                                      border:1px solid rgba(59,130,246,.2); background:rgba(59,130,246,.04);
-                                      transition:border-color .15s;">
-                            <input type="checkbox" id="jackett_save_to_archive"
-                                ${(settings['jackett_save_to_archive'] === undefined || settings['jackett_save_to_archive'] === 'yes' || settings['jackett_save_to_archive'] === true) ? 'checked' : ''}
-                                style="accent-color:#3b82f6; width:15px; height:15px; flex-shrink:0;">
-                            <span style="font-size:.83rem; line-height:1.3;">
-                                <span style="display:block; font-weight:600; color:var(--text);">${t('Salva risultati Jackett')}</span>
-                                <span style="display:block; font-size:.75rem; color:var(--text-muted);">in archive.db</span>
-                            </span>
-                            <span class="tip" style="margin-left:auto;" data-tip="${t('Se disabilitato, i risultati Jackett non vengono scritti in archive.db. Riduce la crescita del database ma disabilita \'Rescore Archivio\' per Jackett.')}"></span>
-                        </label>
-                    </div>
-
-                    <div style="display:flex; flex-direction:column; gap:.75rem;">
-                        ${this.renderField({key:'prowlarr_url', label:'Prowlarr URL', type:'text', desc:'Indirizzo del server Prowlarr. Esempio: http://192.168.1.100:9696. Lascia vuoto se non usi Prowlarr. Compatibile con Jackett in parallelo.'}, settings)}
-                        ${this.renderField({key:'prowlarr_api', label:'Prowlarr API Key', type:'password', desc:"Chiave API di Prowlarr: Impostazioni → Sicurezza → Chiave API. Obbligatoria se hai impostato il Prowlarr URL."}, settings)}
-                        ${pUrl ? `<span style="font-size:.78rem; background:rgba(139,92,246,.1); color:#a78bfa; border:1px solid rgba(139,92,246,.3); border-radius:.3rem; padding:.2rem .6rem;"><i class="fa-solid fa-plug"></i> Prowlarr — ${this.escapeHtml(pUrl)}</span>` : ''}
-                        ${jUrl && pUrl ? `<span style="font-size:.78rem; background:rgba(16,185,129,.1); color:#34d399; border:1px solid rgba(52,211,153,.3); border-radius:.3rem; padding:.2rem .6rem;"><i class="fa-solid fa-shuffle"></i> ${t('sono supportate e funzionano')}</span>` : ''}
-                        <label style="display:flex; align-items:center; gap:.55rem; cursor:pointer;
-                                      padding:.5rem .75rem; border-radius:.35rem;
-                                      border:1px solid rgba(139,92,246,.2); background:rgba(139,92,246,.04);
-                                      transition:border-color .15s;">
-                            <input type="checkbox" id="prowlarr_save_to_archive"
-                                ${(settings['prowlarr_save_to_archive'] === undefined || settings['prowlarr_save_to_archive'] === 'yes' || settings['prowlarr_save_to_archive'] === true) ? 'checked' : ''}
-                                style="accent-color:#8b5cf6; width:15px; height:15px; flex-shrink:0;">
-                            <span style="font-size:.83rem; line-height:1.3;">
-                                <span style="display:block; font-weight:600; color:var(--text);">${t('Salva risultati Prowlarr')}</span>
-                                <span style="display:block; font-size:.75rem; color:var(--text-muted);">in archive.db</span>
-                            </span>
-                            <span class="tip" style="margin-left:auto;" data-tip="${t('Se disabilitato, i risultati Prowlarr non vengono scritti in archive.db. Riduce la crescita del database ma disabilita \'Rescore Archivio\' per Prowlarr.')}"></span>
-                        </label>
-                    </div>
-
-                </div>
-            </div>`;
-
         // Campo speciale per TMDB Language
         const tmdbLang = settings['tmdb_language'] || 'it-IT';
         const presets = ['it-IT', 'en-US', 'es-ES', 'fr-FR', 'de-DE'];
@@ -3921,7 +3858,7 @@ const app = {
                     <option value="de-DE" ${selectVal==='de-DE'?'selected':''}>${t('Tedesco (de-DE)')}</option>
                     <option value="custom" ${selectVal==='custom'?'selected':''}>${t('Personalizzata...')}</option>
                 </select>
-                <input type="text" id="tmdb_lang_custom" class="form-control" style="margin-top:8px; display:${isCustom?'block':'none'};" value="${isCustom ? this._esc(tmdbLang) : ''}" placeholder="Es: ja-JP (Codice lingua TMDB)">
+                <input type="text" id="tmdb_lang_custom" class="form-control" style="margin-top:8px; display:${isCustom?'block':'none'};" value="${isCustom ? this.escapeHtml(tmdbLang) : ''}" placeholder="Es: ja-JP (Codice lingua TMDB)">
             </div>
         `;
 
@@ -9723,6 +9660,101 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
     },
 
+
+    // ========================================================================
+    // INDEXER (Jackett / Prowlarr / FlareSolverr) — tab Integrazioni
+    // ========================================================================
+
+    async indexerInit() {
+        try {
+            const res  = await fetch(`${API_BASE}/api/config`);
+            const data = await res.json();
+            const s    = data.settings || {};
+            const set  = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+            const setCb = (id, val) => { const el = document.getElementById(id); if (el) el.checked = (val === undefined || val === 'yes' || val === true); };
+            set('indexer-jackett-url',    s.jackett_url);
+            set('indexer-jackett-api',    s.jackett_api);
+            setCb('indexer-jackett-archive', s.jackett_save_to_archive);
+            set('indexer-prowlarr-url',   s.prowlarr_url);
+            set('indexer-prowlarr-api',   s.prowlarr_api);
+            setCb('indexer-prowlarr-archive', s.prowlarr_save_to_archive);
+            set('indexer-flare-url',      s.flaresolverr_url);
+            const jb = document.getElementById('indexer-status-badge');
+            if (jb) {
+                const ok = !!(s.jackett_url || s.prowlarr_url);
+                jb.textContent = ok ? 'Configurato' : 'Non configurato';
+                jb.className   = ok ? 'badge badge-success' : 'badge badge-secondary';
+            }
+            const fb = document.getElementById('flare-status-badge');
+            if (fb) {
+                fb.textContent = s.flaresolverr_url ? 'Configurato' : 'Non configurato';
+                fb.className   = s.flaresolverr_url ? 'badge badge-success' : 'badge badge-secondary';
+            }
+            // Motori di ricerca web
+            const engines = (s.websearch_engines || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+            const setCkw = (id, key) => { const el = document.getElementById(id); if (el) el.checked = engines.includes(key); };
+            setCkw('websearch-bitsearch', 'bitsearch');
+            setCkw('websearch-bt4g',      'bt4g');
+            setCkw('websearch-1337x',     '1337x');
+        } catch(e) { console.error('indexerInit', e); }
+    },
+
+    async indexerSave() {
+        const v  = id => (document.getElementById(id)?.value || '').trim();
+        const cb = id => document.getElementById(id)?.checked;
+        try {
+            const cfgRes = await fetch(`${API_BASE}/api/config`);
+            const cfg    = await cfgRes.json();
+            const s      = cfg.settings || {};
+            s.jackett_url             = v('indexer-jackett-url');
+            s.jackett_api             = v('indexer-jackett-api');
+            s.jackett_save_to_archive = cb('indexer-jackett-archive') ? 'yes' : 'no';
+            s.prowlarr_url            = v('indexer-prowlarr-url');
+            s.prowlarr_api            = v('indexer-prowlarr-api');
+            s.prowlarr_save_to_archive = cb('indexer-prowlarr-archive') ? 'yes' : 'no';
+            s.flaresolverr_url        = v('indexer-flare-url');
+            // Motori di ricerca web
+            const engines = [];
+            if (cb('websearch-bitsearch')) engines.push('bitsearch');
+            if (cb('websearch-bt4g'))      engines.push('bt4g');
+            if (cb('websearch-1337x'))     engines.push('1337x');
+            s.websearch_engines = engines.join(',');
+            const res  = await fetch(`${API_BASE}/api/config/settings`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ settings: s }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast('✅ Impostazioni Indexer salvate', 'success');
+                await this.indexerInit();
+            } else {
+                this.showToast('❌ ' + (data.error || 'Errore salvataggio'), 'error');
+            }
+        } catch(e) { this.showToast('❌ Errore connessione', 'error'); }
+    },
+
+    async indexerTestFlare() {
+        const resultEl = document.getElementById('flare-test-result');
+        if (resultEl) { resultEl.textContent = '⏳ Test in corso...'; resultEl.style.color = 'var(--text-muted)'; }
+        try {
+            const res  = await fetch(`${API_BASE}/api/flaresolverr/test`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const msg = `✅ OK — versione ${data.version}, pagina HTTP ${data.page_status}`;
+                if (resultEl) { resultEl.textContent = msg; resultEl.style.color = 'var(--success)'; }
+                this.showToast('✅ FlareSolverr raggiungibile e funzionante', 'success');
+            } else {
+                const msg = '❌ ' + (data.error || 'Errore');
+                if (resultEl) { resultEl.textContent = msg; resultEl.style.color = 'var(--danger)'; }
+                this.showToast(msg, 'error');
+            }
+        } catch(e) {
+            const msg = '❌ Errore connessione';
+            if (resultEl) { resultEl.textContent = msg; resultEl.style.color = 'var(--danger)'; }
+            this.showToast(msg, 'error');
+        }
+    },
 
     // ========================================================================
     // AMULE / ED2K  ★ v45  —  ispirato ad amutorrent

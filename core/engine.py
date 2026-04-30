@@ -115,8 +115,22 @@ def _get_current_season(series_name: str) -> int | None:
 
 class Engine:
     def __init__(self):
-        self.sess = requests.Session()
-        self.sess.headers.update({'User-Agent': 'Mozilla/5.0'})
+        try:
+            import cloudscraper
+            self.sess = cloudscraper.create_scraper(
+                browser={'browser': 'firefox', 'platform': 'linux', 'mobile': False}
+            )
+        except ImportError:
+            self.sess = requests.Session()
+            self.sess.headers.update({
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            })
         self.archive  = ArchiveDB()
         self.cache    = SmartCache(CACHE_FILE)
         self.age_filter = {'days': 0, 'threshold': 0.8}
@@ -161,7 +175,7 @@ class Engine:
         # (evita race condition in ambienti multi-thread come Flask/Waitress)
         search_urls = []
         for u in config_urls:
-            if 'extto' in u:
+            if 'ext.to' in u or 'extto' in u:
                 parsed = urlparse(u)
                 base   = f"{parsed.scheme}://{parsed.netloc}/search/{clean_q}/"
                 search_urls.append(base)
@@ -172,7 +186,7 @@ class Engine:
 
         for url in search_urls:
             try:
-                if 'extto' in url:
+                if 'ext.to' in url or 'extto' in url:
                     items = list(self._extto(url, max_pages=1))
                     for i in items:
                         i['source'] = 'ExtTo Live'
@@ -197,6 +211,13 @@ class Engine:
                 results.extend(j_results)
         except Exception as e:
             logger.error(f"Manual indexer search error: {e}")
+
+        # --- MOTORI DI RICERCA WEB (BT4G, SolidTorrents, ...) ---
+        try:
+            ws_results = self._web_search_all(query)
+            results.extend(ws_results)
+        except Exception as e:
+            logger.error(f"Web search engines error: {e}")
 
         unique = {}
         for r in results:
@@ -282,7 +303,7 @@ class Engine:
         for idx, url in enumerate(urls):
             logger.debug(f"🔎 [{idx+1}/{len(urls)}]: {url[:60]}...")
             try:
-                if 'extto' in url:
+                if 'ext.to' in url or 'extto' in url:
                     g = list(self._extto(url))
                     stats.scraped['ExtTo'] += len(g)
                     items.extend(g)
@@ -450,6 +471,276 @@ class Engine:
         stats.scraped['Archive'] = len(found)
         return found
 
+    def _flaresolverr_get(self, url: str, timeout: int = 60):
+        """Chiama FlareSolverr per bypassare Cloudflare su ext.to.
+        Restituisce (status_code, html_text) se riesce, None altrimenti.
+        Come effetto collaterale aggiorna self.sess con i cookies e lo User-Agent
+        ricevuti da FlareSolverr, così le richieste successive (pagine dettaglio)
+        passano direttamente senza dover richiamare FlareSolverr."""
+        from .config import Config as _Cfg
+        fs_url = getattr(_Cfg(), 'flaresolverr_url', '').strip().rstrip('/')
+        if not fs_url:
+            return None
+        try:
+            resp = requests.post(
+                f"{fs_url}/v1",
+                json={"cmd": "request.get", "url": url, "maxTimeout": timeout * 1000},
+                timeout=timeout + 10,
+            )
+            if resp.status_code != 200:
+                logger.warning(f"⚠️ FlareSolverr HTTP {resp.status_code}")
+                return None
+            data = resp.json()
+            if data.get('status') != 'ok':
+                logger.warning(f"⚠️ FlareSolverr status: {data.get('status')} — {data.get('message','')}")
+                return None
+            sol = data['solution']
+            # Copia cookies nella sessione requests → le detail page non richiedono FlareSolverr
+            for c in sol.get('cookies', []):
+                self.sess.cookies.set(
+                    c['name'], c['value'],
+                    domain=c.get('domain', '').lstrip('.')
+                )
+            ua = sol.get('userAgent', '')
+            if ua:
+                self.sess.headers['User-Agent'] = ua
+            return sol.get('status', 200), sol.get('response', '')
+        except Exception as e:
+            logger.warning(f"⚠️ FlareSolverr error: {e}")
+            return None
+
+    def _search_bitsearch(self, query: str, limit: int = 20) -> List[Dict]:
+        """Ricerca su bitsearch.to (ex solidtorrents.to) via JSON API (no Cloudflare)."""
+        from urllib.parse import quote_plus as _qp
+        # Prova entrambi i domini: bitsearch.to è il nome attuale, solidtorrents.to redirige
+        for host in ('https://bitsearch.to', 'https://solidtorrents.to'):
+            url = f"{host}/api/v1/search?q={_qp(query)}&fuv=yes&limit={limit}"
+            try:
+                r = self.sess.get(url, timeout=15, allow_redirects=True)
+                if r.status_code != 200:
+                    continue
+                out = []
+                for item in r.json().get('results', []):
+                    h = (item.get('infohash') or '').strip().lower()
+                    t = (item.get('title')    or '').strip()
+                    if not h or len(h) != 40 or not t:
+                        continue
+                    out.append({'title': t,
+                                'magnet': f"magnet:?xt=urn:btih:{h}&dn={_qp(t)}",
+                                'source': 'BitSearch'})
+                return out
+            except Exception:
+                continue
+        logger.warning("⚠️ BitSearch: nessuna risposta da bitsearch.to / solidtorrents.to")
+        return []
+
+    def _search_bt4g(self, query: str, max_results: int = 8) -> List[Dict]:
+        """Ricerca su bt4gprx.com (Cloudflare → FlareSolverr).
+
+        Flusso:
+        1. Ottieni la pagina risultati via FlareSolverr (imposta i cookie in self.sess).
+        2. Raccogli i link alle pagine dettaglio (≤ max_results).
+        3. Recupera ogni pagina dettaglio con self.sess (cookie già validi, no FlareSolverr).
+        4. Estrai il magnet dalla pagina dettaglio; fallback: costruisci dall'hash nell'URL.
+        """
+        from urllib.parse import quote_plus as _qp, urljoin
+        _BASE = 'https://bt4gprx.com'
+        search_url = f"{_BASE}/search?q={_qp(query)}&p=1&order=age"
+
+        # ── 1. Pagina risultati ────────────────────────────────────────────────
+        html = None
+        try:
+            r = self.sess.get(search_url, timeout=15)
+            if r.status_code == 200 and 'just a moment' not in r.text.lower():
+                html = r.text
+        except Exception:
+            pass
+        if not html:
+            fs = self._flaresolverr_get(search_url, timeout=40)
+            if fs and fs[0] == 200:
+                html = fs[1]
+        if not html:
+            logger.warning("⚠️ BT4G: nessuna risposta dalla pagina risultati (configura FlareSolverr)")
+            return []
+
+        # ── 2. Raccogli link pagine dettaglio ─────────────────────────────────
+        soup = BeautifulSoup(html, 'html.parser')
+        _detail_re = re.compile(r'^/(?:detail|torrent|item)/\S+', re.I)
+        detail_links = []
+        seen_href = set()
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if not _detail_re.match(href):
+                continue
+            full = urljoin(_BASE, href)
+            if full in seen_href:
+                continue
+            seen_href.add(full)
+            title_guess = a.get_text(' ', strip=True)
+            detail_links.append((full, title_guess))
+            if len(detail_links) >= max_results:
+                break
+
+        if not detail_links:
+            logger.warning("⚠️ BT4G: nessun link dettaglio trovato nella pagina risultati")
+            return []
+
+        # ── 3+4. Visita ogni pagina dettaglio e cerca il magnet ──────────────
+        _magnet_href_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
+        _btih_url_re    = re.compile(r'[0-9a-fA-F]{40}', re.I)
+        out = []
+
+        for detail_url, title_guess in detail_links:
+            try:
+                dr = self.sess.get(detail_url, timeout=15)
+                if dr.status_code != 200:
+                    continue
+                dsoup = BeautifulSoup(dr.text, 'html.parser')
+                magnet = None
+
+                # Prima scelta: <a href="magnet:?..."> diretto
+                for ma in dsoup.find_all('a', href=_magnet_href_re):
+                    magnet = ma['href']
+                    break
+
+                # Fallback: costruisci dall'hash nell'URL (presente in quasi tutti i DHT engine)
+                if not magnet:
+                    m = _btih_url_re.search(detail_url)
+                    if m:
+                        h = m.group(0).lower()
+                        # prova a trovare un titolo migliore dalla pagina
+                        title_tag = dsoup.find('h1') or dsoup.find('h2') or dsoup.find('title')
+                        title_guess = (title_tag.get_text(' ', strip=True) if title_tag else title_guess) or title_guess
+                        magnet = f"magnet:?xt=urn:btih:{h}&dn={_qp(title_guess[:200])}"
+
+                if not magnet:
+                    continue
+
+                # Aggiusta il dn= con il titolo migliore ricavato dalla pagina
+                if not title_guess:
+                    title_tag = dsoup.find('h1') or dsoup.find('h2') or dsoup.find('title')
+                    title_guess = title_tag.get_text(' ', strip=True) if title_tag else ''
+
+                out.append({'title': title_guess or query,
+                            'magnet': magnet,
+                            'source': 'BT4G'})
+            except Exception as e:
+                logger.debug(f"BT4G detail {detail_url}: {e}")
+                continue
+
+        logger.info(f"🌐 BT4G: {len(out)} risultati per '{query}'")
+        return out
+
+    def _search_1337x(self, query: str, max_results: int = 8) -> List[Dict]:
+        """Ricerca su 1337x.to e mirror (prova in ordine, diretto poi FlareSolverr).
+
+        Flusso uguale a BT4G: FlareSolverr sulla listing page, poi self.sess per i dettagli.
+        """
+        from urllib.parse import quote as _q, urljoin
+        MIRRORS = [
+            'https://1337x.to',
+            'https://1337x.st',
+            'https://x1337x.ws',
+            'https://x1337x.eu',
+            'https://x1337x.cc',
+        ]
+        _CF_SIGNS = ('just a moment', 'checking your browser', 'enable javascript')
+
+        def _is_cf(text: str) -> bool:
+            lo = text.lower()
+            return any(s in lo for s in _CF_SIGNS)
+
+        # ── 1. Trova un mirror funzionante ────────────────────────────────────
+        html = None
+        base = None
+        for mirror in MIRRORS:
+            search_url = f"{mirror}/search/{_q(query, safe='')}/1/"
+            # Prova diretta
+            try:
+                r = self.sess.get(search_url, timeout=15)
+                if r.status_code == 200 and not _is_cf(r.text):
+                    html = r.text
+                    base = mirror
+                    break
+            except Exception:
+                pass
+            # FlareSolverr
+            fs = self._flaresolverr_get(search_url, timeout=40)
+            if fs and fs[0] == 200 and not _is_cf(fs[1]):
+                html = fs[1]
+                base = mirror
+                break
+
+        if not html or not base:
+            logger.warning("⚠️ 1337x: nessun mirror raggiungibile")
+            return []
+
+        # ── 2. Estrai link pagine dettaglio dalla listing ─────────────────────
+        soup = BeautifulSoup(html, 'html.parser')
+        _det_re = re.compile(r'^/torrent/\d+/', re.I)
+        detail_links, seen_href = [], set()
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if not _det_re.match(href):
+                continue
+            full = urljoin(base, href)
+            if full in seen_href:
+                continue
+            seen_href.add(full)
+            detail_links.append((full, a.get_text(' ', strip=True)))
+            if len(detail_links) >= max_results:
+                break
+
+        if not detail_links:
+            logger.warning(f"⚠️ 1337x ({base}): nessun risultato")
+            return []
+
+        # ── 3. Visita ogni dettaglio e preleva il magnet ──────────────────────
+        _mag_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
+        out = []
+        for detail_url, title_guess in detail_links:
+            try:
+                dr = self.sess.get(detail_url, timeout=15)
+                if dr.status_code != 200:
+                    continue
+                dsoup = BeautifulSoup(dr.text, 'html.parser')
+                magnet = None
+                for ma in dsoup.find_all('a', href=_mag_re):
+                    magnet = ma['href']
+                    break
+                if not magnet:
+                    continue
+                h1 = dsoup.find('h1')
+                title = (h1.get_text(strip=True) if h1 else title_guess) or title_guess
+                out.append({'title': title, 'magnet': magnet, 'source': '1337x'})
+            except Exception as e:
+                logger.debug(f"1337x detail {detail_url}: {e}")
+
+        logger.info(f"🌐 1337x: {len(out)} risultati per '{query}' (mirror: {base})")
+        return out
+
+    def _web_search_all(self, query: str) -> List[Dict]:
+        """Interroga tutti i motori di ricerca web abilitati nella config."""
+        from .config import Config
+        engines = getattr(Config(), 'websearch_engines', []) or []
+        if not engines:
+            return []
+        results = []
+        if 'bitsearch' in engines:
+            results.extend(self._search_bitsearch(query))
+        if 'bt4g' in engines:
+            results.extend(self._search_bt4g(query))
+        if '1337x' in engines:
+            results.extend(self._search_1337x(query))
+        # Deduplicazione per BTIH hash
+        seen, unique = set(), []
+        for r in results:
+            h = _extract_btih(r.get('magnet', ''))
+            if h and h not in seen:
+                seen.add(h)
+                unique.append(r)
+        return unique
+
     def _sanity_check(self, size_str):
         if not size_str:
             return True
@@ -465,46 +756,133 @@ class Engine:
         if m_user:
             tag = f"ExtTo - {unquote(m_user.group(1))}"
 
+        parsed = urlparse(url)
+        base   = f"{parsed.scheme}://{parsed.netloc}"
+
         pages = max_pages if max_pages is not None else MAX_PAGES
         for page in range(pages):
             try:
-                p_url  = f"{url}&page={page}" if page > 0 else url
-                res    = self.sess.get(p_url, timeout=10)
-                if res.status_code != 200:
-                    break
-                soup   = BeautifulSoup(res.content, 'html.parser')
-                links  = soup.find_all('a', href=re.compile(r'^magnet:\?'))
-                if not links:
-                    break
+                p_url = f"{url}&page={page}" if page > 0 else url
+
+                # Prova FlareSolverr (bypass Cloudflare); fallback a requests diretto
+                fs = self._flaresolverr_get(p_url)
+                if fs is not None:
+                    status_code, html_text = fs
+                    if status_code != 200:
+                        logger.warning(f"⚠️ ExtTo FlareSolverr status {status_code}: {p_url[:60]}")
+                        break
+                    soup = BeautifulSoup(html_text, 'html.parser')
+                else:
+                    res = self.sess.get(p_url, timeout=10)
+                    if res.status_code != 200:
+                        logger.warning(f"⚠️ ExtTo HTTP {res.status_code}: {p_url[:60]}")
+                        break
+                    soup = BeautifulSoup(res.content, 'html.parser')
+
+                # Struttura nuova: <a class="torrent-title-link" href="/SLUG-ID/" ...>
+                title_links = soup.find_all('a', class_='torrent-title-link')
+
+                # Fallback struttura vecchia: magnet diretto nella listing
+                if not title_links:
+                    old_links = soup.find_all('a', href=re.compile(r'^magnet:\?'))
+                    if not old_links:
+                        break
+                    for l in old_links:
+                        t = unquote(re.search(r'dn=([^&]+)', l['href']).group(1)).replace('+', ' ')
+                        t_display = f"{t} [{tag}]"
+                        mg = sanitize_magnet(l['href'], t_display) or l['href']
+                        if mg.startswith('magnet:?'):
+                            if 'dn=' in mg:
+                                mg = re.sub(r'dn=[^&]+', f"dn={quote(t_display)}", mg)
+                            else:
+                                mg += f"&dn={quote(t_display)}"
+                        yield {'title': t_display, 'magnet': mg, 'source': tag}
+                    time.sleep(1.5)
+                    continue
+
                 cutoff = None
                 if isinstance(self.age_filter, dict) and (self.age_filter.get('days', 0) or 0) > 0:
                     cutoff = datetime.now() - timedelta(days=int(self.age_filter.get('days', 0)))
                 items_on_page = 0
                 old_on_page   = 0
 
-                for l in links:
+                for a in title_links:
                     items_on_page += 1
-                    if cutoff is not None:
-                        container = l.find_parent(['tr', 'li', 'div', 'article']) or soup
-                        dt        = _extract_date_from_element(container)
-                        if dt and dt < cutoff:
-                            old_on_page += 1
+
+                    # Titolo: testo del link (BS4 strip automaticamente i tag interni <span>)
+                    t = a.get_text(strip=True)
+                    if not t:
+                        continue
+                    t_display   = f"{t} [{tag}]"
+                    detail_href = a.get('href', '')
+                    if not detail_href:
+                        continue
+                    detail_url = urljoin(base, detail_href)
+
+                    # Cache: evita visite duplicate alla pagina di dettaglio
+                    cached = self.cache.get(t)
+                    if cached:
+                        mg = sanitize_magnet(cached, t_display) or cached
+                        if mg.startswith('magnet:?'):
+                            if 'dn=' in mg:
+                                mg = re.sub(r'dn=[^&]+', f"dn={quote(t_display)}", mg)
+                            else:
+                                mg += f"&dn={quote(t_display)}"
+                        yield {'title': t_display, 'magnet': mg, 'source': tag}
+                        continue
+
+                    try:
+                        time.sleep(0.8)
+                        sub      = self.sess.get(detail_url, timeout=10)
+                        if sub.status_code != 200:
+                            logger.debug(f"_extto detail HTTP {sub.status_code}: {detail_url[:60]}")
                             continue
-                            
-                    t  = unquote(re.search(r'dn=([^&]+)', l['href']).group(1)).replace('+', ' ')
-                    
-                    # --- MODIFICA SORGENTE CON NOME UTENTE ---
-                    t_display = f"{t} [{tag}]"
-                    mg = sanitize_magnet(l['href'], t_display) or l['href']
-                    
-                    # Aggiorniamo il parametro 'dn' nel magnet link
-                    if mg.startswith('magnet:?'):
-                        if 'dn=' in mg:
-                            mg = re.sub(r'dn=[^&]+', f"dn={quote(t_display)}", mg)
-                        else:
-                            mg += f"&dn={quote(t_display)}"
-                            
-                    yield {'title': t_display, 'magnet': mg, 'source': tag}
+                        sub_soup = BeautifulSoup(sub.content, 'html.parser')
+
+                        if cutoff is not None:
+                            dt = _extract_date_from_element(sub_soup)
+                            if dt and dt < cutoff:
+                                old_on_page += 1
+                                continue
+
+                        # Magnet via link webga.zx (struttura attuale di ext.to)
+                        # <a href="https://webga.zx/show?magnet=magnet:?xt=urn:btih:...">
+                        magnet = None
+                        for lnk in sub_soup.find_all('a', href=True):
+                            h = lnk['href']
+                            if 'magnet=' in h and 'xt=urn:btih:' in h:
+                                magnet = h.split('magnet=', 1)[1]
+                                break
+
+                        # Fallback: magnet diretto
+                        if not magnet:
+                            mag_a = sub_soup.find('a', href=re.compile(r'^magnet:\?'))
+                            if mag_a:
+                                magnet = mag_a['href']
+
+                        # Fallback: hash grezzo nel testo
+                        if not magnet:
+                            txt = sub_soup.get_text(' ')
+                            mh  = re.search(r'\b([a-fA-F0-9]{40}|[A-Z2-7]{32})\b', txt)
+                            if mh:
+                                magnet = f"magnet:?xt=urn:btih:{mh.group(1).lower()}&dn={quote(t_display)}"
+
+                        if not magnet:
+                            logger.debug(f"_extto: no magnet on {detail_url[:60]}")
+                            continue
+
+                        mg = sanitize_magnet(magnet, t_display) or magnet
+                        if mg.startswith('magnet:?'):
+                            if 'dn=' in mg:
+                                mg = re.sub(r'dn=[^&]+', f"dn={quote(t_display)}", mg)
+                            else:
+                                mg += f"&dn={quote(t_display)}"
+
+                        self.cache.set(t, mg)
+                        yield {'title': t_display, 'magnet': mg, 'source': tag}
+
+                    except Exception as _detail_err:
+                        logger.debug(f"_extto detail error '{t[:60]}': {_detail_err}")
 
                 if cutoff is not None and items_on_page > 0:
                     ratio = old_on_page / max(1, items_on_page)

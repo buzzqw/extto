@@ -556,25 +556,56 @@
                             </div>
                             <div class="man-section-body">
                                 <div class="man-subsection">Sorgenti URL</div>
-                                <p>EXTTO supporta tre tipi di sorgente URL configurabili tramite <code>@url</code>. Ogni URL viene interrogato ad ogni ciclo; puoi aggiungerne quanti vuoi. Il tipo viene rilevato automaticamente dall'URL.</p>
+                                <p>EXTTO supporta quattro tipi di sorgente URL configurabili tramite <code>@url</code>. Ogni URL viene interrogato ad ogni ciclo; puoi aggiungerne quanti vuoi. Il tipo viene rilevato automaticamente dall'URL.</p>
                                 <div class="man-params">
                                     <div class="man-param">
-                                        <div class="man-param-name">ExtTo</div>
-                                        <div class="man-param-desc">Pagina utente del sito ExtTo. EXTTO esegue scraping HTML delle pagine di listing. Esempio: <code>@url = https://extto.org/browse/?filter=u=NomeUtente</code>. Usa il pulsante <strong>+ ExtTo</strong> nella sezione Fonti per inserire il template.</div>
+                                        <div class="man-param-name">ext.to</div>
+                                        <div class="man-param-desc">
+                                            Scraping HTML del sito <strong>ext.to</strong>. EXTTO visita la pagina di listing, poi per ogni torrent visita la pagina di dettaglio per estrarre il magnet link (struttura a due livelli). I risultati vengono messi in cache per evitare visite duplicate.<br><br>
+                                            Esempi:
+                                            <ul style="margin:0.5rem 0 0.5rem 1.2rem;">
+                                                <li><code>https://ext.to/browse/?sort=age&amp;order=desc&amp;q=ita&amp;with_adult=0</code> — Tutti i torrent italiani recenti</li>
+                                                <li><code>https://ext.to/browse/?sort=age&amp;order=desc&amp;user_sort=1&amp;q=ita&amp;with_adult=0</code> — Torrent italiani da uploader verificati</li>
+                                                <li><code>https://ext.to/browse/?cat=1&amp;sort=age&amp;order=desc&amp;q=ita&amp;with_adult=0</code> — Solo serie TV (cat=1)</li>
+                                                <li><code>https://ext.to/browse/?cat=2&amp;sort=age&amp;order=desc&amp;q=ita&amp;with_adult=0</code> — Solo film (cat=2)</li>
+                                                <li><code>https://ext.to/browse/?filter=u=NomeUtente</code> — Torrent di un uploader specifico</li>
+                                            </ul>
+                                            <strong>Nota:</strong> il dominio <code>ext.to</code> usa protezione anti-bot. Se il ciclo non trova torrent ExtTo controllare il log per errori HTTP 403.
+                                        </div>
                                     </div>
                                     <div class="man-param">
                                         <div class="man-param-name">Il Corsaro Nero</div>
-                                        <div class="man-param-desc">Pagina utente de Il Corsaro Nero. Scraping HTML multipagina. Esempio: <code>@url = https://ilcorsaronero.link/user/NomeUtente</code>. Usa il pulsante <strong>+ Corsaro</strong> per il template.</div>
+                                        <div class="man-param-desc">
+                                            Scraping HTML multipagina de <strong>Il Corsaro Nero</strong>. EXTTO visita la listing e poi ogni pagina di dettaglio per il magnet.<br><br>
+                                            Esempi:
+                                            <ul style="margin:0.5rem 0 0.5rem 1.2rem;">
+                                                <li><code>https://ilcorsaronero.link/user/NomeUtente</code> — Torrent di un uploader specifico</li>
+                                                <li><code>https://ilcorsaronero.link/cat/1</code> — Categoria Film</li>
+                                                <li><code>https://ilcorsaronero.link/cat/3</code> — Categoria Serie TV</li>
+                                            </ul>
+                                        </div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">RSS Generico <span class="badge badge-success" style="font-size:0.7rem; vertical-align:middle;">Nuovo</span></div>
+                                        <div class="man-param-name">TorrentGalaxy (TGx)</div>
+                                        <div class="man-param-desc">
+                                            Scraping HTML della pagina uploader di <strong>TorrentGalaxy</strong>. Funziona su tutti i mirror (torrentgalaxy.one, .to, .info, ecc.) — il riconoscimento avviene tramite il path <code>/get-posts/user:</code>, non sul dominio.<br><br>
+                                            Esempi:
+                                            <ul style="margin:0.5rem 0 0.5rem 1.2rem;">
+                                                <li><code>https://torrentgalaxy.one/get-posts/user:MIRCrew</code> — Torrent dell'uploader MIRCrew</li>
+                                                <li><code>https://torrentgalaxy.one/get-posts/user:NomeTGx</code> — Qualsiasi uploader TGx</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="man-param">
+                                        <div class="man-param-name">RSS Generico</div>
                                         <div class="man-param-desc">
                                             Qualsiasi feed RSS standard di torrent: <strong>Knaben</strong>, EZTV, Nyaa, ShowRSS e simili. EXTTO scarica il feed XML e ne estrae titolo e magnet link automaticamente — nessuna configurazione aggiuntiva richiesta.<br><br>
                                             Esempi:
                                             <ul style="margin:0.5rem 0 0.5rem 1.2rem;">
-                                                <li><code>@url = https://rss.knaben.org/ita///1337x|eztv|showunsafe|hidexxx</code> — Feed italiano Knaben (1337x + EZTV, senza contenuti non sicuri)</li>
-                                                <li><code>@url = https://showrss.info/user/USERID.rss</code> — ShowRSS personale</li>
-                                                <li><code>@url = https://nyaa.si/?page=rss&amp;q=1080p&amp;c=0_0&amp;f=0</code> — Nyaa con filtri</li>
+                                                <li><code>https://rss.knaben.org/ita///1337x|eztv|showunsafe|hidexxx</code> — Feed italiano Knaben (1337x + EZTV, senza contenuti non sicuri)</li>
+                                                <li><code>https://showrss.info/user/USERID.rss</code> — ShowRSS personale</li>
+                                                <li><code>https://nyaa.si/?page=rss&amp;q=1080p&amp;c=0_0&amp;f=0</code> — Nyaa con filtri</li>
+                                                <li><code>https://eztv.re/ezrss.xml</code> — Feed EZTV globale</li>
                                             </ul>
                                             Il nome della sorgente nel log e nelle statistiche viene ricavato automaticamente dal dominio (es. <code>rss.knaben.org</code> → <strong>Knaben</strong>).<br>
                                             Usa il pulsante <strong>+ Knaben</strong> o <strong>+ RSS Generico</strong> nella sezione Fonti per inserire un template.
@@ -594,6 +625,25 @@
                                     <div class="man-param"><div class="man-param-name">@prowlarr_api</div><div class="man-param-desc">API key di Prowlarr: Impostazioni → Sicurezza → Chiave API. Obbligatoria se <code>prowlarr_url</code> è configurato.</div></div>
                                     <div class="man-param"><div class="man-param-name">@jackett_save_to_archive</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>yes</code>). Se <code>no</code>, i risultati Jackett non vengono scritti in <code>extto_archive.db</code>. Utile per evitare la crescita incontrollata del database quando Jackett restituisce migliaia di risultati per ciclo.</div></div>
                                     <div class="man-param"><div class="man-param-name">@prowlarr_save_to_archive</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>yes</code>). Come sopra ma per i risultati Prowlarr.</div></div>
+                                </div>
+
+                                <div class="man-subsection">FlareSolverr — Bypass Cloudflare</div>
+                                <p>Alcuni siti (ext.to, bt4gprx.com, 1337x.to e mirror) sono protetti da <strong>Cloudflare JS Challenge</strong>: rispondono con una pagina "Just a moment..." che richiede l'esecuzione di JavaScript nel browser. EXTTO non può superarla da solo; usa <strong>FlareSolverr</strong>, un servizio Docker che esegue Chrome headless e restituisce la pagina risolta con i cookie validi.</p>
+                                <p>Installazione: <code>docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest</code></p>
+                                <p>Una volta avviato, inserisci l'URL in <strong>Configurazione → Integrazioni → FlareSolverr URL</strong> (es. <code>http://192.168.1.x:8191</code>) e usa il bottone <em>Testa Connessione</em> per verificare.</p>
+                                <div class="man-params">
+                                    <div class="man-param"><div class="man-param-name">@flaresolverr_url</div><div class="man-param-desc">URL del servizio FlareSolverr. Esempio: <code>http://192.168.1.161:8191</code>. Lascia vuoto per disabilitare. Senza FlareSolverr, ext.to e i motori web dietro Cloudflare restituiranno 403.</div></div>
+                                </div>
+
+                                <div class="man-subsection">Motori di Ricerca Web (DHT)</div>
+                                <p>Oltre a Jackett/Prowlarr, EXTTO può interrogare motori di ricerca web come fallback nella ricerca manuale e nel gap fill. Vengono usati solo quando nessun altro metodo ha trovato risultati. Vanno abilitati esplicitamente in <strong>Configurazione → Integrazioni → Motori di Ricerca Web</strong>.</p>
+                                <ul>
+                                    <li><strong>BitSearch</strong> (<code>bitsearch.to</code>, ex solidtorrents.to) — JSON API, nessuna dipendenza da Cloudflare. Il più veloce e affidabile.</li>
+                                    <li><strong>BT4G</strong> (<code>bt4gprx.com</code>) — DHT crawler. Cloudflare: richiede FlareSolverr. Visita le pagine dettaglio per estrarre il magnet reale.</li>
+                                    <li><strong>1337x</strong> (<code>1337x.to/st</code>, mirror <code>x1337x.ws/eu/cc</code>) — Prova ogni mirror in ordine: prima diretto, poi FlareSolverr. Le pagine dettaglio vengono visitate con i cookie già ottenuti.</li>
+                                </ul>
+                                <div class="man-params">
+                                    <div class="man-param"><div class="man-param-name">@websearch_engines</div><div class="man-param-desc">Lista di motori abilitati separati da virgola. Valori validi: <code>bitsearch</code>, <code>bt4g</code>, <code>1337x</code>. Esempio: <code>bitsearch,1337x</code>. Lascia vuoto per disabilitare tutti.</div></div>
                                 </div>
 
                                 <div class="man-subsection">Parametri di Ricerca</div>
@@ -646,7 +696,14 @@
 
                                 <div class="man-callout man-callout-info">
                                     <i class="fa-solid fa-circle-info"></i>
-                                    <div><strong>Deep Gap Filling:</strong> Ogni 6 ore, il motore esegue una ricerca chirurgica (Deep Search) direttamente tramite le API <code>tvsearch</code> di Jackett e/o Prowlarr per gli episodi mancanti (inviando i parametri esatti di Stagione ed Episodio). Per evitare blocchi dai tracker per "spam", il sistema esegue un massimo di 5 query mirate per serie ogni 6 ore, riempiendo i buchi gradualmente.</div>
+                                    <div><strong>Deep Gap Filling:</strong> Ogni 6 ore, il motore esegue una ricerca chirurgica (Deep Search) in cascata per ogni episodio mancante:
+                                        <ol style="margin:.5rem 0 0 1rem;">
+                                            <li>Archivio locale (<code>extto_archive.db</code>) — gratuito e istantaneo</li>
+                                            <li>Jackett / Prowlarr — API <code>tvsearch</code> con stagione ed episodio esatti; max 5 query/serie ogni 6h</li>
+                                            <li>eD2k / aMule — solo se <code>gap_fill_ed2k=yes</code> e aMule configurato</li>
+                                            <li>Motori di ricerca web (BitSearch, BT4G, 1337x) — solo se <code>websearch_engines</code> configurato; query testuale <code>"Nome S##E##"</code></li>
+                                        </ol>
+                                    Il sistema si ferma al primo livello che trova un candidato valido.</div>
                                 </div>
 
                                <div class="man-params">
@@ -1847,7 +1904,7 @@
                                             <tr><td><strong>Notifiche</strong></td><td>Telegram (bot token, chat ID), Email (SMTP, from, to, password)</td></tr>
                                             <tr><td><strong>Avanzate</strong></td><td>Livello di logging, intervallo ciclo, blacklist, wantedlist, debug flags, pulizia archivio, backup automatico</td></tr>
                                             <tr><td><strong>Fonti</strong></td><td>URL sorgenti scraping (ExtTo, Corsaro, RSS), Jackett URL/API key, Prowlarr URL/API key</td></tr>
-                                            <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download</td></tr>
+                                            <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download; Jackett/Prowlarr (URL + API key); FlareSolverr (URL); Motori di ricerca web (BitSearch, BT4G, 1337x)</td></tr>
                                         </tbody>
                                     </table>
                                 </div>

@@ -1924,6 +1924,122 @@ sudo mount /mnt/ramdisk</div>
                   </div>
 
                   </div><!-- fine config-mediaserver-inner -->
+
+                  <hr style="border:none; border-top:1px solid var(--border); margin:2rem 0;">
+                  <h3 style="margin:0 0 1.25rem 0; font-size:1rem; color:var(--text-secondary); display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-satellite-dish" style="color:var(--primary);"></i> Indexer Torznab</h3>
+                  <div id="config-indexer-inner">
+
+                  <!-- JACKETT / PROWLARR -->
+                  <div class="card" style="margin-bottom:1.5rem;">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                      <span><i class="fa-solid fa-satellite-dish"></i> Jackett / Prowlarr</span>
+                      <span id="indexer-status-badge" class="badge badge-secondary">—</span>
+                    </div>
+                    <div class="card-body">
+                      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.5;">
+                        Puoi configurare Jackett, Prowlarr, o entrambi contemporaneamente. EXTTO li interrogherà tutti e unirà i risultati deduplicando.
+                      </p>
+                      <div class="form-grid" style="margin-bottom:1rem;">
+                        <div class="form-group">
+                          <label>Jackett URL</label>
+                          <input type="text" id="indexer-jackett-url" class="form-input" placeholder="http://192.168.1.100:9117">
+                          <small style="color:var(--text-muted);">Lascia vuoto se non usi Jackett.</small>
+                        </div>
+                        <div class="form-group">
+                          <label>Jackett API Key</label>
+                          <input type="password" id="indexer-jackett-api" class="form-input" placeholder="Chiave API Jackett">
+                        </div>
+                        <div class="form-group toggle-group">
+                          <label>Salva risultati Jackett in archive.db</label>
+                          <label class="toggle-switch"><input type="checkbox" id="indexer-jackett-archive" checked><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="form-group">
+                          <label>Prowlarr URL</label>
+                          <input type="text" id="indexer-prowlarr-url" class="form-input" placeholder="http://192.168.1.100:9696">
+                          <small style="color:var(--text-muted);">Lascia vuoto se non usi Prowlarr.</small>
+                        </div>
+                        <div class="form-group">
+                          <label>Prowlarr API Key</label>
+                          <input type="password" id="indexer-prowlarr-api" class="form-input" placeholder="Chiave API Prowlarr">
+                        </div>
+                        <div class="form-group toggle-group">
+                          <label>Salva risultati Prowlarr in archive.db</label>
+                          <label class="toggle-switch"><input type="checkbox" id="indexer-prowlarr-archive" checked><span class="toggle-slider"></span></label>
+                        </div>
+                      </div>
+                      <button class="btn btn-secondary" onclick="app.indexerSave()">
+                        <i class="fa-solid fa-floppy-disk"></i> Salva Indexer
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- FLARESOLVERR -->
+                  <div class="card">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                      <span><i class="fa-solid fa-shield-halved"></i> FlareSolverr — Bypass Cloudflare</span>
+                      <span id="flare-status-badge" class="badge badge-secondary">—</span>
+                    </div>
+                    <div class="card-body">
+                      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.5;">
+                        FlareSolverr usa Chrome headless per superare le protezioni Cloudflare. Richiesto per il scraping di ext.to.<br>
+                        Installa con Docker: <code>docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest</code>
+                      </p>
+                      <div class="form-grid" style="max-width:520px; margin-bottom:1rem;">
+                        <div class="form-group">
+                          <label>FlareSolverr URL</label>
+                          <input type="text" id="indexer-flare-url" class="form-input" placeholder="http://192.168.1.161:8191">
+                          <small style="color:var(--text-muted);">Lascia vuoto per disabilitare. Senza FlareSolverr ext.to potrebbe restituire 403.</small>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-secondary" onclick="app.indexerSave()">
+                          <i class="fa-solid fa-floppy-disk"></i> Salva FlareSolverr
+                        </button>
+                        <button class="btn btn-primary" onclick="app.indexerTestFlare()">
+                          <i class="fa-solid fa-vial"></i> Testa Connessione
+                        </button>
+                        <span id="flare-test-result" style="font-size:.85rem;"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- MOTORI DI RICERCA WEB -->
+                  <div class="card" style="margin-top:1.5rem;">
+                    <div class="card-header">
+                      <i class="fa-solid fa-globe"></i> Motori di Ricerca Web (DHT)
+                    </div>
+                    <div class="card-body">
+                      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.5;">
+                        Motori DHT/web usati come fallback nella ricerca manuale e nel gap fill quando Jackett/Prowlarr non trovano risultati.
+                        Alcuni richiedono FlareSolverr per bypassare Cloudflare.
+                      </p>
+                      <div style="display:flex; flex-direction:column; gap:.75rem; margin-bottom:1.25rem;">
+                        <div class="form-group toggle-group" style="max-width:520px;">
+                          <label>
+                            <strong>BitSearch</strong> <small style="color:var(--text-muted);">bitsearch.to (ex solidtorrents.to) — API JSON, no Cloudflare</small>
+                          </label>
+                          <label class="toggle-switch"><input type="checkbox" id="websearch-bitsearch"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="form-group toggle-group" style="max-width:520px;">
+                          <label>
+                            <strong>BT4G</strong> <small style="color:var(--text-muted);">bt4gprx.com — DHT crawler, Cloudflare → richiede FlareSolverr</small>
+                          </label>
+                          <label class="toggle-switch"><input type="checkbox" id="websearch-bt4g"><span class="toggle-slider"></span></label>
+                        </div>
+                        <div class="form-group toggle-group" style="max-width:520px;">
+                          <label>
+                            <strong>1337x</strong> <small style="color:var(--text-muted);">1337x.to/st + mirror — prova diretto, FlareSolverr se bloccato</small>
+                          </label>
+                          <label class="toggle-switch"><input type="checkbox" id="websearch-1337x"><span class="toggle-slider"></span></label>
+                        </div>
+                      </div>
+                      <button class="btn btn-secondary" onclick="app.indexerSave()">
+                        <i class="fa-solid fa-floppy-disk"></i> Salva
+                      </button>
+                    </div>
+                  </div>
+
+                  </div><!-- fine config-indexer-inner -->
                 </div><!-- fine config-integrazioni -->
             </div>
             

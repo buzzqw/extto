@@ -541,9 +541,10 @@ check_module() {
     fi
 }
 
-check_module "flask"       "Flask        "
-check_module "requests"    "Requests     "
-check_module "bs4"         "BeautifulSoup"
+check_module "flask"        "Flask        "
+check_module "requests"     "Requests     "
+check_module "cloudscraper" "cloudscraper "
+check_module "bs4"          "BeautifulSoup"
 check_module "waitress"    "Waitress     "
 check_module "psutil"      "psutil       "
 check_module "yaml"        "PyYAML       "

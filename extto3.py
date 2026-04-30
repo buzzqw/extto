@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-EXTTO v29.0 - Entry point principale.
+EXTTO v29.0 - Entry point principale. Andres Zanzani
 
 Il codice è ora organizzato nel package core/:
   core/constants.py   - costanti, logger, sanitize_magnet, date helpers
@@ -2084,6 +2084,20 @@ def main():
                                                                 f"(lingua={_lang_req_ed2k} qualità={_qual_req_ed2k}) "
                                                                 f"tra {len(amule_res)} risultati")
                                         # -------------------------------------------------
+
+                                        # --- Fallback motori di ricerca web ---
+                                        if not results:
+                                            _ws_engs = getattr(cfg, 'websearch_engines', []) or []
+                                            if _ws_engs:
+                                                ws_q = f"{base_q} S{season:02d}E{ep_num:02d}"
+                                                logger.info(f"      🌐 Web search fallback: '{ws_q}'")
+                                                try:
+                                                    ws_res = eng._web_search_all(ws_q)
+                                                    if ws_res:
+                                                        results.extend(ws_res)
+                                                        logger.info(f"      🌐 Web search: {len(ws_res)} candidati")
+                                                except Exception as _wse:
+                                                    logger.warning(f"      ⚠️ Web search error: {_wse}")
 
                                         live_queries_count += 1
                                         time.sleep(2)

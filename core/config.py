@@ -61,6 +61,8 @@ class Config:
         self.jackett_api              = ''
         self.prowlarr_url             = ''
         self.prowlarr_api             = ''
+        self.flaresolverr_url         = ''
+        self.websearch_engines        = []     # lista motori web: ['solidtorrents','bt4g']
         self.jackett_save_to_archive  = True   # se False, i risultati Jackett non vengono scritti in archive.db
         self.prowlarr_save_to_archive = True   # se False, i risultati Prowlarr non vengono scritti in archive.db
         self.backup_dir               = ''
@@ -211,6 +213,9 @@ class Config:
         self.jackett_api              = str(raw.get('jackett_api', ''))
         self.prowlarr_url             = str(raw.get('prowlarr_url', ''))
         self.prowlarr_api             = str(raw.get('prowlarr_api', ''))
+        self.flaresolverr_url         = str(raw.get('flaresolverr_url', ''))
+        _ws_raw = str(raw.get('websearch_engines', '')).strip()
+        self.websearch_engines        = [e.strip().lower() for e in _ws_raw.split(',') if e.strip()]
         self.jackett_save_to_archive  = self._parse_bool(raw.get('jackett_save_to_archive', 'yes'))
         self.prowlarr_save_to_archive = self._parse_bool(raw.get('prowlarr_save_to_archive', 'yes'))
         self.gap_filling              = self._parse_bool(raw.get('gap_filling', 'yes'))
