@@ -1965,20 +1965,9 @@ def remove_completed_torrents():
                 
                 is_completed = False
 
-                # CASO 1: È già al 100% nel client (Risolve il Weekly Pack in pausa!)
-                # ESCLUDI solo i torrent in seeding infinito (is_infinite=True dal backend)
-                t_state      = str(t.get('state', '')).lower()
-                t_is_infinite = bool(t.get('is_infinite', False))
-                if t_prog >= 1.0:
-                    # Non rimuovere solo se seeding infinito (ratio=0 o days=0)
-                    if t_is_infinite:
-                        pass  # Salta — torrent con seeding infinito configurato
-                    else:
-                        is_completed = True
-
                 # CASO 3: Torrent "fantasma" — in attesa metadati ma già completato in passato
                 # (completed_time > 0 significa che era già finito, ha perso i metadati dopo riavvio)
-                elif 'metadat' in str(t.get('state', '')).lower() and int(t.get('completed_time', 0)) > 0:
+                if 'metadat' in str(t.get('state', '')).lower() and int(t.get('completed_time', 0)) > 0:
                     is_completed = True
 
                 # CASO 2: Finti-completati bloccati sullo 0%
