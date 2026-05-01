@@ -1612,6 +1612,7 @@ def main():
                                 'magnet':        item['magnet'],
                                 'quality':       ep['quality'],
                                 'score':         score,
+                                'source':        item.get('source', ''),
                             }
                 continue
 
@@ -1654,7 +1655,8 @@ def main():
                             'magnet': safe_magnet,
                             'match': match,
                             'score': effective_score,
-                            'title': item['title']
+                            'title': item['title'],
+                            'source': item.get('source', ''),
                         }
                 continue
 
@@ -1694,7 +1696,9 @@ def main():
                         if ok_send:
                             stats.downloads_started += 1
                             detail = 'upgrade' if (msg or '').lower().startswith('upgrade') else 'new'
-                            logger.info(f"✅ DOWNLOAD [{used_cl}] (best-in-cycle, {detail}): "
+                            _src = cand.get('source', '')
+                            _src_tag = f" [via {_src}]" if _src and _src not in ('ExtTo', 'Corsaro', 'ExtTo Live', 'Corsaro Live', 'Jackett', 'Prowlarr', 'Archivio') else ''
+                            logger.info(f"✅ DOWNLOAD [{used_cl}] (best-in-cycle, {detail}){_src_tag}: "
                                         f"{cand['series_name']} S{cand['season']:02d}E{cand['episode']:02d}")
                             notifier.notify_download(cand['series_name'], cand['season'], cand['episode'],
                                                      cand['title'], cand['score'],
@@ -1720,7 +1724,9 @@ def main():
                         ok_send, used_cl = _send_with_fallback(cand['magnet'])
                         if ok_send:
                             stats.downloads_started += 1
-                            logger.info(f"✅ MOVIE [{used_cl}] (best-in-cycle): {name} (Score: {cand['score']})")
+                            _src = cand.get('source', '')
+                            _src_tag = f" [via {_src}]" if _src and _src not in ('ExtTo', 'Corsaro', 'ExtTo Live', 'Corsaro Live', 'Jackett', 'Prowlarr', 'Archivio') else ''
+                            logger.info(f"✅ MOVIE [{used_cl}] (best-in-cycle){_src_tag}: {name} (Score: {cand['score']})")
                             notifier.notify_movie(name, cand['mov']['year'], cand['title'], cand['score'])
                             tagger.tag_torrent(cand['magnet'], TAG_FILM)
                             _ui_tag(cand['magnet'], TAG_FILM)

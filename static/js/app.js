@@ -9802,9 +9802,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             // Motori di ricerca web
             const engines = (s.websearch_engines || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
             const setCkw = (id, key) => { const el = document.getElementById(id); if (el) el.checked = engines.includes(key); };
-            setCkw('websearch-bitsearch', 'bitsearch');
-            setCkw('websearch-bt4g',      'bt4g');
-            setCkw('websearch-1337x',     '1337x');
+            setCkw('websearch-bitsearch',    'bitsearch');
+            setCkw('websearch-tpb',          'tpb');
+            setCkw('websearch-knaben',       'knaben');
+            setCkw('websearch-btdig',        'btdig');
+            setCkw('websearch-limetorrents', 'limetorrents');
+            setCkw('websearch-torrentz2',    'torrentz2');
         } catch(e) { console.error('indexerInit', e); }
     },
 
@@ -9824,9 +9827,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             s.flaresolverr_url        = v('indexer-flare-url');
             // Motori di ricerca web
             const engines = [];
-            if (cb('websearch-bitsearch')) engines.push('bitsearch');
-            if (cb('websearch-bt4g'))      engines.push('bt4g');
-            if (cb('websearch-1337x'))     engines.push('1337x');
+            if (cb('websearch-bitsearch'))    engines.push('bitsearch');
+            if (cb('websearch-tpb'))          engines.push('tpb');
+            if (cb('websearch-knaben'))       engines.push('knaben');
+            if (cb('websearch-btdig'))        engines.push('btdig');
+            if (cb('websearch-limetorrents')) engines.push('limetorrents');
+            if (cb('websearch-torrentz2'))    engines.push('torrentz2');
             s.websearch_engines = engines.join(',');
             const res  = await fetch(`${API_BASE}/api/config/settings`, {
                 method: 'POST',

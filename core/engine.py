@@ -534,24 +534,79 @@ class Engine:
         logger.warning("⚠️ BitSearch: nessuna risposta da bitsearch.to / solidtorrents.to")
         return []
 
-    def _search_bt4g(self, query: str, max_results: int = 8) -> List[Dict]:
-        """Ricerca su bt4gprx.com (Cloudflare → FlareSolverr).
+    def _search_tpb(self, query: str, max_results: int = 15) -> List[Dict]:
+        """Ricerca su The Pirate Bay via apibay.org (JSON API, no Cloudflare)."""
+        from urllib.parse import quote_plus as _qp
+        url = f"https://apibay.org/q.php?q={_qp(query)}&cat=0"
+        try:
+            r = self.sess.get(url, timeout=15)
+            if r.status_code != 200:
+                logger.warning(f"⚠️ TPB (apibay): HTTP {r.status_code}")
+                return []
+            items = r.json()
+            out = []
+            for item in items[:max_results]:
+                h = (item.get('info_hash') or '').strip().lower()
+                t = (item.get('name') or '').strip()
+                # TPB restituisce info_hash='000...0' quando non ci sono risultati
+                if not h or h == '0' * 40 or not t or t == 'No results returned':
+                    continue
+                magnet = (f"magnet:?xt=urn:btih:{h}&dn={_qp(t)}"
+                          "&tr=udp://tracker.openbittorrent.com:6969"
+                          "&tr=udp://tracker.opentrackr.org:1337")
+                out.append({'title': t, 'magnet': magnet, 'source': 'ThePirateBay'})
+            logger.info(f"🌐 TPB: {len(out)} risultati per '{query}'")
+            return out
+        except Exception as e:
+            logger.warning(f"⚠️ TPB (apibay): {e}")
+            return []
 
-        Flusso:
-        1. Ottieni la pagina risultati via FlareSolverr (imposta i cookie in self.sess).
-        2. Raccogli i link alle pagine dettaglio (≤ max_results).
-        3. Recupera ogni pagina dettaglio con self.sess (cookie già validi, no FlareSolverr).
-        4. Estrai il magnet dalla pagina dettaglio; fallback: costruisci dall'hash nell'URL.
-        """
-        from urllib.parse import quote_plus as _qp, urljoin
-        _BASE = 'https://bt4gprx.com'
-        search_url = f"{_BASE}/search?q={_qp(query)}&p=1&order=age"
+    def _search_knaben(self, query: str, max_results: int = 15) -> List[Dict]:
+        """Ricerca su Knaben (aggrega TPB, 1337x, RARBG, YTS...) via JSON API."""
+        from urllib.parse import quote_plus as _qp
+        url = "https://knaben.org/api/v1/"
+        payload = {
+            "search_type": "search",
+            "query": query,
+            "categories": [],
+            "from": 0,
+            "size": max_results,
+            "hideNsfw": True,
+            "orderBy": "seeders",
+            "orderDirection": "desc",
+        }
+        try:
+            r = self.sess.post(url, json=payload, timeout=20)
+            if r.status_code != 200:
+                logger.warning(f"⚠️ Knaben: HTTP {r.status_code}")
+                return []
+            data = r.json()
+            hits = data.get('hits') or []
+            out = []
+            for hit in hits:
+                # Knaben usa struttura Elasticsearch: hit._source
+                src = hit.get('_source') or hit
+                h = (src.get('infohash') or src.get('info_hash') or '').strip().lower()
+                t = (src.get('title') or src.get('name') or '').strip()
+                if not h or len(h) not in (40, 64) or not t:
+                    continue
+                magnet = f"magnet:?xt=urn:btih:{h}&dn={_qp(t)}"
+                out.append({'title': t, 'magnet': magnet, 'source': 'Knaben'})
+            logger.info(f"🌐 Knaben: {len(out)} risultati per '{query}'")
+            return out
+        except Exception as e:
+            logger.warning(f"⚠️ Knaben: {e}")
+            return []
 
-        # ── 1. Pagina risultati ────────────────────────────────────────────────
+    def _search_btdig(self, query: str, max_results: int = 15) -> List[Dict]:
+        """Ricerca su btdig.com (DHT crawler, HTML scraping, no Cloudflare)."""
+        from urllib.parse import quote_plus as _qp
+        search_url = f"https://btdig.com/search?q={_qp(query)}&order=0&p=0"
+
         html = None
         try:
             r = self.sess.get(search_url, timeout=15)
-            if r.status_code == 200 and 'just a moment' not in r.text.lower():
+            if r.status_code == 200 and 'btdig' in r.text.lower():
                 html = r.text
         except Exception:
             pass
@@ -560,145 +615,164 @@ class Engine:
             if fs and fs[0] == 200:
                 html = fs[1]
         if not html:
-            logger.warning("⚠️ BT4G: nessuna risposta dalla pagina risultati (configura FlareSolverr)")
+            logger.warning("⚠️ BTDigg: nessuna risposta")
             return []
 
-        # ── 2. Raccogli link pagine dettaglio ─────────────────────────────────
         soup = BeautifulSoup(html, 'html.parser')
-        _detail_re = re.compile(r'^/(?:detail|torrent|item)/\S+', re.I)
-        detail_links = []
-        seen_href = set()
-        for a in soup.find_all('a', href=True):
+        _btdig_hash_re = re.compile(r'btdig\.com/([0-9a-f]{40})/', re.I)
+        _mag_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
+
+        all_links = soup.find_all('a', href=True)
+        out, seen = [], set()
+        for i, a in enumerate(all_links):
             href = a['href']
-            if not _detail_re.match(href):
+            if not _mag_re.match(href):
                 continue
-            full = urljoin(_BASE, href)
-            if full in seen_href:
+            h = _extract_btih(href)
+            if not h or h in seen:
                 continue
-            seen_href.add(full)
-            title_guess = a.get_text(' ', strip=True)
-            detail_links.append((full, title_guess))
-            if len(detail_links) >= max_results:
+            seen.add(h)
+            # Il titolo è nel link precedente che punta a btdig.com/[hash]/
+            title = ''
+            for j in range(i - 1, max(-1, i - 6), -1):
+                prev_href = all_links[j]['href']
+                if _btdig_hash_re.search(prev_href):
+                    title = all_links[j].get_text(strip=True)
+                    break
+            if not title:
+                # Fallback: prendi dn= dal magnet
+                m = re.search(r'[?&]dn=([^&]+)', href)
+                if m:
+                    title = unquote(m.group(1)).replace('+', ' ')
+            if not title:
+                continue
+            out.append({'title': title, 'magnet': href, 'source': 'BTDigg'})
+            if len(out) >= max_results:
                 break
 
-        if not detail_links:
-            logger.warning("⚠️ BT4G: nessun link dettaglio trovato nella pagina risultati")
+        logger.info(f"🌐 BTDigg: {len(out)} risultati per '{query}'")
+        return out
+
+    def _search_limetorrents(self, query: str, max_results: int = 8) -> List[Dict]:
+        """Ricerca su LimeTorrents (HTML scraping, prova più domini).
+        Struttura: tabella .table2, pagina dettaglio per il magnet link.
+        """
+        from urllib.parse import quote as _q, urljoin
+        DOMAINS = [
+            'https://www.limetorrents.fun',
+            'https://www.limetorrents.cc',
+            'https://www.limetorrents.lol',
+            'https://limetorrents.co',
+            'https://www.limetor.com',
+            'https://limetor.pro',
+            'https://limetorrents.asia',
+        ]
+        # LimeTorrents vuole spazi come trattini nell'URL
+        q_dashed = query.replace(' ', '-')
+
+        html = None
+        base = None
+        for domain in DOMAINS:
+            search_url = f"{domain}/search/all/{_q(q_dashed, safe='-')}/seeds/1/"
+            try:
+                r = self.sess.get(search_url, timeout=15)
+                if r.status_code == 200 and 'table2' in r.text:
+                    html = r.text
+                    base = domain
+                    break
+            except Exception:
+                pass
+            fs = self._flaresolverr_get(search_url, timeout=40)
+            if fs and fs[0] == 200 and 'table2' in fs[1]:
+                html = fs[1]
+                base = domain
+                break
+
+        if not html or not base:
+            logger.warning("⚠️ LimeTorrents: nessun dominio raggiungibile")
             return []
 
-        # ── 3+4. Visita ogni pagina dettaglio e cerca il magnet ──────────────
-        _magnet_href_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
-        _btih_url_re    = re.compile(r'[0-9a-fA-F]{40}', re.I)
+        soup = BeautifulSoup(html, 'html.parser')
+        table = soup.find('table', class_='table2')
+        if not table:
+            return []
+
+        _detail_re = re.compile(r'\.html$', re.I)
+        _mag_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
         out = []
 
-        for detail_url, title_guess in detail_links:
+        for tr in table.find_all('tr', bgcolor=True):
+            if len(out) >= max_results:
+                break
+            tds = tr.find_all('td')
+            if not tds:
+                continue
+            link_tag = tds[0].find('a', href=_detail_re)
+            if not link_tag:
+                continue
+            title = link_tag.get_text(strip=True)
+            detail_url = urljoin(base, link_tag['href'])
             try:
                 dr = self.sess.get(detail_url, timeout=15)
                 if dr.status_code != 200:
                     continue
                 dsoup = BeautifulSoup(dr.text, 'html.parser')
                 magnet = None
-
-                # Prima scelta: <a href="magnet:?..."> diretto
-                for ma in dsoup.find_all('a', href=_magnet_href_re):
+                for ma in dsoup.find_all('a', href=_mag_re):
                     magnet = ma['href']
                     break
-
-                # Fallback: costruisci dall'hash nell'URL (presente in quasi tutti i DHT engine)
                 if not magnet:
-                    m = _btih_url_re.search(detail_url)
+                    m = re.search(r'(magnet:\?xt=urn:btih:[0-9a-fA-F]{40,64}[^"\'<\s]*)', dr.text)
                     if m:
-                        h = m.group(0).lower()
-                        # prova a trovare un titolo migliore dalla pagina
-                        title_tag = dsoup.find('h1') or dsoup.find('h2') or dsoup.find('title')
-                        title_guess = (title_tag.get_text(' ', strip=True) if title_tag else title_guess) or title_guess
-                        magnet = f"magnet:?xt=urn:btih:{h}&dn={_qp(title_guess[:200])}"
-
+                        magnet = m.group(1)
                 if not magnet:
                     continue
-
-                # Aggiusta il dn= con il titolo migliore ricavato dalla pagina
-                if not title_guess:
-                    title_tag = dsoup.find('h1') or dsoup.find('h2') or dsoup.find('title')
-                    title_guess = title_tag.get_text(' ', strip=True) if title_tag else ''
-
-                out.append({'title': title_guess or query,
-                            'magnet': magnet,
-                            'source': 'BT4G'})
+                out.append({'title': title, 'magnet': magnet, 'source': 'LimeTorrents'})
             except Exception as e:
-                logger.debug(f"BT4G detail {detail_url}: {e}")
-                continue
+                logger.debug(f"LimeTorrents detail {detail_url}: {e}")
 
-        logger.info(f"🌐 BT4G: {len(out)} risultati per '{query}'")
+        logger.info(f"🌐 LimeTorrents: {len(out)} risultati per '{query}' ({base})")
         return out
 
-    def _search_1337x(self, query: str, max_results: int = 8) -> List[Dict]:
-        """Ricerca su 1337x.to e mirror (prova in ordine, diretto poi FlareSolverr).
+    def _search_torrentz2(self, query: str, max_results: int = 8) -> List[Dict]:
+        """Ricerca su torrentz2.nz (meta-search HTML, visita dettaglio per il magnet)."""
+        from urllib.parse import quote_plus as _qp
+        _BASE = 'https://torrentz2.nz'
+        search_url = f"{_BASE}/search?q={_qp(query)}"
 
-        Flusso uguale a BT4G: FlareSolverr sulla listing page, poi self.sess per i dettagli.
-        """
-        from urllib.parse import quote as _q, urljoin
-        MIRRORS = [
-            'https://1337x.to',
-            'https://1337x.st',
-            'https://x1337x.ws',
-            'https://x1337x.eu',
-            'https://x1337x.cc',
-        ]
-        _CF_SIGNS = ('just a moment', 'checking your browser', 'enable javascript')
-
-        def _is_cf(text: str) -> bool:
-            lo = text.lower()
-            return any(s in lo for s in _CF_SIGNS)
-
-        # ── 1. Trova un mirror funzionante ────────────────────────────────────
         html = None
-        base = None
-        for mirror in MIRRORS:
-            search_url = f"{mirror}/search/{_q(query, safe='')}/1/"
-            # Prova diretta
-            try:
-                r = self.sess.get(search_url, timeout=15)
-                if r.status_code == 200 and not _is_cf(r.text):
-                    html = r.text
-                    base = mirror
-                    break
-            except Exception:
-                pass
-            # FlareSolverr
+        try:
+            r = self.sess.get(search_url, timeout=15)
+            if r.status_code == 200 and '<dl>' in r.text:
+                html = r.text
+        except Exception:
+            pass
+        if not html:
             fs = self._flaresolverr_get(search_url, timeout=40)
-            if fs and fs[0] == 200 and not _is_cf(fs[1]):
+            if fs and fs[0] == 200:
                 html = fs[1]
-                base = mirror
-                break
-
-        if not html or not base:
-            logger.warning("⚠️ 1337x: nessun mirror raggiungibile")
+        if not html:
+            logger.warning("⚠️ Torrentz2: nessuna risposta")
             return []
 
-        # ── 2. Estrai link pagine dettaglio dalla listing ─────────────────────
         soup = BeautifulSoup(html, 'html.parser')
-        _det_re = re.compile(r'^/torrent/\d+/', re.I)
-        detail_links, seen_href = [], set()
-        for a in soup.find_all('a', href=True):
-            href = a['href']
-            if not _det_re.match(href):
+        _det_re = re.compile(r'^/torrent/', re.I)
+        _mag_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
+
+        detail_links = []
+        for dl in soup.find_all('dl'):
+            dt = dl.find('dt')
+            if not dt:
                 continue
-            full = urljoin(base, href)
-            if full in seen_href:
+            a = dt.find('a', href=_det_re)
+            if not a:
                 continue
-            seen_href.add(full)
-            detail_links.append((full, a.get_text(' ', strip=True)))
+            detail_links.append((_BASE + a['href'], a.get_text(strip=True)))
             if len(detail_links) >= max_results:
                 break
 
-        if not detail_links:
-            logger.warning(f"⚠️ 1337x ({base}): nessun risultato")
-            return []
-
-        # ── 3. Visita ogni dettaglio e preleva il magnet ──────────────────────
-        _mag_re = re.compile(r'^magnet:\?xt=urn:btih:', re.I)
         out = []
-        for detail_url, title_guess in detail_links:
+        for detail_url, title in detail_links:
             try:
                 dr = self.sess.get(detail_url, timeout=15)
                 if dr.status_code != 200:
@@ -710,13 +784,11 @@ class Engine:
                     break
                 if not magnet:
                     continue
-                h1 = dsoup.find('h1')
-                title = (h1.get_text(strip=True) if h1 else title_guess) or title_guess
-                out.append({'title': title, 'magnet': magnet, 'source': '1337x'})
+                out.append({'title': title, 'magnet': magnet, 'source': 'Torrentz2'})
             except Exception as e:
-                logger.debug(f"1337x detail {detail_url}: {e}")
+                logger.debug(f"Torrentz2 detail {detail_url}: {e}")
 
-        logger.info(f"🌐 1337x: {len(out)} risultati per '{query}' (mirror: {base})")
+        logger.info(f"🌐 Torrentz2: {len(out)} risultati per '{query}'")
         return out
 
     def _web_search_all(self, query: str) -> List[Dict]:
@@ -728,10 +800,16 @@ class Engine:
         results = []
         if 'bitsearch' in engines:
             results.extend(self._search_bitsearch(query))
-        if 'bt4g' in engines:
-            results.extend(self._search_bt4g(query))
-        if '1337x' in engines:
-            results.extend(self._search_1337x(query))
+        if 'tpb' in engines:
+            results.extend(self._search_tpb(query))
+        if 'knaben' in engines:
+            results.extend(self._search_knaben(query))
+        if 'btdig' in engines:
+            results.extend(self._search_btdig(query))
+        if 'limetorrents' in engines:
+            results.extend(self._search_limetorrents(query))
+        if 'torrentz2' in engines:
+            results.extend(self._search_torrentz2(query))
         # Deduplicazione per BTIH hash
         seen, unique = set(), []
         for r in results:
