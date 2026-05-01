@@ -90,7 +90,18 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 
 ---
 
-## Stato attuale del progetto (v41)
+## Stato attuale del progetto (v49)
+
+### v49 — Nuovi motori di ricerca web + log sorgente download (1 Maggio 2026)
+
+- **`core/engine.py`**: rimossi `_search_bt4g` (sempre in errore) e `_search_1337x` (nessun mirror raggiungibile). Aggiunti 5 nuovi motori:
+  - `_search_tpb()` — The Pirate Bay via `apibay.org`, JSON API puro, no Cloudflare
+  - `_search_knaben()` — `knaben.org`, JSON API POST, aggrega internamente TPB/1337x/RARBG e altri (multi-index)
+  - `_search_btdig()` — `btdig.com`, HTML scraping, magnet link diretti nella pagina, no Cloudflare
+  - `_search_limetorrents()` — HTML scraping multi-mirror (`limetorrents.fun`, `.cc`, `.lol`, `limetor.com`, ecc.), FlareSolverr come fallback, visita pagina dettaglio per il magnet
+  - `_search_torrentz2()` — `torrentz2.nz`, HTML meta-search, visita pagina dettaglio per il magnet
+- **`extto3.py`**: `best_by_ep` e `best_movies` ora includono il campo `'source'`. Il log di download mostra `[via ThePirateBay]` / `[via Knaben]` / `[via BTDigg]` / `[via LimeTorrents]` / `[via Torrentz2]` quando il torrent proviene da un motore web. Per ExtTo/Corsaro/Jackett/Prowlarr il tag non appare.
+- **`index.html`** + **`app.js`**: 6 toggle individuali per motore nella tab Integrazioni (sostituiti i vecchi toggle BT4G/1337x). Chiavi config: `bitsearch`, `tpb`, `knaben`, `btdig`, `limetorrents`, `torrentz2`.
 
 ### v41 — Sistema Multilingua UI (i18n) (20 Marzo 2026)
 

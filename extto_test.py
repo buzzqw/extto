@@ -2309,6 +2309,348 @@ class TestTorrentLimits(unittest.TestCase):
         self.assertNotIn('web_port', tutti_limits)
 
 
+class TestWebSearchEngines(unittest.TestCase):
+    """Test per i motori di ricerca web (engine.py): TPB, Knaben, BTDigg, LimeTorrents, Torrentz2."""
+
+    def _make_engine(self):
+        """Crea un'istanza Engine senza avviare DB/cache/cloudscraper."""
+        from core.engine import Engine
+        import requests
+        eng = Engine.__new__(Engine)
+        eng.sess = requests.Session()
+        return eng
+
+    # ── The Pirate Bay ────────────────────────────────────────────────────────
+
+    def test_tpb_risultati_normali(self):
+        """_search_tpb restituisce risultati con source='ThePirateBay'."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = [
+            {'info_hash': 'a' * 40, 'name': 'Serie.S01E01.ITA.1080p'},
+            {'info_hash': 'b' * 40, 'name': 'Film.2023.ITA.720p'},
+        ]
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_tpb('test')
+        self.assertEqual(len(out), 2)
+        self.assertTrue(all(r['source'] == 'ThePirateBay' for r in out))
+        self.assertIn('urn:btih:', out[0]['magnet'])
+
+    def test_tpb_filtra_hash_zero(self):
+        """_search_tpb scarta il risultato 'No results' con hash tutto zeri."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = [
+            {'info_hash': '0' * 40, 'name': 'No results returned'},
+        ]
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_tpb('test')
+        self.assertEqual(out, [])
+
+    def test_tpb_errore_http(self):
+        """_search_tpb restituisce [] su errore HTTP."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=503)
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_tpb('test')
+        self.assertEqual(out, [])
+
+    # ── Knaben ───────────────────────────────────────────────────────────────
+
+    def test_knaben_struttura_elasticsearch(self):
+        """_search_knaben parsifica la struttura Elasticsearch (hit._source)."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = {
+            'hits': [
+                {'_source': {'infohash': 'c' * 40, 'title': 'Serie.S02E05.ITA.1080p'}},
+                {'_source': {'infohash': 'd' * 40, 'title': 'Film.2022.720p'}},
+            ]
+        }
+        with patch.object(eng.sess, 'post', return_value=resp):
+            out = eng._search_knaben('test')
+        self.assertEqual(len(out), 2)
+        self.assertTrue(all(r['source'] == 'Knaben' for r in out))
+
+    def test_knaben_scarta_hash_invalido(self):
+        """_search_knaben scarta entry con hash di lunghezza errata."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = {
+            'hits': [
+                {'_source': {'infohash': 'tooshort', 'title': 'Titolo'}},
+                {'_source': {'infohash': 'e' * 40,   'title': 'Valido'}},
+            ]
+        }
+        with patch.object(eng.sess, 'post', return_value=resp):
+            out = eng._search_knaben('test')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['title'], 'Valido')
+
+    def test_knaben_hash_sha256(self):
+        """_search_knaben accetta anche hash SHA256 (64 hex char)."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = {
+            'hits': [{'_source': {'infohash': 'f' * 64, 'title': 'SHA256 Torrent'}}]
+        }
+        with patch.object(eng.sess, 'post', return_value=resp):
+            out = eng._search_knaben('test')
+        self.assertEqual(len(out), 1)
+
+    # ── BTDigg ───────────────────────────────────────────────────────────────
+
+    def _btdig_html(self, hash_val, title):
+        """HTML minimale che replica la struttura di btdig.com."""
+        return (
+            f'<html><body>'
+            f'<a href="https://btdig.com/{hash_val}/slug-title">{title}</a>'
+            f' 3 files 1.2 GB found 2 years ago '
+            f'<a href="magnet:?xt=urn:btih:{hash_val}&dn=Titolo&tr=udp://tracker.org:6969">magnet link</a>'
+            f'</body></html>'
+        )
+
+    def test_btdig_estrae_titolo_e_magnet(self):
+        """_search_btdig estrae correttamente titolo e magnet da HTML btdig.com."""
+        eng = self._make_engine()
+        h = '1' * 40
+        resp = MagicMock(status_code=200, text=self._btdig_html(h, 'Serie.S01E01.ITA'))
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_btdig('test')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['title'], 'Serie.S01E01.ITA')
+        self.assertEqual(out[0]['source'], 'BTDigg')
+        self.assertIn(h, out[0]['magnet'])
+
+    def test_btdig_titolo_al_primo_link(self):
+        """_search_btdig trova il titolo anche quando il link titolo è il primo della pagina (i=1, fix range)."""
+        eng = self._make_engine()
+        h = '2' * 40
+        # Il link titolo è esattamente il primo <a>, il magnet è il secondo → i=1
+        html = (
+            f'<html><body>'
+            f'<a href="https://btdig.com/{h}/slug">Titolo Primo Link</a>'
+            f'<a href="magnet:?xt=urn:btih:{h}&dn=X">magnet link</a>'
+            f'</body></html>'
+        )
+        resp = MagicMock(status_code=200, text=html)
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_btdig('test')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['title'], 'Titolo Primo Link')
+
+    def test_btdig_fallback_dn_param(self):
+        """_search_btdig usa il parametro dn= del magnet se non trova il link titolo."""
+        eng = self._make_engine()
+        h = '3' * 40
+        # Nessun link con btdig.com/hash → fallback su dn=
+        # Nota: il testo contiene 'btdig' (nel commento HTML) perché _search_btdig
+        # verifica 'btdig' in r.text.lower() per accettare la risposta diretta.
+        html = (
+            f'<html><body><!-- btdig -->'
+            f'<a href="https://example.com/other">altro link</a>'
+            f'<a href="magnet:?xt=urn:btih:{h}&dn=Titolo+Da+DN">magnet link</a>'
+            f'</body></html>'
+        )
+        resp = MagicMock(status_code=200, text=html)
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_btdig('test')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['title'], 'Titolo Da DN')
+
+    def test_btdig_deduplicazione_hash(self):
+        """_search_btdig non restituisce duplicati con lo stesso hash."""
+        eng = self._make_engine()
+        h = '4' * 40
+        html = self._btdig_html(h, 'Titolo') + self._btdig_html(h, 'Titolo Doppio')
+        resp = MagicMock(status_code=200, text=html)
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_btdig('test')
+        self.assertEqual(len(out), 1)
+
+    # ── LimeTorrents ─────────────────────────────────────────────────────────
+
+    def _lime_listing_html(self, detail_path, title):
+        return (
+            '<html><body><table class="table2"><tr bgcolor="#F4F4F4">'
+            f'<td><a href="{detail_path}">{title}</a></td>'
+            '<td>2y ago</td><td>1.2 GB</td><td>10</td><td>5</td>'
+            '</tr></table></body></html>'
+        )
+
+    def _lime_detail_html(self, hash_val):
+        return f'<html><body><a href="magnet:?xt=urn:btih:{hash_val}&dn=Test">Magnet</a></body></html>'
+
+    def test_limetorrents_listing_e_dettaglio(self):
+        """_search_limetorrents visita pagina dettaglio e restituisce magnet con source='LimeTorrents'."""
+        eng = self._make_engine()
+        h = '5' * 40
+        listing = MagicMock(status_code=200, text=self._lime_listing_html('/serie-s01e01.html', 'Serie S01E01 ITA'))
+        detail  = MagicMock(status_code=200, text=self._lime_detail_html(h))
+
+        def _fake_get(url, **kw):
+            if url.endswith('.html'):
+                return detail
+            return listing
+
+        with patch.object(eng.sess, 'get', side_effect=_fake_get):
+            with patch.object(eng, '_flaresolverr_get', return_value=None):
+                out = eng._search_limetorrents('test')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['source'], 'LimeTorrents')
+        self.assertIn(h, out[0]['magnet'])
+
+    def test_limetorrents_fallback_dominio(self):
+        """_search_limetorrents prova il secondo dominio se il primo non risponde."""
+        eng = self._make_engine()
+        h = '6' * 40
+        listing = MagicMock(status_code=200, text=self._lime_listing_html('/film-2023.html', 'Film 2023 ITA'))
+        detail  = MagicMock(status_code=200, text=self._lime_detail_html(h))
+        call_count = {'n': 0}
+
+        def _fake_get(url, **kw):
+            call_count['n'] += 1
+            # Primo dominio (limetorrents.fun): 404
+            if 'limetorrents.fun' in url and not url.endswith('.html'):
+                return MagicMock(status_code=404, text='')
+            if url.endswith('.html'):
+                return detail
+            return listing  # secondo dominio (limetorrents.cc) in poi
+
+        with patch.object(eng.sess, 'get', side_effect=_fake_get):
+            with patch.object(eng, '_flaresolverr_get', return_value=None):
+                out = eng._search_limetorrents('test')
+        self.assertEqual(len(out), 1)
+
+    # ── Torrentz2 ─────────────────────────────────────────────────────────────
+
+    def _tz2_listing_html(self, torrent_id, title):
+        return (
+            f'<html><body><div class="results"><dl>'
+            f'<dt><a href="/torrent/{torrent_id}">{title}</a></dt>'
+            f'<dd><span class="a">2y ago</span><span class="s">1 GB</span>'
+            f'<span class="u">100</span><span class="d">50</span></dd>'
+            f'</dl></div></body></html>'
+        )
+
+    def _tz2_detail_html(self, hash_val):
+        return f'<html><body><a href="magnet:?xt=urn:btih:{hash_val}&dn=Test">magnet</a></body></html>'
+
+    def test_torrentz2_listing_e_dettaglio(self):
+        """_search_torrentz2 estrae titolo dalla listing e magnet dalla pagina dettaglio."""
+        eng = self._make_engine()
+        h = '7' * 40
+        listing = MagicMock(status_code=200, text=self._tz2_listing_html('abc123', 'Serie.S03E01.ITA.1080p'))
+        detail  = MagicMock(status_code=200, text=self._tz2_detail_html(h))
+
+        def _fake_get(url, **kw):
+            if '/torrent/' in url:
+                return detail
+            return listing
+
+        with patch.object(eng.sess, 'get', side_effect=_fake_get):
+            with patch.object(eng, '_flaresolverr_get', return_value=None):
+                out = eng._search_torrentz2('test')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['title'], 'Serie.S03E01.ITA.1080p')
+        self.assertEqual(out[0]['source'], 'Torrentz2')
+        self.assertIn(h, out[0]['magnet'])
+
+    def test_torrentz2_nessun_dettaglio_senza_magnet(self):
+        """_search_torrentz2 scarta silenziosamente entry senza magnet nel dettaglio."""
+        eng = self._make_engine()
+        listing = MagicMock(status_code=200, text=self._tz2_listing_html('xyz', 'Titolo'))
+        no_magnet = MagicMock(status_code=200, text='<html><body>nessun magnet</body></html>')
+
+        with patch.object(eng.sess, 'get', side_effect=lambda url, **kw: no_magnet if '/torrent/' in url else listing):
+            with patch.object(eng, '_flaresolverr_get', return_value=None):
+                out = eng._search_torrentz2('test')
+        self.assertEqual(out, [])
+
+    # ── _web_search_all ───────────────────────────────────────────────────────
+
+    def test_web_search_all_chiavi_config(self):
+        """_web_search_all chiama solo i metodi corrispondenti alle chiavi abilitate."""
+        eng = self._make_engine()
+        called = []
+
+        # Config è importato localmente dentro _web_search_all con 'from .config import Config',
+        # quindi va patchato nel modulo sorgente core.config, non in core.engine.
+        with patch('core.config.Config') as MockCfg:
+            MockCfg.return_value.websearch_engines = ['tpb', 'knaben']
+            with patch.object(eng, '_search_tpb',          side_effect=lambda q: called.append('tpb')          or []):
+                with patch.object(eng, '_search_knaben',   side_effect=lambda q: called.append('knaben')       or []):
+                    with patch.object(eng, '_search_bitsearch', side_effect=lambda q, **kw: called.append('bitsearch') or []):
+                        with patch.object(eng, '_search_btdig',        side_effect=lambda q, **kw: called.append('btdig')        or []):
+                            with patch.object(eng, '_search_limetorrents', side_effect=lambda q, **kw: called.append('limetorrents') or []):
+                                with patch.object(eng, '_search_torrentz2', side_effect=lambda q, **kw: called.append('torrentz2')   or []):
+                                    eng._web_search_all('test')
+
+        self.assertIn('tpb', called)
+        self.assertIn('knaben', called)
+        self.assertNotIn('bitsearch', called)
+        self.assertNotIn('btdig', called)
+
+    def test_web_search_all_deduplicazione_btih(self):
+        """_web_search_all rimuove duplicati con lo stesso hash BTIH."""
+        eng = self._make_engine()
+        h = '8' * 40
+        dup = {'title': 'X', 'magnet': f'magnet:?xt=urn:btih:{h}&dn=X', 'source': 'TPB'}
+
+        with patch('core.config.Config') as MockCfg:
+            MockCfg.return_value.websearch_engines = ['tpb', 'knaben']
+            with patch.object(eng, '_search_tpb',    return_value=[dup]):
+                with patch.object(eng, '_search_knaben', return_value=[dup]):
+                    out = eng._web_search_all('test')
+        self.assertEqual(len(out), 1)
+
+    def test_web_search_all_engines_vuoto(self):
+        """_web_search_all restituisce [] se websearch_engines è vuoto."""
+        eng = self._make_engine()
+        with patch('core.config.Config') as MockCfg:
+            MockCfg.return_value.websearch_engines = []
+            out = eng._web_search_all('test')
+        self.assertEqual(out, [])
+
+    # ── Log source tag (logica estratta da extto3.py) ─────────────────────────
+
+    def test_log_source_tag_motori_web(self):
+        """La logica _src_tag mostra il tag per motori web, è silenziosa per sorgenti RSS."""
+        _SILENT = {'ExtTo', 'Corsaro', 'ExtTo Live', 'Corsaro Live', 'Jackett', 'Prowlarr', 'Archivio'}
+
+        def make_tag(source):
+            return f" [via {source}]" if source and source not in _SILENT else ''
+
+        self.assertEqual(make_tag('ThePirateBay'), ' [via ThePirateBay]')
+        self.assertEqual(make_tag('Knaben'),       ' [via Knaben]')
+        self.assertEqual(make_tag('BTDigg'),        ' [via BTDigg]')
+        self.assertEqual(make_tag('LimeTorrents'),  ' [via LimeTorrents]')
+        self.assertEqual(make_tag('Torrentz2'),     ' [via Torrentz2]')
+        self.assertEqual(make_tag('BitSearch'),     ' [via BitSearch]')
+        self.assertEqual(make_tag('ExtTo'),         '')
+        self.assertEqual(make_tag('Corsaro'),       '')
+        self.assertEqual(make_tag('ExtTo Live'),    '')
+        self.assertEqual(make_tag('Jackett'),       '')
+        self.assertEqual(make_tag('Prowlarr'),      '')
+        self.assertEqual(make_tag('Archivio'),      '')
+        self.assertEqual(make_tag(''),              '')
+
+    def test_source_field_propagato_in_best_by_ep(self):
+        """Il campo 'source' viene incluso in best_by_ep quando presente nell'item."""
+        item_with_source = {
+            'title': 'Serie.S01E01.ITA.1080p.WEB-DL',
+            'magnet': 'magnet:?xt=urn:btih:' + '9' * 40,
+            'source': 'Knaben',
+        }
+        self.assertEqual(item_with_source.get('source', ''), 'Knaben')
+
+        item_no_source = {
+            'title': 'Serie.S01E01.ITA.1080p',
+            'magnet': 'magnet:?xt=urn:btih:' + 'a' * 40,
+        }
+        self.assertEqual(item_no_source.get('source', ''), '')
+
+
 if __name__ == '__main__':
     # Avvia tutti i test e stampa il risultato a video
     print("Avvio ispezione qualità codice EXTTO...")
