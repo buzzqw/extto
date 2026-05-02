@@ -562,14 +562,10 @@ class Engine:
             return []
 
     def _search_knaben(self, query: str, max_results: int = 15) -> List[Dict]:
-        """Ricerca su Knaben via JSON API. Knaben è dietro Cloudflare: se FlareSolverr
-        è configurato viene usato per ottenere cookie CF validi prima della POST API."""
-        from urllib.parse import quote_plus as _qp
-        api_url = "https://knaben.org/api/v1/"
+        """Ricerca su Knaben via api.knaben.org/v1 (JSON, no Cloudflare)."""
+        api_url = "https://api.knaben.org/v1"
         payload = {
-            "search_type": "search",
             "query": query,
-            "categories": [],
             "from": 0,
             "size": max_results,
             "hideNsfw": True,
@@ -577,13 +573,6 @@ class Engine:
             "orderDirection": "desc",
         }
         try:
-            # Knaben è dietro Cloudflare: prova prima a ottenere cookie CF via FlareSolverr
-            fs = self._flaresolverr_get("https://knaben.org/", timeout=30)
-            if fs is None:
-                logger.debug("Knaben: FlareSolverr non disponibile, provo richiesta diretta")
-            else:
-                time.sleep(3)  # lascia a FlareSolverr il tempo di rilasciare Chrome
-
             r = self.sess.post(api_url, json=payload, timeout=20)
             if r.status_code != 200:
                 logger.warning(f"⚠️ Knaben: HTTP {r.status_code}")
@@ -594,17 +583,15 @@ class Engine:
             try:
                 data = r.json()
             except Exception:
-                logger.warning(f"⚠️ Knaben: risposta non-JSON (HTTP {r.status_code}): {r.text[:120]}")
+                logger.warning(f"⚠️ Knaben: risposta non-JSON: {r.text[:120]}")
                 return []
             hits = data.get('hits') or []
             out = []
             for hit in hits:
-                src = hit.get('_source') or hit
-                h = (src.get('infohash') or src.get('info_hash') or '').strip().lower()
-                t = (src.get('title') or src.get('name') or '').strip()
-                if not h or len(h) not in (40, 64) or not t:
+                t = (hit.get('title') or '').strip()
+                magnet = (hit.get('magnetUrl') or '').strip()
+                if not t or not magnet:
                     continue
-                magnet = f"magnet:?xt=urn:btih:{h}&dn={_qp(t)}"
                 out.append({'title': t, 'magnet': magnet, 'source': 'Knaben'})
             logger.info(f"🌐 Knaben: {len(out)} risultati per '{query}'")
             return out
@@ -673,6 +660,7 @@ class Engine:
         """
         from urllib.parse import quote as _q, urljoin
         DOMAINS = [
+            'https://limetorrent.net',
             'https://www.limetorrents.fun',
             'https://www.limetorrents.cc',
             'https://www.limetorrents.lol',
@@ -681,12 +669,23 @@ class Engine:
             'https://limetor.pro',
             'https://limetorrents.asia',
         ]
-        # LimeTorrents vuole spazi come trattini nell'URL
+        # LimeTorrents vuole spazi come trattini nell'URL (per il formato GET slug)
         q_dashed = query.replace(' ', '-')
 
         html = None
         base = None
         for domain in DOMAINS:
+            # Prova 1: POST a /search con q= (formato usato da limetorrent.net)
+            try:
+                r = self.sess.post(f"{domain}/search", data={'q': query}, timeout=15,
+                                   headers={'Referer': f'{domain}/'})
+                if r.status_code == 200 and 'table2' in r.text:
+                    html = r.text
+                    base = domain
+                    break
+            except Exception:
+                pass
+            # Prova 2: GET slug /search/all/QUERY/seeds/1/
             search_url = f"{domain}/search/all/{_q(q_dashed, safe='-')}/seeds/1/"
             try:
                 r = self.sess.get(search_url, timeout=15)
@@ -696,6 +695,7 @@ class Engine:
                     break
             except Exception:
                 pass
+            # Prova 3: FlareSolverr sul GET slug
             fs = self._flaresolverr_get(search_url, timeout=40)
             if fs and fs[0] == 200 and 'table2' in fs[1]:
                 html = fs[1]
@@ -805,6 +805,33 @@ class Engine:
         logger.info(f"🌐 Torrentz2: {len(out)} risultati per '{query}'")
         return out
 
+    def _search_torrentscsv(self, query: str, max_results: int = 15) -> List[Dict]:
+        """Ricerca su torrents-csv.com (JSON API, no Cloudflare, no auth)."""
+        from urllib.parse import quote_plus as _qp
+        url = f"https://torrents-csv.com/service/search?q={_qp(query)}&size={max_results}"
+        try:
+            r = self.sess.get(url, timeout=15)
+            if r.status_code != 200:
+                logger.warning(f"⚠️ TorrentsCSV: HTTP {r.status_code}")
+                return []
+            data = r.json()
+            out = []
+            for item in data.get('torrents') or []:
+                h = (item.get('infohash') or '').strip().lower()
+                t = (item.get('name') or '').strip()
+                if not h or len(h) not in (40, 64) or not t:
+                    continue
+                magnet = (f"magnet:?xt=urn:btih:{h}&dn={_qp(t)}"
+                          "&tr=udp://tracker.opentrackr.org:1337"
+                          "&tr=udp://open.stealth.si:80/announce"
+                          "&tr=udp://tracker.torrent.eu.org:451/announce")
+                out.append({'title': t, 'magnet': magnet, 'source': 'TorrentsCSV'})
+            logger.info(f"🌐 TorrentsCSV: {len(out)} risultati per '{query}'")
+            return out
+        except Exception as e:
+            logger.warning(f"⚠️ TorrentsCSV: {e}")
+            return []
+
     def _web_search_all(self, query: str) -> List[Dict]:
         """Interroga tutti i motori di ricerca web abilitati nella config."""
         from .config import Config
@@ -824,6 +851,8 @@ class Engine:
             results.extend(self._search_limetorrents(query))
         if 'torrentz2' in engines:
             results.extend(self._search_torrentz2(query))
+        if 'torrentscsv' in engines:
+            results.extend(self._search_torrentscsv(query))
         # Deduplicazione per BTIH hash
         seen, unique = set(), []
         for r in results:

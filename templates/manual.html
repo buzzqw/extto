@@ -643,10 +643,11 @@
                                     <li><strong>Knaben</strong> (<code>knaben.org</code>) — aggrega TPB, 1337x, RARBG e altri via API JSON, no Cloudflare.</li>
                                     <li><strong>BTDigg</strong> (<code>btdig.com</code>) — DHT crawler con magnet diretti, scraping HTML, no Cloudflare.</li>
                                     <li><strong>LimeTorrents</strong> (<code>limetorrents.fun</code> + mirror) — scraping HTML multipagina, multi-dominio. Richiede FlareSolverr se il dominio è dietro Cloudflare.</li>
-                                    <li><strong>Torrentz2</strong> (<code>torrentz2.io</code>) — meta-search che aggrega più siti, no Cloudflare.</li>
+                                    <li><strong>Torrentz2</strong> (<code>torrentz2.nz</code>) — meta-search che aggrega più siti, no Cloudflare.</li>
+                                    <li><strong>TorrentsCSV</strong> (<code>torrents-csv.com</code>) — database DHT con API JSON, no Cloudflare, no autenticazione. Tra i più affidabili.</li>
                                 </ul>
                                 <div class="man-params">
-                                    <div class="man-param"><div class="man-param-name">@websearch_engines</div><div class="man-param-desc">Lista di motori abilitati separati da virgola. Valori validi: <code>bitsearch</code>, <code>tpb</code>, <code>knaben</code>, <code>btdig</code>, <code>limetorrents</code>, <code>torrentz2</code>. Esempio: <code>bitsearch,knaben,btdig</code>. Lascia vuoto per disabilitare tutti.</div></div>
+                                    <div class="man-param"><div class="man-param-name">@websearch_engines</div><div class="man-param-desc">Lista di motori abilitati separati da virgola. Valori validi: <code>bitsearch</code>, <code>tpb</code>, <code>knaben</code>, <code>btdig</code>, <code>limetorrents</code>, <code>torrentz2</code>, <code>torrentscsv</code>. Esempio: <code>bitsearch,knaben,torrentscsv</code>. Lascia vuoto per disabilitare tutti.</div></div>
                                 </div>
 
                                 <div class="man-subsection">Parametri di Ricerca</div>
@@ -704,7 +705,7 @@
                                             <li>Archivio locale (<code>extto_archive.db</code>) — gratuito e istantaneo</li>
                                             <li>Jackett / Prowlarr — API <code>tvsearch</code> con stagione ed episodio esatti; max 5 query/serie ogni 6h</li>
                                             <li>eD2k / aMule — solo se <code>gap_fill_ed2k=yes</code> e aMule configurato</li>
-                                            <li>Motori di ricerca web (BitSearch, TPB, Knaben, BTDigg, LimeTorrents, Torrentz2) — solo se <code>websearch_engines</code> configurato; query testuale <code>"Nome S##E##"</code></li>
+                                            <li>Motori di ricerca web (BitSearch, TPB, Knaben, BTDigg, LimeTorrents, Torrentz2, TorrentsCSV) — solo se <code>websearch_engines</code> configurato; query testuale <code>"Nome S##E##"</code></li>
                                         </ol>
                                     Il sistema si ferma al primo livello che trova un candidato valido.</div>
                                 </div>
@@ -1908,7 +1909,7 @@
                                             <tr><td><strong>Notifiche</strong></td><td>Telegram (bot token, chat ID), Email (SMTP, from, to, password)</td></tr>
                                             <tr><td><strong>Avanzate</strong></td><td>Livello di logging, intervallo ciclo, blacklist, wantedlist, debug flags, pulizia archivio, backup automatico</td></tr>
                                             <tr><td><strong>Fonti</strong></td><td>URL sorgenti scraping (ExtTo, Corsaro, RSS), Jackett URL/API key, Prowlarr URL/API key</td></tr>
-                                            <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download; Jackett/Prowlarr (URL + API key); FlareSolverr (URL); Motori di ricerca web (BitSearch, TPB, Knaben, BTDigg, LimeTorrents, Torrentz2)</td></tr>
+                                            <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download; Jackett/Prowlarr (URL + API key); FlareSolverr (URL); Motori di ricerca web (BitSearch, TPB, Knaben, BTDigg, LimeTorrents, Torrentz2, TorrentsCSV)</td></tr>
                                         </tbody>
                                     </table>
                                 </div>

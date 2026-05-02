@@ -1794,6 +1794,7 @@ const app = {
             if (_cb('websearch-btdig'))        _ws.push('btdig');
             if (_cb('websearch-limetorrents')) _ws.push('limetorrents');
             if (_cb('websearch-torrentz2'))    _ws.push('torrentz2');
+            if (_cb('websearch-torrentscsv'))  _ws.push('torrentscsv');
             // Aggiorna solo se la tab Integrazioni è stata caricata (almeno un elemento esiste nel DOM)
             if (document.getElementById('websearch-bitsearch')) s.websearch_engines = _ws.join(',');
         }
@@ -9822,6 +9823,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             setCkw('websearch-btdig',        'btdig');
             setCkw('websearch-limetorrents', 'limetorrents');
             setCkw('websearch-torrentz2',    'torrentz2');
+            setCkw('websearch-torrentscsv',  'torrentscsv');
         } catch(e) { console.error('indexerInit', e); }
     },
 
@@ -9847,6 +9849,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             if (cb('websearch-btdig'))        engines.push('btdig');
             if (cb('websearch-limetorrents')) engines.push('limetorrents');
             if (cb('websearch-torrentz2'))    engines.push('torrentz2');
+            if (cb('websearch-torrentscsv'))  engines.push('torrentscsv');
             s.websearch_engines = engines.join(',');
             const res  = await fetch(`${API_BASE}/api/config/settings`, {
                 method: 'POST',
