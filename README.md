@@ -53,7 +53,7 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 ### 🧠 One App, Full Stack
 Monitors RSS feeds, searches Jackett/Prowlarr indexers, scores release quality, downloads via libtorrent (embedded) or your existing qBittorrent / Transmission / aria2, renames files with TMDB metadata, archives to your NAS, notifies you. All automatic.
 
-### 🌐 8-Engine Web Search with Cloudflare Bypass
+### 🌐 6-Engine Web Search with Cloudflare Bypass
 When your indexers come up empty, EXTTO fans out across **6 public search engines** simultaneously:  
 **BitSearch · The Pirate Bay · Knaben · BTDigg · LimeTorrents · Torrentz2**
 
@@ -203,7 +203,7 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 ### 🧠 Un'App, lo Stack Completo
 Monitora feed RSS, cerca su indexer Jackett/Prowlarr, valuta la qualità delle release, scarica via libtorrent (integrato) oppure qBittorrent / Transmission / aria2 esistenti, rinomina con metadati TMDB, archivia sul NAS, notifica su Telegram. Tutto automatico.
 
-### 🌐 Ricerca Web su 8 Motori con Bypass Cloudflare
+### 🌐 Ricerca Web su 6 Motori con Bypass Cloudflare
 Quando gli indexer non trovano nulla, EXTTO espande la ricerca su **6 motori pubblici** in parallelo:  
 **BitSearch · The Pirate Bay · Knaben · BTDigg · LimeTorrents · Torrentz2**
 
