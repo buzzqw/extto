@@ -41,6 +41,9 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 | Comic book support | **✅ Native** | ❌ Needs Mylar |
 | eMule / eD2k fallback | **✅ Built-in** | ❌ Not possible |
 | RAM disk downloads | **✅ Built-in** | ❌ Not possible |
+| Multi-engine web search | **✅ 6 engines** | ❌ Indexer only |
+| Cloudflare bypass | **✅ FlareSolverr** | ❌ Not possible |
+| Tag-based folder routing | **✅ Built-in** | ❌ Manual |
 | Web UI | **✅ Modern, flat** | Mixed |
 
 ---
@@ -49,6 +52,15 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 
 ### 🧠 One App, Full Stack
 Monitors RSS feeds, searches Jackett/Prowlarr indexers, scores release quality, downloads via libtorrent (embedded) or your existing qBittorrent / Transmission / aria2, renames files with TMDB metadata, archives to your NAS, notifies you. All automatic.
+
+### 🌐 8-Engine Web Search with Cloudflare Bypass
+When your indexers come up empty, EXTTO fans out across **6 public search engines** simultaneously:  
+**BitSearch · The Pirate Bay · Knaben · BTDigg · LimeTorrents · Torrentz2**
+
+Engines protected by Cloudflare are bypassed transparently via the optional **FlareSolverr** sidecar. Web search fires both in scheduled cycles and in manually triggered ones — so when you hit "Search Now" you get the full search network, not just RSS.
+
+### 🏷️ Tag-Based Folder Rules
+Assign a tag to any download (automatically or at the moment you add a magnet/torrent) and EXTTO routes the completed file to the matching folder. Series go to `/media/tv`, documentaries to `/media/docs`, comics to `/media/comics` — zero manual sorting.
 
 ### 💾 RAM Disk Downloads
 Protect your SSD. EXTTO downloads small torrents directly to a `tmpfs` RAM disk and moves them to permanent storage only when 100% complete. Zero SSD writes during download.
@@ -61,6 +73,12 @@ Weekly packs, single issues, automatic monitoring. Downloads directly from GetCo
 
 ### 🏆 Smart Quality Upgrades
 EXTTO scores every release (4K, HDR10, Dolby Vision, DTS-X, codec, source...) and automatically replaces your existing file when a better version is found. Set it once, forget it.
+
+### 🎛️ Modern Web UI — Accordion, Tabs & Live Dirty Tracking
+The settings page is organized in collapsible accordion sections (state saved in localStorage) with a dedicated **Integrations tab** for Trakt and Jellyfin. A red dot appears on any tab with unsaved changes so you never lose edits by accident.
+
+### 🔇 Category Filter (beyond Blacklist)
+Two levels of filtering: the **Blacklist** blocks at parse time but still archives the item for deduplication. The **Category Filter** blocks *and* prevents archiving entirely — those items don't exist for EXTTO. Perfect for permanently ignoring cam-rips, CAM-quality, or entire release groups.
 
 ### 🌐 Browser Integration
 Click a `magnet:` link or a `.torrent` file anywhere in your browser — EXTTO receives it instantly. One-time setup via a script generated directly from the Web UI, already configured with your server URL.
@@ -173,6 +191,9 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 | Fumetti nativi | **✅ Integrato** | ❌ Serve Mylar |
 | Fallback eMule / eD2k | **✅ Integrato** | ❌ Impossibile |
 | Download in RAM disk | **✅ Integrato** | ❌ Impossibile |
+| Ricerca web multi-motore | **✅ 6 motori** | ❌ Solo indexer |
+| Bypass Cloudflare | **✅ FlareSolverr** | ❌ Impossibile |
+| Cartelle per tag | **✅ Integrato** | ❌ Manuale |
 | Web UI | **✅ Moderna, flat** | Variabile |
 
 ---
@@ -181,6 +202,15 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 
 ### 🧠 Un'App, lo Stack Completo
 Monitora feed RSS, cerca su indexer Jackett/Prowlarr, valuta la qualità delle release, scarica via libtorrent (integrato) oppure qBittorrent / Transmission / aria2 esistenti, rinomina con metadati TMDB, archivia sul NAS, notifica su Telegram. Tutto automatico.
+
+### 🌐 Ricerca Web su 8 Motori con Bypass Cloudflare
+Quando gli indexer non trovano nulla, EXTTO espande la ricerca su **6 motori pubblici** in parallelo:  
+**BitSearch · The Pirate Bay · Knaben · BTDigg · LimeTorrents · Torrentz2**
+
+I motori protetti da Cloudflare vengono attraversati in modo trasparente tramite il sidecar opzionale **FlareSolverr**. La ricerca web scatta sia nei cicli schedulati sia in quelli avviati manualmente — quindi premendo "Controlla ora" si ottiene l'intera rete di ricerca, non solo RSS.
+
+### 🏷️ Regole Cartelle per Tag
+Assegna un tag a qualsiasi download (automaticamente o al momento in cui aggiungi un magnet/torrent) e EXTTO instrada il file completato nella cartella corrispondente. Serie in `/media/tv`, documentari in `/media/docs`, fumetti in `/media/comics` — zero ordinamento manuale.
 
 ### 💾 Download in RAM Disk
 Proteggi il tuo SSD. EXTTO scarica i torrent piccoli direttamente su un RAM disk `tmpfs` e li sposta in archivio solo a completamento al 100%. Zero scritture SSD durante il download.
@@ -193,6 +223,12 @@ Weekly pack, numeri singoli, monitoraggio automatico. Download direttamente da G
 
 ### 🏆 Upgrade Qualità Intelligente
 EXTTO valuta ogni release (4K, HDR10, Dolby Vision, DTS-X, codec, sorgente...) e sostituisce automaticamente il file esistente quando trova una versione migliore. Configuralo una volta, dimenticatelo.
+
+### 🎛️ Web UI Moderna — Accordion, Tab e Dirty Tracking
+La pagina impostazioni è organizzata in sezioni accordion collassabili (stato salvato in localStorage) con un tab dedicato **Integrazioni** per Trakt e Jellyfin. Un pallino rosso compare su ogni tab con modifiche non salvate, così non perdi mai le impostazioni per errore.
+
+### 🔇 Filtro Categorie (oltre la Blacklist)
+Due livelli di filtraggio: la **Blacklist** blocca al parsing ma archivia comunque l'item per deduplicazione. Il **Filtro Categorie** blocca *e* impedisce l'archiviazione — quegli item non esistono per EXTTO. Perfetto per ignorare definitivamente cam-rip, qualità CAM o interi release group.
 
 ### 🌐 Integrazione Browser
 Clicca su un link `magnet:` o su un file `.torrent` ovunque nel browser — EXTTO lo riceve istantaneamente. Setup unico via uno script generato direttamente dalla Web UI, già configurato con l'URL del tuo server.
