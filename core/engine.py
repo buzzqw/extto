@@ -580,7 +580,14 @@ class Engine:
             if r.status_code != 200:
                 logger.warning(f"⚠️ Knaben: HTTP {r.status_code}")
                 return []
-            data = r.json()
+            if not r.content:
+                logger.warning("⚠️ Knaben: risposta vuota")
+                return []
+            try:
+                data = r.json()
+            except Exception:
+                logger.warning(f"⚠️ Knaben: risposta non-JSON (HTTP {r.status_code}): {r.text[:120]}")
+                return []
             hits = data.get('hits') or []
             out = []
             for hit in hits:
