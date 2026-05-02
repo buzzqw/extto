@@ -1783,7 +1783,21 @@ const app = {
         s.wantedlist = v('wantedlist-list').split('\n').filter(x=>x.trim());
         s.custom_score = v('customscore-list').split('\n').filter(x=>x.trim());
         s.auto_remove_completed = document.getElementById('auto-remove-completed')?.checked ? 'yes' : 'no';
-        
+
+        // Motori di ricerca web — legge i toggle attuali per non sovrascrivere con il valore in cache
+        {
+            const _ws = [];
+            const _cb = id => document.getElementById(id)?.checked;
+            if (_cb('websearch-bitsearch'))    _ws.push('bitsearch');
+            if (_cb('websearch-tpb'))          _ws.push('tpb');
+            if (_cb('websearch-knaben'))       _ws.push('knaben');
+            if (_cb('websearch-btdig'))        _ws.push('btdig');
+            if (_cb('websearch-limetorrents')) _ws.push('limetorrents');
+            if (_cb('websearch-torrentz2'))    _ws.push('torrentz2');
+            // Aggiorna solo se la tab Integrazioni è stata caricata (almeno un elemento esiste nel DOM)
+            if (document.getElementById('websearch-bitsearch')) s.websearch_engines = _ws.join(',');
+        }
+
         // Salva la lingua TMDB scegliendo tra la tendina o il campo di testo
         const tmdbSelect = document.getElementById('tmdb_lang_select');
         if (tmdbSelect) {
