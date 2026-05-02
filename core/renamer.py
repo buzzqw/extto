@@ -347,7 +347,9 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
             logger.warning(f"⚠️  cleanup post-rename error: {_ce}")
     # ──────────────────────────────────────────────────────────────────────
 
-    return renamed > 0
+    if renamed > 0 and renamed_video_fname:
+        return os.path.join(save_path, renamed_video_fname)
+    return None
 
 
 def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool:
@@ -378,8 +380,9 @@ def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool
     if not official_title:
         return False
 
-    year_tag = f" ({official_year})" if official_year else ""
-    renamed  = 0
+    year_tag           = f" ({official_year})" if official_year else ""
+    renamed            = 0
+    renamed_movie_fname = None
 
     try:
         entries = os.listdir(save_path)
@@ -443,7 +446,10 @@ def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool
                 shutil.move(src, dst)
             logger.info(f"🎬 Movie Renamed: '{fname}' → '{new_name}'")
             renamed += 1
+            renamed_movie_fname = new_name
         except Exception as e:
             logger.error(f"❌ rename_movie: error on '{fname}': {e}")
 
-    return renamed > 0
+    if renamed > 0 and renamed_movie_fname:
+        return os.path.join(save_path, renamed_movie_fname)
+    return None

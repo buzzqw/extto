@@ -628,14 +628,14 @@ class LibtorrentClient:
 
     @classmethod
     def _trigger_renamer(cls, h, save_path):
-        """Innesca la rinomina ufficiale solo se il flag globale è attivo."""
+        """Innesca la rinomina ufficiale solo se il flag globale è attivo.
+        Ritorna il nuovo path del file rinominato, o None se la rinomina non avviene."""
         full_cfg = cls._load_full_cfg()
 
-        # Controlla se la rinomina è attiva
         if str(full_cfg.get('rename_episodes', 'no')).lower() not in ('yes', 'true', '1'):
             logger.debug(f"rename_episodes non attivo — skip rename per '{h.name()}'")
-            return
-            
+            return None
+
         try:
             from ..renamer import rename_completed_torrent, rename_completed_movie
             _db = None
@@ -644,24 +644,25 @@ class LibtorrentClient:
                 _db = Database()
             except Exception:
                 pass
-            
-            # Tenta prima con la logica Serie TV
-            is_renamed = rename_completed_torrent(
+
+            new_path = rename_completed_torrent(
                 torrent_name = h.name() or '',
                 save_path    = save_path,
-                cfg          = full_cfg,  # <--- ORA E' CORRETTO!
+                cfg          = full_cfg,
                 db           = _db
             )
-            
-            # Se fallisce, tenta come Film
-            if not is_renamed:
-                rename_completed_movie(
+
+            if not new_path:
+                new_path = rename_completed_movie(
                     torrent_name = h.name() or '',
                     save_path    = save_path,
-                    cfg          = full_cfg   # <--- ORA E' CORRETTO!
+                    cfg          = full_cfg
                 )
+
+            return new_path or None
         except Exception as _re:
-            logger.warning(f"⚠️ Rename failed: {_re}")   
+            logger.warning(f"⚠️ Rename failed: {_re}")
+            return None   
             
     @classmethod
     def _trigger_folder_scan(cls, h):
@@ -1235,9 +1236,11 @@ class LibtorrentClient:
                                     # cartella e get_media_tags riceve il path esatto.
                                     _torrent_file = os.path.join(curr_save, h.name()) if h.name() else curr_save
                                     _rename_path  = _torrent_file if os.path.isfile(_torrent_file) else curr_save
-                                    cls._trigger_renamer(h, _rename_path)
+                                    _new_path     = cls._trigger_renamer(h, _rename_path)
                                     cls._trigger_folder_scan(h)
-                                    cls._trigger_mediaserver_refresh(h.name() or '', _rename_path)
+                                    _ms_path  = _new_path or _rename_path
+                                    _ms_label = os.path.basename(_ms_path) if _new_path else (h.name() or '')
+                                    cls._trigger_mediaserver_refresh(_ms_label, _ms_path)
                                     
                                     # --- AUTO-REMOVE POST-RENAME (no-move) ---
                                     try:
@@ -1303,11 +1306,13 @@ class LibtorrentClient:
                                 # --- 3. RINOMINA DOPO LO SPOSTAMENTO ---
                                 # Se il torrent è un singolo file, passa il path diretto al file
                                 # così rename_completed_torrent non fa listdir sull'intera cartella NAS
-                                torrent_file = os.path.join(new_path, h.name()) if h.name() else new_path
+                                torrent_file     = os.path.join(new_path, h.name()) if h.name() else new_path
                                 rename_save_path = torrent_file if os.path.isfile(torrent_file) else new_path
-                                cls._trigger_renamer(h, rename_save_path)
+                                _new_path        = cls._trigger_renamer(h, rename_save_path)
                                 cls._trigger_folder_scan(h)
-                                cls._trigger_mediaserver_refresh(h.name() or '', rename_save_path)
+                                _ms_path  = _new_path or rename_save_path
+                                _ms_label = os.path.basename(_ms_path) if _new_path else (h.name() or '')
+                                cls._trigger_mediaserver_refresh(_ms_label, _ms_path)
                                 
                                 # --- 5. AUTO-REMOVE POST-RENAME ---
                                 # Se auto_remove_completed=yes, rimuove il torrent dalla sessione
