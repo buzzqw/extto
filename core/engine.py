@@ -562,9 +562,10 @@ class Engine:
             return []
 
     def _search_knaben(self, query: str, max_results: int = 15) -> List[Dict]:
-        """Ricerca su Knaben (aggrega TPB, 1337x, RARBG, YTS...) via JSON API."""
+        """Ricerca su Knaben via JSON API. Knaben è dietro Cloudflare: se FlareSolverr
+        è configurato viene usato per ottenere cookie CF validi prima della POST API."""
         from urllib.parse import quote_plus as _qp
-        url = "https://knaben.org/api/v1/"
+        api_url = "https://knaben.org/api/v1/"
         payload = {
             "search_type": "search",
             "query": query,
@@ -576,7 +577,14 @@ class Engine:
             "orderDirection": "desc",
         }
         try:
-            r = self.sess.post(url, json=payload, timeout=20)
+            # Knaben è dietro Cloudflare: prova prima a ottenere cookie CF via FlareSolverr
+            fs = self._flaresolverr_get("https://knaben.org/", timeout=30)
+            if fs is None:
+                logger.debug("Knaben: FlareSolverr non disponibile, provo richiesta diretta")
+            else:
+                time.sleep(3)  # lascia a FlareSolverr il tempo di rilasciare Chrome
+
+            r = self.sess.post(api_url, json=payload, timeout=20)
             if r.status_code != 200:
                 logger.warning(f"⚠️ Knaben: HTTP {r.status_code}")
                 return []
@@ -591,7 +599,6 @@ class Engine:
             hits = data.get('hits') or []
             out = []
             for hit in hits:
-                # Knaben usa struttura Elasticsearch: hit._source
                 src = hit.get('_source') or hit
                 h = (src.get('infohash') or src.get('info_hash') or '').strip().lower()
                 t = (src.get('title') or src.get('name') or '').strip()
@@ -613,7 +620,7 @@ class Engine:
         html = None
         try:
             r = self.sess.get(search_url, timeout=15)
-            if r.status_code == 200 and 'btdig' in r.text.lower():
+            if r.status_code == 200 and len(r.content) > 1000:
                 html = r.text
         except Exception:
             pass
