@@ -2107,7 +2107,25 @@ def main():
 
                                         live_queries_count += 1
                                         time.sleep(2)
-                            
+
+                                # Web search per ciclo triggered dall'utente (senza deep gap run)
+                                if not results and run_series_triggered and not is_deep_gap_run:
+                                    _ws_engs = getattr(cfg, 'websearch_engines', []) or []
+                                    if _ws_engs:
+                                        _lang_trig = serie_cfg.get('language', serie_cfg.get('lang', 'ita'))
+                                        _wsq = serie_cfg['name']
+                                        if _lang_trig and _lang_trig not in ('custom', 'none', 'any', '*'):
+                                            _wsq += f" {_lang_trig}"
+                                        _wsq += f" S{season:02d}E{ep_num:02d}"
+                                        logger.info(f"      🌐 Web search (triggered): '{_wsq}'")
+                                        try:
+                                            _ws_trig = eng._web_search_all(_wsq)
+                                            if _ws_trig:
+                                                results.extend(_ws_trig)
+                                                logger.info(f"      🌐 Web search: {len(_ws_trig)} candidati")
+                                        except Exception as _wse:
+                                            logger.warning(f"      ⚠️ Web search error: {_wse}")
+
                                 best_ep_cand = None
                                 best_ep_score = -1
                                 _gap_series_id = None
@@ -2189,7 +2207,20 @@ def main():
                 _year = str(mov_cfg.get('year', '') or '').strip()
                 search_str = f"{mov_cfg['name']} {_year}".strip() if _year else mov_cfg['name']
                 results = eng.archive.search(search_str)
-            
+
+                # Web search fallback film se archivio vuoto e ciclo triggered dall'utente
+                if not results and run_movies_triggered:
+                    _ws_engs = getattr(cfg, 'websearch_engines', []) or []
+                    if _ws_engs:
+                        logger.info(f"      🌐 Web search film: '{search_str}'")
+                        try:
+                            _ws_mov = eng._web_search_all(search_str)
+                            if _ws_mov:
+                                results = _ws_mov
+                                logger.info(f"      🌐 Web search: {len(_ws_mov)} candidati")
+                        except Exception as _wse:
+                            logger.warning(f"      ⚠️ Web search film error: {_wse}")
+
                 best_movie_cand = None
                 best_movie_score = -1
                 _reject_reasons = []
@@ -2672,6 +2703,9 @@ def main():
                             c_comp.execute('UPDATE series SET is_ended=1 WHERE id=?', (s_id,))
                             db.conn.commit()
                         else:
+                            # TMDB tornato a "Returning Series": pulisce is_ended stale
+                            c_comp.execute('UPDATE series SET is_ended=0 WHERE id=?', (s_id,))
+                            db.conn.commit()
                             continue
                         
                         tmdb_seasons = {s['season_number']: s['episode_count'] for s in details.get('seasons', []) if s['season_number'] > 0}

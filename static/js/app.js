@@ -2127,12 +2127,12 @@ const app = {
                     const feedBtn = `<button class="btn btn-small" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.4);" title="Mostra risultati trovati nel feed" onclick="app.showFeedMatches(${season.season}, ${ep.episode}, this); event.stopPropagation();"><i class="fa-solid fa-list-check"></i></button>`;
 
                     const dbBtns = ep.id ? `
-                        <button class="btn btn-small btn-primary" title="Cerca versioni alternative su Jackett" onclick="app.searchMissingEpisode(${season.season}, ${ep.episode}); event.stopPropagation();"><i class="fa-solid fa-magnifying-glass"></i></button>
+                        <button class="btn btn-small btn-primary" title="Cerca versioni alternative (Jackett/Prowlarr, motori web, archivio)" onclick="app.searchMissingEpisode(${season.season}, ${ep.episode}); event.stopPropagation();"><i class="fa-solid fa-magnifying-glass"></i></button>
                         <button class="btn btn-small btn-secondary" title="Rimetti in coda automatica (azzera score)" onclick="app.redownloadEpisode(${ep.id}); event.stopPropagation();"><i class="fa-solid fa-rotate-left"></i></button>
                         <button class="btn btn-small btn-danger" title="Elimina dal DB" onclick="app.forceMissingEpisode(${ep.id}); event.stopPropagation();"><i class="fa-solid fa-trash"></i></button>
                         ${feedBtn}
                     ` : `
-                        <button class="btn btn-small btn-primary" title="Cerca ora su Jackett" onclick="app.searchMissingEpisode(${season.season}, ${ep.episode}); event.stopPropagation();"><i class="fa-solid fa-magnifying-glass"></i></button>
+                        <button class="btn btn-small btn-primary" title="Cerca ora su tutti gli indexer e motori configurati" onclick="app.searchMissingEpisode(${season.season}, ${ep.episode}); event.stopPropagation();"><i class="fa-solid fa-magnifying-glass"></i></button>
                         ${feedBtn}
                     `;
 
@@ -3786,9 +3786,9 @@ const app = {
                 title: `⚙️ ${t('Automazione & Ricerca')}`,
                 fields: [
                     {k:'gap_filling',        l:'Gap Fill',                  t:'select', o:['yes','no'],
-                     d:"Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà via Jackett. Richiede TMDB configurato."},
+                     d:"Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà tramite tutti gli indexer configurati. Richiede TMDB configurato."},
                     {k:'amule_gap_fallback', l:'Fallback Gap Fill (aMule)', t:'select', o:['no','yes'],
-                     d:"Se il Gap Fill su Jackett non trova nulla, tenta automaticamente una ricerca sulla rete eD2k globale usando aMule."},
+                     d:"Se il Gap Fill non trova nulla tramite gli indexer configurati, tenta automaticamente una ricerca sulla rete eD2k globale usando aMule."},
                     {k:'default_language',   l:'Lingua Default Contenuti',  t:'custom_deflang',
                      d:'Lingua audio proposta automaticamente per nuove serie e film aggiunti senza specificarla. Usata anche come filtro di fallback nella ricerca manuale. Lascia vuoto per nessun filtro.'},
                     {k:'jackett_timeout',    l:'Timeout Indexer (sec)',     t:'number',

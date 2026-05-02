@@ -126,7 +126,7 @@ Cartella temporanea: Temporärer Ordner
 Cartella Trash: Papierkorb-Ordner
 Categoria: Kategorie
 Cerca: Suchen
-'Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà via Jackett. Richiede TMDB configurato.': 'Sucht automatisch nach fehlenden vorherigen Episoden, wenn eine neue Episode eintrifft. Beispiel: Wenn S03E05 ankommt, aber E01–E04 fehlen, werden diese über Jackett gesucht. Erfordert ein konfiguriertes TMDB.'
+'Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà tramite tutti gli indexer configurati. Richiede TMDB configurato.': 'Sucht automatisch nach fehlenden vorherigen Episoden, wenn eine neue Episode eintrifft. Beispiel: Wenn S03E05 ankommt, aber E01–E04 fehlen, werden diese über alle konfigurierten Indexer gesucht. Erfordert ein konfiguriertes TMDB.'
 Cerca film...: Filme suchen...
 Cerca il nome corretto su TMDB: Suche nach dem korrekten Namen auf TMDB
 Cerca il nome ufficiale su TMDB: Suche nach dem offiziellen Namen auf TMDB
@@ -170,7 +170,7 @@ Connessioni (Seed / Peer): Verbindungen (Seed / Peer)
 Connessioni max: Max. Verbindungen
 'Consumo:': 'Verbrauch:'
 Contenuto: Inhalt
-Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett).: Countdown für den nächsten automatischen Start der Suchmaschine (Scraping + Jackett).
+Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett + Motori Web).: Countdown für den nächsten automatischen Start der Suchmaschine (Scraping + Jackett + Web-Engines).
 Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore.: Steuert die Ausführlichkeit von extto.log. DEBUG zeigt alles. INFO ist der Standard. WARNING/ERROR reduzieren das Rauschen.
 Controlla servizi...: Überprüfe Dienste...
 'Controlla subito getcomics.org per nuovi fumetti monitorati e weekly pack, ignorando il timer settimanale. Non tocca serie TV né film.': Überprüft sofort getcomics.org auf neue überwachte Comics und Weekly Packs und ignoriert den wöchentlichen Timer. Betrifft keine TV-Serien oder Filme.
@@ -699,7 +699,7 @@ Ricalcola Score Episodi: Episoden-Punkte neu berechnen
 Ricalcolo score episodi in corso...: Episoden-Punkte werden neu berechnet...
 'Ricerca client attivi nella rete locale/LAN. Inutile se scarichi su internet, utile nei campus o uffici.': 'Sucht nach aktiven Clients im lokalen Netzwerk/LAN. Nutzlos, wenn Sie aus dem Internet herunterladen, nützlich auf dem Campus oder in Büros.'
 Ricerca Diretta: Direktsuche
-'Ricerca Manuale Globale: Cerca un titolo specifico in tempo reale interrogando direttamente Jackett e le fonti esterne (Scavalcando il database locale).': 'Globale Manuelle Suche: Suchen Sie einen bestimmten Titel in Echtzeit, indem Sie Jackett und externe Quellen direkt abfragen (unter Umgehung der lokalen Datenbank).'
+'Ricerca Manuale Globale: Cerca un titolo specifico in tempo reale su Jackett/Prowlarr, motori web e archivio (scavalcando il database locale).': 'Globale Manuelle Suche: Suchen Sie einen bestimmten Titel in Echtzeit über Jackett/Prowlarr, Web-Engines und Archiv (unter Umgehung der lokalen Datenbank).'
 'Ricerca mirata avviata in background! Apri il tab Log per seguirla.': 'Gezielte Suche im Hintergrund gestartet! Öffne den Log-Tab um sie zu verfolgen.'
 Ricerca nel registro dei file inviati al client. Utile per verificare se un file è già stato scaricato in passato.: 'Durchsucht das Protokoll der an den Client gesendeten Dateien. Nützlich, um zu überprüfen, ob eine Datei in der Vergangenheit bereits heruntergeladen wurde.'
 Ricerca Standard: Standardsuche
