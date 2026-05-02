@@ -3214,6 +3214,21 @@ const app = {
         set('lt-slow-dl',          get('slow_dl_threshold', '2'));
         set('lt-slow-ul',          get('slow_ul_threshold', '2'));
         this._setToggle('lt-preallocate', get('preallocate', 'no'));
+
+        // Impostazioni memoria — se non ancora configurate, auto-suggerisci
+        const memConfigured = get('cache_size', null) !== null || get('max_queued_disk_mb', null) !== null;
+        set('lt-cache-size',     get('cache_size',          ''));
+        set('lt-queue-disk-mb',  get('max_queued_disk_mb',  ''));
+        set('lt-send-buffer-kb', get('send_buffer_kb',      ''));
+        set('lt-max-peer-list',  get('max_peer_list',       ''));
+        if (!memConfigured) {
+            this.suggestLtMemSettings();
+        } else {
+            fetch(`${API_BASE}/api/system/lt_mem_suggest`)
+                .then(r => r.ok ? r.json() : null)
+                .then(d => { if (d && d.total_mb) { const lbl = document.getElementById('lt-mem-total-label'); if (lbl) lbl.textContent = `${(d.total_mb/1024).toFixed(1)} GB`; } })
+                .catch(() => {});
+        }
         set('lt-encryption',    get('encryption', '1'));
         this._setToggle('lt-dht',          get('dht', 'yes'));
         this._setToggle('lt-pex',          get('pex', 'yes'));
@@ -3403,6 +3418,10 @@ const app = {
             libtorrent_extra_trackers:     v('lt-extra-trackers'),
             libtorrent_ipfilter_url:       v('lt-ipfilter-url'),
             libtorrent_ipfilter_autoupdate: tg('lt-ipfilter-autoupdate'),
+            libtorrent_cache_size:          v('lt-cache-size')     || '0',
+            libtorrent_max_queued_disk_mb:  v('lt-queue-disk-mb')  || '4',
+            libtorrent_send_buffer_kb:      v('lt-send-buffer-kb') || '512',
+            libtorrent_max_peer_list:       v('lt-max-peer-list')  || '200',
             refresh_interval: v('setting-refresh_interval'),
         });
         await this._saveFullConfig({settings: s});
@@ -3516,6 +3535,31 @@ const app = {
             });
         } catch(e) {
             console.warn('saveTagDirRules:', e);
+        }
+    },
+
+    async suggestLtMemSettings() {
+        const btn = document.getElementById('lt-mem-suggest-btn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+        try {
+            const r = await fetch(`${API_BASE}/api/system/lt_mem_suggest`);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const d = await r.json();
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            const lbl = document.getElementById('lt-mem-total-label');
+            if (lbl) lbl.textContent = d.total_mb ? `${(d.total_mb/1024).toFixed(1)} GB` : '—';
+            set('lt-cache-size',     d.cache_size  ?? 0);
+            set('lt-queue-disk-mb',  d.queue_mb    ?? 4);
+            set('lt-send-buffer-kb', d.send_kb     ?? 512);
+            set('lt-max-peer-list',  d.peer_list   ?? 200);
+            this.showToast(t('Valori suggeriti in base alla RAM — salva per renderli effettivi'), 'info');
+        } catch(e) {
+            this.showToast(t('Errore nel calcolo dei valori suggeriti'), 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> ' + t('Suggerisci valori');
+            }
         }
     },
 

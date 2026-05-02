@@ -488,7 +488,21 @@ class LibtorrentClient:
         slow_ul     = int(cfg.get('libtorrent_slow_ul_threshold', 2)) * 1024
         # Prealloca spazio disco
         preallocate = _bool('libtorrent_preallocate', 'no')
-        
+
+        # Limiti memoria — leggibili dall'UI, con default conservativi per NAS
+        mem_cache_size     = int(cfg.get('libtorrent_cache_size',         0))
+        mem_queue_disk_mb  = int(cfg.get('libtorrent_max_queued_disk_mb', 4))
+        mem_send_kb        = int(cfg.get('libtorrent_send_buffer_kb',     512))
+        mem_peer_list      = int(cfg.get('libtorrent_max_peer_list',      200))
+        _cache_mb = mem_cache_size * 16 / 1024  # 1 blocco = 16 KiB
+        logger.info(
+            f"🧠 Memoria libtorrent → cache: {mem_cache_size} blocchi"
+            f" ({_cache_mb:.1f} MB{'  ✅ disabilitata' if mem_cache_size == 0 else ''})"
+            f" | write-buffer: {mem_queue_disk_mb} MB"
+            f" | send-buffer: {mem_send_kb} KB/conn"
+            f" | peer-list: {mem_peer_list}/torrent"
+        )
+
         # --- FIX: Lettura Interfaccia VPN (Killswitch) ---
         iface = str(cfg.get('libtorrent_interface', '')).strip()
         if iface and iface.lower() != 'auto':
@@ -527,6 +541,14 @@ class LibtorrentClient:
                 # Prealloca spazio disco
                 'pre_allocate_storage':     bool(preallocate),
                 'rename_files_on_settings_change': True,
+                # Limiti memoria — configurabili dall'UI, sezione "Memoria libtorrent"
+                'cache_size':                mem_cache_size,
+                'max_queued_disk_bytes':     mem_queue_disk_mb * 1024 * 1024,
+                'send_buffer_watermark':     mem_send_kb * 1024,
+                'send_buffer_low_watermark': 16384,
+                'read_cache_line_size':      1,
+                'alert_queue_size':          200,
+                'max_peer_list_size':        mem_peer_list,
             }
             # Limiti seeding globali — presenti anche nel ramo 1.x
             # share_ratio_limit: ratio upload/download minimo prima di fermare il seeding
@@ -568,6 +590,13 @@ class LibtorrentClient:
                 ss['inactive_up_rate']         = slow_ul
                 ss['pre_allocate_storage']     = preallocate
                 ss['rename_files_on_settings_change'] = True
+                ss['cache_size']                = mem_cache_size
+                ss['max_queued_disk_bytes']     = mem_queue_disk_mb * 1024 * 1024
+                ss['send_buffer_watermark']     = mem_send_kb * 1024
+                ss['send_buffer_low_watermark'] = 16384
+                ss['read_cache_line_size']      = 1
+                ss['alert_queue_size']          = 200
+                ss['max_peer_list_size']        = mem_peer_list
                 if seed_ratio > 0:
                     ss['share_ratio_limit'] = seed_ratio
                 if seed_time > 0:

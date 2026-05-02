@@ -8341,6 +8341,38 @@ def i18n_import_yaml(lang):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/system/lt_mem_suggest', methods=['GET'])
+def lt_mem_suggest():
+    """Legge la RAM totale del sistema e restituisce valori libtorrent consigliati."""
+    try:
+        total_kb = 0
+        with open('/proc/meminfo') as _f:
+            for line in _f:
+                if line.startswith('MemTotal:'):
+                    total_kb = int(line.split()[1])
+                    break
+        total_mb = total_kb // 1024
+    except Exception:
+        total_mb = 0
+
+    if 0 < total_mb < 2048:
+        cache_size, queue_mb, send_kb, peer_list = 0,  2, 256, 100
+    elif total_mb < 4096:
+        cache_size, queue_mb, send_kb, peer_list = 0,  4, 512, 200
+    elif total_mb < 8192:
+        cache_size, queue_mb, send_kb, peer_list = 64, 8, 512, 300
+    else:
+        cache_size, queue_mb, send_kb, peer_list = 256, 16, 1024, 500
+
+    return jsonify({
+        'total_mb':   total_mb,
+        'cache_size': cache_size,
+        'queue_mb':   queue_mb,
+        'send_kb':    send_kb,
+        'peer_list':  peer_list,
+    })
+
+
 @app.route('/api/ramdisk_check', methods=['GET'])
 def ramdisk_check():
     """

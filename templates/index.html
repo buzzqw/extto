@@ -1379,6 +1379,49 @@ sudo mount /mnt/ramdisk</div>
                         </div>
                         <div class="card-body">
 
+                                <div class="lt-section-title">🧠 <span data-i18n="Memoria libtorrent">Memoria libtorrent</span>
+                                    <span class="unit" title="Limita la RAM usata internamente da libtorrent. I valori predefiniti sono ottimizzati per NAS con poca RAM. Clicca 'Suggerisci valori' per calcolarli in base alla RAM del tuo sistema." data-i18n-title="Limita la RAM usata internamente da libtorrent. I valori predefiniti sono ottimizzati per NAS con poca RAM. Clicca 'Suggerisci valori' per calcolarli in base alla RAM del tuo sistema.">ⓘ</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; padding:0.55rem 0.9rem; background:rgba(59,130,246,0.08); border-radius:6px; border-left:3px solid var(--primary); font-size:0.83rem; flex-wrap:wrap;">
+                                    <span style="color:var(--text-secondary);"><span data-i18n="RAM sistema">RAM sistema</span>: <strong id="lt-mem-total-label">—</strong></span>
+                                    <button type="button" class="btn btn-secondary btn-small" id="lt-mem-suggest-btn" onclick="app.suggestLtMemSettings()" title="Analizza la RAM disponibile e propone valori ottimali per il tuo sistema" data-i18n-title="Analizza la RAM disponibile e propone valori ottimali per il tuo sistema">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="Suggerisci valori">Suggerisci valori</span>
+                                    </button>
+                                </div>
+                                <div class="form-grid lt-grid">
+                                    <div class="form-group">
+                                        <label>
+                                            <span data-i18n="Cache pezzi">Cache pezzi</span>
+                                            <span class="unit">(blocchi × 16 KB, 0=off)</span>
+                                            <span class="unit" title="Numero di blocchi da 16 KB riservati come cache dei pezzi in RAM. 0 = disabilitata: consigliato su NAS con poca RAM. Aumenta solo se hai ≥ 8 GB e molti torrent attivi." data-i18n-title="Numero di blocchi da 16 KB riservati come cache dei pezzi in RAM. 0 = disabilitata: consigliato su NAS con poca RAM. Aumenta solo se hai ≥ 8 GB e molti torrent attivi.">ⓘ</span>
+                                        </label>
+                                        <input type="number" id="lt-cache-size" class="form-input" placeholder="0" min="0" step="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span data-i18n="Buffer scrittura disco">Buffer scrittura disco</span>
+                                            <span class="unit">(MB)</span>
+                                            <span class="unit" title="Dati in attesa di essere scritti sul disco. Ridurlo libera RAM; alzarlo migliora le prestazioni su disco lento." data-i18n-title="Dati in attesa di essere scritti sul disco. Ridurlo libera RAM; alzarlo migliora le prestazioni su disco lento.">ⓘ</span>
+                                        </label>
+                                        <input type="number" id="lt-queue-disk-mb" class="form-input" placeholder="4" min="1" step="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span data-i18n="Buffer invio connessione">Buffer invio connessione</span>
+                                            <span class="unit">(KB)</span>
+                                            <span class="unit" title="RAM allocata per il buffer di invio per ogni singola connessione peer. Moltiplicato per il numero di connessioni attive." data-i18n-title="RAM allocata per il buffer di invio per ogni singola connessione peer. Moltiplicato per il numero di connessioni attive.">ⓘ</span>
+                                        </label>
+                                        <input type="number" id="lt-send-buffer-kb" class="form-input" placeholder="512" min="16" step="16">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span data-i18n="Peer list max per torrent">Peer list max</span>
+                                            <span class="unit" title="Numero massimo di peer tracciati per ogni torrent. Ridurlo diminuisce la RAM usata dalle strutture interne di libtorrent." data-i18n-title="Numero massimo di peer tracciati per ogni torrent. Ridurlo diminuisce la RAM usata dalle strutture interne di libtorrent.">ⓘ</span>
+                                        </label>
+                                        <input type="number" id="lt-max-peer-list" class="form-input" placeholder="200" min="50" step="50">
+                                    </div>
+                                </div>
+
                                 <div class="lt-section-title"><span data-i18n="Torrent Lenti">Torrent Lenti</span> <span class="unit" data-i18n-title="Un torrent 'lento' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri." title="Un torrent 'lento' non conta nei limiti di coda. Utile se hai torrent rari che scaricano piano: non bloccano il posto agli altri.">ⓘ</span></div>
                                 <div class="form-grid lt-grid">
                                     <div class="form-group"><label><span data-i18n="Soglia download lento">Soglia download lento</span> <span class="unit">(KB/s)</span></label><input type="number" id="lt-slow-dl" class="form-input" data-i18n-title="Sotto questa velocità di download, il torrent è considerato 'lento' e non occupa uno slot attivo." title="Sotto questa velocità di download, il torrent è considerato 'lento' e non occupa uno slot attivo." placeholder="2" data-i18n-placeholder="2" min="0"></div>
