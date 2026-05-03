@@ -1,4 +1,4 @@
-'(lascia vuoto = tutti i giorni)': '(dejar en blanco = todos los días)'
+'(seleziona i giorni in cui lo scheduler è attivo)': '(seleccionar los días en que el programador está activo)'
 (opz. separati da virgola): (opc. separados por comas)
 (opzionale): (opcional)
 (ripristino limiti base): (restaurar límites base)
@@ -23,7 +23,7 @@
 'Dopo il download rinomina i file nel formato scelto sotto, usando i titoli ufficiali TMDB. Richiede tmdb_api_key configurata. Funziona solo con il client libtorrent integrato.': 'Después de descargar, renombra los archivos en el formato elegido a continuación, utilizando los títulos oficiales de TMDB. Requiere tmdb_api_key configurada. Funciona solo con el cliente libtorrent integrado.'
 A quanti utenti in contemporanea inviare i dati.: A cuántos usuarios enviar datos simultáneamente.
 Abilita: Habilitar
-'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Archive Max Age'' mantenendo almeno ''Archive Keep Min'' voci.': 'Habilita la limpieza automática del archivo al final de cada ciclo. Elimina registros más antiguos que ''Archive Max Age'' manteniendo al menos ''Archive Keep Min'' entradas.'
+'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Età Max Archivio'' mantenendo almeno ''Min. Record da Mantenere'' voci.': 'Habilita la limpieza automática del archivo al final de cada ciclo. Elimina registros más antiguos que ''Edad Máx Archivo'' manteniendo al menos ''Min. Registros a mantener'' entradas.'
 Abilita Selezionate: Habilitar Seleccionadas
 Abilitata: Habilitada
 Abilitata (preferita): Habilitada (preferida)
@@ -795,7 +795,7 @@ Scrivibile: Escribible
 'Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale.': 'Si se establece en Sí, los nuevos magnets enviados por Extto permanecerán en pausa a la espera de que los inicies manualmente.'
 'Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare.': 'Si se indica, guarda los archivos parciales en un disco separado (ej. NVMe) y solo los mueve una vez completados para evitar el desgaste mecánico. Déjalo en blanco para desactivarlo.'
 'Se nei torrent usano un nome diverso da quello ufficiale TMDB, scrivilo qui per forzare il riconoscimento.': 'Si en los torrents usan un nombre diferente al oficial de TMDB, escríbelo aquí para forzar el reconocimiento.'
-'Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.': 'Si no hay ninguno seleccionado, el programador está activo todos los días.'
+'Lo scheduler è attivo solo nei giorni selezionati. Se nessuno è selezionato, lo scheduler non opera mai.': 'El programador solo está activo en los días seleccionados. Si no hay ninguno seleccionado, el programador nunca se ejecuta.'
 'Se specificato, filtra i torrent per anno (±1 anno di tolleranza per accettare rilasci ritardati in home video). Lascia vuoto per ignorare l''anno di uscita.': 'Opcional. Si se especifica, filtra los torrents por año (±1 año de tolerancia para aceptar lanzamientos retrasados en video doméstico). Déjalo en blanco para ignorar el año de lanzamiento.'
 'Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click.': 'Si se desactiva, lo mantendrá en cola/suspendido o en el cliente inactivo hasta que hagas clic.'
 'Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato.': 'Si un título contiene una de estas palabras (ej. CAM, TS, HARDCORE), se descartará y NO se descargará.'
@@ -999,7 +999,8 @@ Nome Attuale (Vecchio): Nombre Actual (Antiguo)
 Nuovo Nome (TMDB): Nuevo Nombre (TMDB)
 I seguenti file presenti nella cartella verranno fisicamente rinominati.: Los siguientes archivos presentes en la carpeta serán renombrados físicamente.
 L'operazione è irreversibile.: Esta operación es irreversible.
-'Archive Max Age (giorni)': 'Edad Máx Archivo (días)'
+'Età Max Archivio (giorni)': 'Edad Máx Archivo (días)'
+'Min. Record da Mantenere': 'Min. Registros a mantener'
 'Automazione & Ricerca': 'Automatización y Búsqueda'
 Azione Pulizia: Acción de Limpieza
 'Database & Archivio': 'Base de datos y Archivo'

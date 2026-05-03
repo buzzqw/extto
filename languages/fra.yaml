@@ -1,4 +1,4 @@
-'(lascia vuoto = tutti i giorni)': '(laisser vide = tous les jours)'
+'(seleziona i giorni in cui lo scheduler è attivo)': '(sélectionner les jours où le planificateur est actif)'
 (opz. separati da virgola): (opt. séparés par des virgules)
 (opzionale): (facultatif)
 (ripristino limiti base): (restaurer les limites de base)
@@ -22,7 +22,7 @@
 'A fine download sposta automaticamente i file nel ''Percorso Archivio'' se lo hai configurato per quella serie. Funziona solo con il client libtorrent integrato.': 'À la fin du téléchargement, déplace automatiquement les fichiers vers le ''Chemin de l''Archive'' si vous l''avez configuré pour cette série. Fonctionne uniquement avec le client libtorrent intégré.'
 A quanti utenti in contemporanea inviare i dati.: 'À combien d''utilisateurs envoyer les données en même temps.'
 Abilita: Activer
-'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Archive Max Age'' mantenendo almeno ''Archive Keep Min'' voci.': 'Active le nettoyage automatique de l''archive à la fin de chaque cycle. Supprime les enregistrements plus anciens que ''Archive Max Age'' en conservant au moins ''Archive Keep Min'' entrées.'
+'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Età Max Archivio'' mantenendo almeno ''Min. Record da Mantenere'' voci.': 'Active le nettoyage automatique de l''archive à la fin de chaque cycle. Supprime les enregistrements plus anciens que ''Âge Max Archive'' en conservant au moins ''Min. Enregistrements à garder'' entrées.'
 Abilita Selezionate: Activer la sélection
 Abilitata: Activée
 Abilitata (preferita): Activée (préférée)
@@ -793,7 +793,7 @@ Scrivibile: Inscriptible
 'Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale.': 'S''il est réglé sur Oui, les nouveaux magnets envoyés par Extto resteront en pause en attendant que vous les démarriez manuellement.'
 'Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare.': 'Si spécifié, enregistre les fichiers partiels sur un disque séparé (ex. NVMe) en les déplaçant uniquement à la fin pour éviter l''usure mécanique. Laissez vide pour désactiver.'
 'Se nei torrent usano un nome diverso da quello ufficiale TMDB, scrivilo qui per forzare il riconoscimento.': 'Si les torrents utilisent un nom différent de celui officiel sur TMDB, écrivez-le ici pour forcer la reconnaissance.'
-'Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.': 'Si aucun n''est sélectionné, le planificateur est actif tous les jours.'
+'Lo scheduler è attivo solo nei giorni selezionati. Se nessuno è selezionato, lo scheduler non opera mai.': 'Le planificateur est actif uniquement les jours sélectionnés. Si aucun n''est sélectionné, le planificateur ne fonctionne jamais.'
 'Se specificato, filtra i torrent per anno (±1 anno di tolleranza per accettare rilasci ritardati in home video). Lascia vuoto per ignorare l''anno di uscita.': 'Optionnel. Si spécifié, filtre les torrents par année (±1 an de tolérance pour accepter les sorties différées en vidéo domestique). Laissez vide pour ignorer l''année de sortie.'
 'Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click.': 'S''il est décoché, il le gardera en file d''attente/suspendu ou dans le client inactif jusqu''à ce que vous cliquiez.'
 'Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato.': 'Si un titre contient l''un de ces mots (ex. CAM, TS, HARDCORE), il sera rejeté et NON téléchargé.'
@@ -997,7 +997,8 @@ Nome Attuale (Vecchio): Nom Actuel (Ancien)
 Nuovo Nome (TMDB): Nouveau Nom (TMDB)
 I seguenti file presenti nella cartella verranno fisicamente rinominati.: Les fichiers suivants présents dans le dossier seront physiquement renommés.
 L'operazione è irreversibile.: Cette opération est irréversible.
-'Archive Max Age (giorni)': 'Âge Max Archive (jours)'
+'Età Max Archivio (giorni)': 'Âge Max Archive (jours)'
+'Min. Record da Mantenere': 'Min. Enregistrements à garder'
 'Automazione & Ricerca': 'Automatisation & Recherche'
 Azione Pulizia: Action de Nettoyage
 'Database & Archivio': 'Base de données & Archive'

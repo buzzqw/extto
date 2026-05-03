@@ -1,4 +1,4 @@
-'(lascia vuoto = tutti i giorni)': '(leer lassen = jeden Tag)'
+'(seleziona i giorni in cui lo scheduler è attivo)': '(Tage auswählen, an denen der Scheduler aktiv ist)'
 (opz. separati da virgola): (opt. durch Komma getrennt)
 (opzionale): (optional)
 (ripristino limiti base): (Basis-Limits wiederherstellen)
@@ -22,7 +22,7 @@
 'A fine download sposta automaticamente i file nel ''Percorso Archivio'' se lo hai configurato per quella serie. Funziona solo con il client libtorrent integrato.': 'Nach dem Download werden die Dateien automatisch in den ''Archivpfad'' verschoben, falls für diese Serie konfiguriert. Funktioniert nur mit dem integrierten libtorrent-Client.'
 A quanti utenti in contemporanea inviare i dati.: An wie viele Benutzer die Daten gleichzeitig gesendet werden sollen.
 Abilita: Aktivieren
-'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Archive Max Age'' mantenendo almeno ''Archive Keep Min'' voci.': 'Aktiviert die automatische Archivbereinigung am Ende jedes Zyklus. Entfernt Einträge, die älter sind als ''Archive Max Age'', behält aber mindestens ''Archive Keep Min'' Einträge.'
+'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Età Max Archivio'' mantenendo almeno ''Min. Record da Mantenere'' voci.': 'Aktiviert die automatische Archivbereinigung am Ende jedes Zyklus. Entfernt Einträge, die älter sind als ''Max. Archivalter'', behält aber mindestens ''Min. Einträge behalten'' Einträge.'
 Abilita Selezionate: Ausgewählte aktivieren
 Abilitata: Aktiviert
 Abilitata (preferita): Aktiviert (bevorzugt)
@@ -793,7 +793,7 @@ Scrivibile: Beschreibbar
 'Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale.': 'Wenn auf Ja gesetzt, bleiben die von Extto gesendeten neuen Magnets angehalten, bis Sie sie manuell starten.'
 'Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare.': 'Wenn angegeben, speichert unvollständige Dateien auf einer separaten Festplatte (z. B. NVMe) und verschiebt sie erst nach Abschluss, um mechanischen Verschleiß zu vermeiden. Leer lassen, um zu deaktivieren.'
 'Se nei torrent usano un nome diverso da quello ufficiale TMDB, scrivilo qui per forzare il riconoscimento.': 'Wenn sie in Torrents einen anderen Namen als den offiziellen TMDB-Namen verwenden, schreiben Sie ihn hier, um die Erkennung zu erzwingen.'
-'Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.': 'Wenn keiner ausgewählt ist, ist der Scheduler jeden Tag aktiv.'
+'Lo scheduler è attivo solo nei giorni selezionati. Se nessuno è selezionato, lo scheduler non opera mai.': 'Der Scheduler ist nur an den ausgewählten Tagen aktiv. Wenn kein Tag ausgewählt ist, läuft der Scheduler nie.'
 'Se specificato, filtra i torrent per anno (±1 anno di tolleranza per accettare rilasci ritardati in home video). Lascia vuoto per ignorare l''anno di uscita.': 'Optional. Wenn angegeben, filtert es Torrents nach Jahr (±1 Jahr Toleranz, um verspätete Heimvideo-Releases zu akzeptieren). Leer lassen, um das Veröffentlichungsjahr zu ignorieren.'
 'Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click.': 'Wenn deaktiviert, wird er in der Warteschlange/ausgesetzt gehalten, bis Sie klicken.'
 'Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato.': 'Wenn ein Titel eines dieser Wörter enthält (z. B. CAM, TS, HARDCORE), wird er verworfen und NICHT heruntergeladen.'
@@ -997,7 +997,8 @@ Nome Attuale (Vecchio): Aktueller Name (Alt)
 Nuovo Nome (TMDB): Neuer Name (TMDB)
 I seguenti file presenti nella cartella verranno fisicamente rinominati.: Die folgenden in dem Ordner vorhandenen Dateien werden physisch umbenannt.
 L'operazione è irreversibile.: Dieser Vorgang ist irreversibel.
-'Archive Max Age (giorni)': 'Max. Archiv-Alter (Tage)'
+'Età Max Archivio (giorni)': 'Max. Archiv-Alter (Tage)'
+'Min. Record da Mantenere': 'Min. Einträge behalten'
 'Automazione & Ricerca': 'Automatisierung & Suche'
 Azione Pulizia: Bereinigungsaktion
 'Database & Archivio': 'Datenbank & Archiv'

@@ -1,6 +1,6 @@
 ' Download (KB/s) - 0 = nessun limite': ' Download (KB/s) - 0 = no limit'
 ' Upload (KB/s) - 0 = nessun limite': ' Upload (KB/s) - 0 = no limit'
-'(lascia vuoto = tutti i giorni)': '(leave empty = every day)'
+'(seleziona i giorni in cui lo scheduler è attivo)': '(select the days when the scheduler is active)'
 (opz. separati da virgola): (opt. separated by comma)
 (opzionale): (optional)
 (ripristino limiti base): (restore base limits)
@@ -25,7 +25,7 @@
 'A fine download sposta automaticamente i file nel ''Percorso Archivio'' se lo hai configurato per quella serie. Funziona solo con il client libtorrent integrato.': 'At the end of the download, automatically move the files to the ''Archive Path'' if you configured it for that series. Works only with the built-in libtorrent client.'
 A quanti utenti in contemporanea inviare i dati.: How many simultaneous users to send data to.
 Abilita: Enable
-'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Archive Max Age'' mantenendo almeno ''Archive Keep Min'' voci.': 'Enables automatic archive cleanup at the end of each cycle. Removes records older than ''Archive Max Age'' while keeping at least ''Archive Keep Min'' entries.'
+'Abilita la pulizia automatica dell''archivio al termine di ogni ciclo. Rimuove record più vecchi di ''Età Max Archivio'' mantenendo almeno ''Min. Record da Mantenere'' voci.': 'Enables automatic archive cleanup at the end of each cycle. Removes records older than ''Max Archive Age'' while keeping at least ''Min. Records to Keep'' entries.'
 Abilita Selezionate: Enable Selected
 Abilitata: Enabled
 Abilitata (preferita): Enabled (preferred)
@@ -804,7 +804,7 @@ Scrivibile: Writable
 'Se impostato su Sì, i nuovi magnet inviati da Extto rimarranno fermi in attesa di un tuo avvio manuale.': 'If set to Yes, new magnets sent by Extto will remain paused waiting for your manual start.'
 'Se indicata, salva i file parziali su un disco separato (es. NVMe) spostandoli solo a completamento per evitare usura meccanica. Lascia vuoto per disabilitare.': 'If specified, saves partial files on a separate disk (e.g. NVMe) moving them only upon completion to avoid mechanical wear. Leave empty to disable.'
 'Se nei torrent usano un nome diverso da quello ufficiale TMDB, scrivilo qui per forzare il riconoscimento.': 'If they use a different name in torrents from the official TMDB one, write it here to force recognition.'
-'Se nessuno è selezionato, lo scheduler è attivo tutti i giorni.': 'If none selected, the scheduler is active every day.'
+'Lo scheduler è attivo solo nei giorni selezionati. Se nessuno è selezionato, lo scheduler non opera mai.': 'The scheduler is active only on selected days. If none are selected, the scheduler never runs.'
 'Se tolto, lo terrà in coda/sospeso o nel client disattivo fino al tuo click.': 'If unchecked, it will be queued/suspended until manually started.'
 'Se un titolo contiene una di queste parole (es. CAM, TS, HARDCORE), verrà scartato e NON scaricato.': 'If a title contains one of these words (e.g. CAM, TS, HARDCORE), it will be discarded and NOT downloaded.'
 se utilizzi il client integrato: if you use the built-in client
@@ -1012,7 +1012,8 @@ I seguenti file presenti nella cartella verranno fisicamente rinominati.: The fo
 L'operazione è irreversibile.: This operation is irreversible.
 
 # --- Chiavi aggiunte v42 ---
-'Archive Max Age (giorni)': Archive Max Age (days)
+'Età Max Archivio (giorni)': Archive Max Age (days)
+'Min. Record da Mantenere': Min. Records to Keep
 'Automazione & Ricerca': 'Automation & Search'
 Azione Pulizia: Cleanup Action
 'Database & Archivio': 'Database & Archive'

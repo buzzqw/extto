@@ -3887,7 +3887,7 @@ const app = {
                         {k:'archive_cleanup_enabled', l:'Pulizia Archivio Auto',    t:'select', o:['no','yes'], flex:1,
                          d:"Abilita la pulizia automatica dell'archivio al termine di ogni ciclo. Rimuove record più vecchi di 'Età Max Archivio' mantenendo almeno 'Min. Record da Mantenere' voci."},
                         {k:'archive_max_age_days',    l:'Età Max Archivio (giorni)', t:'number', flex:1,
-                         d:"Età massima in giorni dei record nell'archivio prima di essere eliminati dalla pulizia automatica. Default: 365. Richiede 'Pulizia Archivio Auto = sì'."},
+                         d:"Età massima in giorni dei record nell'archivio prima di essere eliminati dalla pulizia automatica. Default: 365. Richiede 'Pulizia Archivio Auto = yes'."},
                         {k:'archive_keep_min',        l:'Min. Record da Mantenere',  t:'number', flex:1,
                          d:"Numero minimo di record da mantenere anche dopo la pulizia. Evita di svuotare completamente l'archivio se tutti i record sono vecchi. Default: 10000."},
                     ],
