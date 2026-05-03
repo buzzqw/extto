@@ -3214,21 +3214,16 @@ const app = {
         set('lt-slow-dl',          get('slow_dl_threshold', '2'));
         set('lt-slow-ul',          get('slow_ul_threshold', '2'));
         this._setToggle('lt-preallocate', get('preallocate', 'no'));
+        this._setToggle('lt-disable-cow', get('disable_copy_on_write', 'no'));
 
-        // Impostazioni memoria — se non ancora configurate, auto-suggerisci
-        const memConfigured = get('cache_size', null) !== null || get('max_queued_disk_mb', null) !== null;
         set('lt-cache-size',     get('cache_size',          ''));
         set('lt-queue-disk-mb',  get('max_queued_disk_mb',  ''));
         set('lt-send-buffer-kb', get('send_buffer_kb',      ''));
         set('lt-max-peer-list',  get('max_peer_list',       ''));
-        if (!memConfigured) {
-            this.suggestLtMemSettings();
-        } else {
-            fetch(`${API_BASE}/api/system/lt_mem_suggest`)
-                .then(r => r.ok ? r.json() : null)
-                .then(d => { if (d && d.total_mb) { const lbl = document.getElementById('lt-mem-total-label'); if (lbl) lbl.textContent = `${(d.total_mb/1024).toFixed(1)} GB`; } })
-                .catch(() => {});
-        }
+        fetch(`${API_BASE}/api/system/lt_mem_suggest`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d && d.total_mb) { const lbl = document.getElementById('lt-mem-total-label'); if (lbl) lbl.textContent = `${(d.total_mb/1024).toFixed(1)} GB`; } })
+            .catch(() => {});
         set('lt-encryption',    get('encryption', '1'));
         this._setToggle('lt-dht',          get('dht', 'yes'));
         this._setToggle('lt-pex',          get('pex', 'yes'));
@@ -3403,6 +3398,7 @@ const app = {
             libtorrent_slow_dl_threshold:  v('lt-slow-dl'),
             libtorrent_slow_ul_threshold:  v('lt-slow-ul'),
             libtorrent_preallocate:        tg('lt-preallocate'),
+            libtorrent_disable_cow:        tg('lt-disable-cow'),
             libtorrent_encryption:         v('lt-encryption'),
             libtorrent_dht:                tg('lt-dht'),
             libtorrent_pex:                tg('lt-pex'),
@@ -3552,7 +3548,9 @@ const app = {
             set('lt-queue-disk-mb',  d.queue_mb    ?? 4);
             set('lt-send-buffer-kb', d.send_kb     ?? 512);
             set('lt-max-peer-list',  d.peer_list   ?? 200);
-            this.showToast(t('Valori suggeriti in base alla RAM — salva per renderli effettivi'), 'info');
+            const _cacheMb = d.cache_mb ?? Math.round((d.cache_size ?? 0) * 16 / 1024);
+            const _cacheStr = _cacheMb > 0 ? ` (cache ${_cacheMb} MB, write-buf ${d.queue_mb ?? 4} MB)` : ` (cache off, write-buf ${d.queue_mb ?? 4} MB)`;
+            this.showToast(t('Valori suggeriti per NFS/NAS') + _cacheStr + ' — ' + t('salva per renderli effettivi'), 'info');
         } catch(e) {
             this.showToast(t('Errore nel calcolo dei valori suggeriti'), 'error');
         } finally {

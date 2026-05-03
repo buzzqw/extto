@@ -1380,7 +1380,7 @@ sudo mount /mnt/ramdisk</div>
                         <div class="card-body">
 
                                 <div class="lt-section-title">🧠 <span data-i18n="Memoria libtorrent">Memoria libtorrent</span>
-                                    <span class="unit" title="Limita la RAM usata internamente da libtorrent. I valori predefiniti sono ottimizzati per NAS con poca RAM. Clicca 'Suggerisci valori' per calcolarli in base alla RAM del tuo sistema." data-i18n-title="Limita la RAM usata internamente da libtorrent. I valori predefiniti sono ottimizzati per NAS con poca RAM. Clicca 'Suggerisci valori' per calcolarli in base alla RAM del tuo sistema.">ⓘ</span>
+                                    <span class="unit" title="Parametri RAM ottimizzati per target NFS/NAS. Una cache pezzi grande riduce le scritture frammentate sulla rete; un write-buffer ampio manda i dati al NAS in blocchi sequenziali. Clicca 'Suggerisci valori' per calcolare i valori ottimali in base alla tua RAM." data-i18n-title="Parametri RAM ottimizzati per target NFS/NAS. Una cache pezzi grande riduce le scritture frammentate sulla rete; un write-buffer ampio manda i dati al NAS in blocchi sequenziali. Clicca 'Suggerisci valori' per calcolare i valori ottimali in base alla tua RAM.">ⓘ</span>
                                 </div>
                                 <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; padding:0.55rem 0.9rem; background:rgba(59,130,246,0.08); border-radius:6px; border-left:3px solid var(--primary); font-size:0.83rem; flex-wrap:wrap;">
                                     <span style="color:var(--text-secondary);"><span data-i18n="RAM sistema">RAM sistema</span>: <strong id="lt-mem-total-label">—</strong></span>
@@ -1393,7 +1393,7 @@ sudo mount /mnt/ramdisk</div>
                                         <label>
                                             <span data-i18n="Cache pezzi">Cache pezzi</span>
                                             <span class="unit">(blocchi × 16 KB, 0=off)</span>
-                                            <span class="unit" title="Numero di blocchi da 16 KB riservati come cache dei pezzi in RAM. 0 = disabilitata: consigliato su NAS con poca RAM. Aumenta solo se hai ≥ 8 GB e molti torrent attivi." data-i18n-title="Numero di blocchi da 16 KB riservati come cache dei pezzi in RAM. 0 = disabilitata: consigliato su NAS con poca RAM. Aumenta solo se hai ≥ 8 GB e molti torrent attivi.">ⓘ</span>
+                                            <span class="unit" title="Blocchi da 16 KB accumulati in RAM prima di scrivere sul NAS. Su target NFS valori alti sono raccomandati: riducono le scritture frammentate sulla rete. Esempi: 1024=16 MB, 8192=128 MB, 16384=256 MB, 32768=512 MB. 0 = disabilitata (solo per sistemi con RAM < 2 GB)." data-i18n-title="Blocchi da 16 KB accumulati in RAM prima di scrivere sul NAS. Su target NFS valori alti sono raccomandati: riducono le scritture frammentate sulla rete. Esempi: 1024=16 MB, 8192=128 MB, 16384=256 MB, 32768=512 MB. 0 = disabilitata (solo per sistemi con RAM < 2 GB).">ⓘ</span>
                                         </label>
                                         <input type="number" id="lt-cache-size" class="form-input" placeholder="0" min="0" step="1">
                                     </div>
@@ -1401,7 +1401,7 @@ sudo mount /mnt/ramdisk</div>
                                         <label>
                                             <span data-i18n="Buffer scrittura disco">Buffer scrittura disco</span>
                                             <span class="unit">(MB)</span>
-                                            <span class="unit" title="Dati in attesa di essere scritti sul disco. Ridurlo libera RAM; alzarlo migliora le prestazioni su disco lento." data-i18n-title="Dati in attesa di essere scritti sul disco. Ridurlo libera RAM; alzarlo migliora le prestazioni su disco lento.">ⓘ</span>
+                                            <span class="unit" title="Dati in attesa di essere scritti sul NAS. Su NFS valori alti (64–128 MB) sono fortemente consigliati: libtorrent accumula i dati e li invia in grossi blocchi sequenziali invece di tante piccole scritture di rete." data-i18n-title="Dati in attesa di essere scritti sul NAS. Su NFS valori alti (64–128 MB) sono fortemente consigliati: libtorrent accumula i dati e li invia in grossi blocchi sequenziali invece di tante piccole scritture di rete.">ⓘ</span>
                                         </label>
                                         <input type="number" id="lt-queue-disk-mb" class="form-input" placeholder="4" min="1" step="1">
                                     </div>
@@ -1431,6 +1431,7 @@ sudo mount /mnt/ramdisk</div>
                                 <div class="lt-section-title"><span data-i18n="File">File</span></div>
                                 <div class="form-grid lt-grid">
                                     <div class="form-group toggle-group"><label><span data-i18n="Prealloca spazio su disco">Prealloca spazio su disco</span> <span class="unit" data-i18n-title="Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito." title="Riserva immediatamente tutto lo spazio necessario sul disco prima di iniziare il download. Riduce la frammentazione ma occupa spazio subito.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-preallocate" value="yes"><span class="toggle-slider"></span></label></div>
+                                    <div class="form-group toggle-group"><label><span data-i18n="Disabilita Copy-on-Write">Disabilita Copy-on-Write</span> <span class="unit" data-i18n-title="Impedisce al filesystem di usare Copy-on-Write sui nuovi file torrent. Utile su btrfs/XFS/ZFS per ridurre frammentazione e uso disco. Richiede libtorrent 2.0.12+." title="Impedisce al filesystem di usare Copy-on-Write sui nuovi file torrent. Utile su btrfs/XFS/ZFS per ridurre frammentazione e uso disco. Richiede libtorrent 2.0.12+.">ⓘ</span></label><label class="toggle-switch"><input type="checkbox" id="lt-disable-cow" value="yes"><span class="toggle-slider"></span></label></div>
                                 </div>
 
                                 <div class="lt-section-title">🕐 <span data-i18n="Scheduler Velocità">Scheduler Velocità</span></div>

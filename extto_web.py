@@ -8355,18 +8355,24 @@ def lt_mem_suggest():
     except Exception:
         total_mb = 0
 
+    # Valori ottimizzati per target NFS/NAS: cache_size accumula i pezzi in RAM
+    # prima di inviarli in batch al NAS, riducendo drasticamente le scritture di rete.
+    # cache_size in blocchi da 16 KiB; queue_mb = max_queued_disk_bytes in MB.
     if 0 < total_mb < 2048:
-        cache_size, queue_mb, send_kb, peer_list = 0,  2, 256, 100
+        cache_size, queue_mb, send_kb, peer_list =     0,   8,  256, 100
     elif total_mb < 4096:
-        cache_size, queue_mb, send_kb, peer_list = 0,  4, 512, 200
+        cache_size, queue_mb, send_kb, peer_list =  1024,  32,  512, 200
     elif total_mb < 8192:
-        cache_size, queue_mb, send_kb, peer_list = 64, 8, 512, 300
+        cache_size, queue_mb, send_kb, peer_list =  8192,  64, 1024, 300
+    elif total_mb < 16384:
+        cache_size, queue_mb, send_kb, peer_list = 16384,  64, 1024, 500
     else:
-        cache_size, queue_mb, send_kb, peer_list = 256, 16, 1024, 500
+        cache_size, queue_mb, send_kb, peer_list = 32768, 128, 2048, 500
 
     return jsonify({
         'total_mb':   total_mb,
         'cache_size': cache_size,
+        'cache_mb':   cache_size * 16 // 1024,
         'queue_mb':   queue_mb,
         'send_kb':    send_kb,
         'peer_list':  peer_list,

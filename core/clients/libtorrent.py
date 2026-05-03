@@ -462,7 +462,9 @@ class LibtorrentClient:
         def _bool(k, default='yes'):
             return str(cfg.get(k, default)).lower() in ('yes', 'true', '1')
 
-        lt_ver       = tuple(int(x) for x in getattr(lt, 'version', '1.0.0').split('.')[:2])
+        _ver_parts   = [int(x) for x in getattr(lt, 'version', '1.0.0').split('.')]
+        lt_ver       = tuple(_ver_parts[:2])
+        lt_ver3      = tuple(_ver_parts[:3])
         use_dict_api = lt_ver >= (2, 0)
 
         _dl_kb      = int(cfg.get('libtorrent_dl_limit', 0))
@@ -488,6 +490,8 @@ class LibtorrentClient:
         slow_ul     = int(cfg.get('libtorrent_slow_ul_threshold', 2)) * 1024
         # Prealloca spazio disco
         preallocate = _bool('libtorrent_preallocate', 'no')
+        # Disabilita CoW filesystem (btrfs/XFS) — richiede libtorrent 2.0.12+
+        disable_cow = _bool('libtorrent_disable_cow', 'no')
 
         # Limiti memoria — leggibili dall'UI, con default conservativi per NAS
         mem_cache_size     = int(cfg.get('libtorrent_cache_size',         0))
@@ -550,6 +554,9 @@ class LibtorrentClient:
                 'alert_queue_size':          200,
                 'max_peer_list_size':        mem_peer_list,
             }
+            # disk_disable_copy_on_write — introdotto in libtorrent 2.0.12
+            if lt_ver3 >= (2, 0, 12):
+                pack['disk_disable_copy_on_write'] = bool(disable_cow)
             # Limiti seeding globali — presenti anche nel ramo 1.x
             # share_ratio_limit: ratio upload/download minimo prima di fermare il seeding
             # seed_time_limit: minuti minimi di seeding (0 = disabilitato)
