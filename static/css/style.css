@@ -1142,14 +1142,16 @@ select option {
 
 /* form-group dentro lt-grid: più compatto del globale */
 .lt-grid .form-group,
-.lt-accordion-body .form-group {
+.lt-accordion-body .form-group,
+.lt-compact .form-group {
     margin-bottom: 0;       /* annulla il margin-bottom globale (1.25rem) */
     gap: 0.25rem;           /* label → input ravvicinati */
 }
 
 /* Label dentro lt-grid: font leggermente più grande e più leggibile */
 .lt-grid .form-group label,
-.lt-accordion-body .form-group label {
+.lt-accordion-body .form-group label,
+.lt-compact .form-group label {
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-secondary);
@@ -1158,7 +1160,8 @@ select option {
 
 /* Input/select dentro lt-grid: padding verticale ridotto */
 .lt-grid .form-input,
-.lt-accordion-body .form-input {
+.lt-accordion-body .form-input,
+.lt-compact .form-input {
     padding: 0.4rem 0.65rem;
     font-size: 0.83rem;
 }

@@ -3694,7 +3694,7 @@ const app = {
                         <label>${t('Token Bot')} <span style="color:var(--text-muted); font-size:0.8rem;">(${t('salvato nel Database')})</span></label>
                         <div style="position:relative; display:flex; gap:0.5rem;">
                             <input type="password" id="setting-telegram_bot_token" value="${this._esc(tgToken)}"
-                                style="flex:1; padding:0.9rem 1.25rem; background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--text-primary); font-family:var(--font-mono); font-size:0.85rem; width:100%;">
+                                style="flex:1; font-family:var(--font-mono); width:100%;">
                             <button type="button" class="btn btn-small btn-secondary" style="flex-shrink:0;"
                                 onclick="const i=document.getElementById('setting-telegram_bot_token'); i.type=i.type==='password'?'text':'password'; this.innerHTML=i.type==='password'?'<i class=\\'fa-solid fa-eye\\'></i>':'<i class=\\'fa-solid fa-eye-slash\\'></i>';"
                                 title="Mostra/nascondi token"><i class="fa-solid fa-eye"></i></button>
