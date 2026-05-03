@@ -1776,8 +1776,8 @@ sudo mount /mnt/ramdisk</div>
                   <div class="card" style="margin-bottom:1.5rem;">
                     <div class="card-header"><i class="fa-solid fa-sliders"></i> <span data-i18n="Opzioni Import Trakt">Opzioni Import Trakt</span></div>
                     <div class="card-body">
-                      <div class="form-grid">
-                        <div class="form-group">
+                      <div class="lt-compact" style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem;">
+                        <div class="form-group" style="flex:2; min-width:140px; margin:0;">
                           <label data-i18n="Qualità default import">Qualità default import</label>
                           <select id="trakt-import-quality" class="form-input"
                             data-i18n-title="Qualità assegnata alle serie importate dalla watchlist Trakt" title="Qualità assegnata alle serie importate dalla watchlist Trakt">
@@ -1789,24 +1789,24 @@ sudo mount /mnt/ramdisk</div>
                             <option value="2160p" data-i18n="4K (2160p)">4K (2160p)</option>
                           </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="flex:1; min-width:100px; margin:0;">
                           <label data-i18n="Lingua default import">Lingua default import</label>
                           <input type="text" id="trakt-import-language" class="form-input" value="ita"
                             data-i18n-placeholder="es: ita" placeholder="es: ita"
                             data-i18n-title="Lingua audio richiesta per le serie importate dalla watchlist Trakt" title="Lingua audio richiesta per le serie importate dalla watchlist Trakt">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="flex:1; min-width:100px; margin:0;">
                           <label><span data-i18n="Giorni Calendar">Giorni Calendar</span> <span class="unit"
                             data-i18n-title="Quanti giorni avanti mostrare nel calendar Trakt (max 31)" title="Quanti giorni avanti mostrare nel calendar Trakt (max 31)">ⓘ</span></label>
                           <input type="number" id="trakt-calendar-days" class="form-input" value="7" min="1" max="31">
                         </div>
-                        <div class="form-group toggle-group">
+                        <div class="form-group toggle-group" style="margin:0; padding-bottom:2px;">
                           <label><span data-i18n="Scrobbling">Scrobbling</span> <span class="unit"
                             data-i18n-title="Se abilitato, permette di segnare episodi come visti su Trakt tramite l'endpoint /api/trakt/scrobble" title="Se abilitato, permette di segnare episodi come visti su Trakt tramite l'endpoint /api/trakt/scrobble">ⓘ</span></label>
                           <label class="toggle-switch"><input type="checkbox" id="trakt-scrobble-enabled" value="true"><span class="toggle-slider"></span></label>
                         </div>
                       </div>
-                      <button class="btn btn-primary" style="margin-top:.5rem;" onclick="app.traktSaveOptions()">
+                      <button class="btn btn-primary" style="margin-top:.25rem;" onclick="app.traktSaveOptions()">
                         <i class="fa-solid fa-floppy-disk"></i> <span data-i18n="Salva Opzioni">Salva Opzioni</span>
                       </button>
                     </div>

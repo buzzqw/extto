@@ -3086,6 +3086,18 @@ const app = {
             this._populateExternalForms(s);
             this.renderNotifications(s);
             this.renderAdvanced(s);
+            // Popola i checkbox websearch subito — evita reset se il tab Integrazioni non viene aperto prima di salvare
+            {
+                const _wse = (s.websearch_engines || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+                const _ck = (id, key) => { const el = document.getElementById(id); if (el) el.checked = _wse.includes(key); };
+                _ck('websearch-bitsearch',    'bitsearch');
+                _ck('websearch-tpb',          'tpb');
+                _ck('websearch-knaben',       'knaben');
+                _ck('websearch-btdig',        'btdig');
+                _ck('websearch-limetorrents', 'limetorrents');
+                _ck('websearch-torrentz2',    'torrentz2');
+                _ck('websearch-torrentscsv',  'torrentscsv');
+            }
             this.renderUrlsAndFilters(config);
             this.renderBrowserHandlers();
             // Carica esempio formato rinomina dopo che il DOM è pronto
@@ -3850,34 +3862,40 @@ const app = {
             },
             {
                 title: `⚙️ ${t('Automazione & Ricerca')}`,
-                fields: [
-                    {k:'gap_filling',        l:'Gap Fill',                  t:'select', o:['yes','no'],
-                     d:"Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà tramite tutti gli indexer configurati. Richiede TMDB configurato."},
-                    {k:'amule_gap_fallback', l:'Fallback Gap Fill (aMule)', t:'select', o:['no','yes'],
-                     d:"Se il Gap Fill non trova nulla tramite gli indexer configurati, tenta automaticamente una ricerca sulla rete eD2k globale usando aMule."},
-                    {k:'default_language',   l:'Lingua Default Contenuti',  t:'custom_deflang',
-                     d:'Lingua audio proposta automaticamente per nuove serie e film aggiunti senza specificarla. Usata anche come filtro di fallback nella ricerca manuale. Lascia vuoto per nessun filtro.'},
-                    {k:'jackett_timeout',    l:'Timeout Indexer (sec)',     t:'number',
-                     d:'Tempo massimo di attesa per le risposte da Jackett/Prowlarr. Alzalo a 45 o 60 se hai tracker lenti (Read timed out). Default: 30.'},
-                    {k:'min_free_space_gb',  l:'Spazio Minimo (GB)',       t:'number',
-                     d:'Soglia di sicurezza disco. Se lo spazio libero scende sotto questo valore (GB), EXTTO blocca i nuovi download per evitare di riempire il disco. Consigliato: almeno 20-50 GB.'},
-                    {k:'max_age_days',       l:'Max Age (giorni)',          t:'number',
-                     d:'Ignora i torrent più vecchi di N giorni. 0 = nessun filtro. Esempio: 365 = ignora torrent caricati oltre 1 anno fa.'},
-                    {k:'stop_on_old_page_threshold', l:'Stop Scraping (%)', t:'number',
-                     d:"Ottimizzazione: se una pagina ha più del X% di torrent già in archivio, smette di scorrere le pagine successive. Esempio: 0.8 = ferma all'80%. Range: 0.0–1.0."},
+                rows: [
+                    [
+                        {k:'gap_filling',        l:'Gap Fill',                  t:'select', o:['yes','no'], flex:1,
+                         d:"Cerca automaticamente le puntate precedenti mancanti quando arriva un nuovo episodio. Esempio: se arriva S03E05 ma mancano E01–E04, li cercherà tramite tutti gli indexer configurati. Richiede TMDB configurato."},
+                        {k:'amule_gap_fallback', l:'Fallback Gap Fill (aMule)', t:'select', o:['no','yes'], flex:1,
+                         d:"Se il Gap Fill non trova nulla tramite gli indexer configurati, tenta automaticamente una ricerca sulla rete eD2k globale usando aMule."},
+                        {k:'default_language',   l:'Lingua Default Contenuti',  t:'custom_deflang', flex:2,
+                         d:'Lingua audio proposta automaticamente per nuove serie e film aggiunti senza specificarla. Usata anche come filtro di fallback nella ricerca manuale. Lascia vuoto per nessun filtro.'},
+                        {k:'jackett_timeout',    l:'Timeout Indexer (sec)',     t:'number', flex:1,
+                         d:'Tempo massimo di attesa per le risposte da Jackett/Prowlarr. Alzalo a 45 o 60 se hai tracker lenti (Read timed out). Default: 30.'},
+                    ],
+                    [
+                        {k:'min_free_space_gb',  l:'Spazio Minimo (GB)',        t:'number', flex:1,
+                         d:'Soglia di sicurezza disco. Se lo spazio libero scende sotto questo valore (GB), EXTTO blocca i nuovi download per evitare di riempire il disco. Consigliato: almeno 20-50 GB.'},
+                        {k:'max_age_days',       l:'Max Age (giorni)',           t:'number', flex:1,
+                         d:'Ignora i torrent più vecchi di N giorni. 0 = nessun filtro. Esempio: 365 = ignora torrent caricati oltre 1 anno fa.'},
+                        {k:'stop_on_old_page_threshold', l:'Stop Scraping (%)', t:'number', flex:1,
+                         d:"Ottimizzazione: se una pagina ha più del X% di torrent già in archivio, smette di scorrere le pagine successive. Esempio: 0.8 = ferma all'80%. Range: 0.0–1.0."},
+                    ],
                 ]
             },
             {
                 title: `🔍 ${t('Logging & Debug')}`,
-                fields: [
-                    {k:'debug_duplicates',       l:'Debug Duplicati',       t:'select', o:['no','yes'],
-                     d:"Aggiunge ai log ogni torrent scartato perché già in archivio. Molto verboso su archivi grandi — usalo solo per diagnosticare problemi specifici."},
-                    {k:'debug_blacklisted',      l:'Debug Blacklist',       t:'select', o:['no','yes'],
-                     d:"Mostra nei log i torrent scartati perché il titolo contiene una parola della Blacklist (cam, ts...). Utile per verificare che le regole di esclusione funzionino."},
-                    {k:'debug_quality_rejected', l:'Debug Qualità',         t:'select', o:['no','yes'],
-                     d:"Mostra nei log i torrent scartati perché la qualità non corrisponde a quella richiesta (es: cercavi 1080p, trovato solo 480p). Aiuta a capire perché una serie non viene scaricata."},
-                    {k:'debug_size_rejected',    l:'Debug Dimensione',      t:'select', o:['no','yes'],
-                     d:'Mostra nei log i torrent scartati per dimensione anomala (troppo piccoli o grandi). Utile per diagnosticare falsi negativi su episodi con encoding insolito.'},
+                rows: [
+                    [
+                        {k:'debug_duplicates',       l:'Debug Duplicati',  t:'select', o:['no','yes'], flex:1,
+                         d:"Aggiunge ai log ogni torrent scartato perché già in archivio. Molto verboso su archivi grandi — usalo solo per diagnosticare problemi specifici."},
+                        {k:'debug_blacklisted',      l:'Debug Blacklist',  t:'select', o:['no','yes'], flex:1,
+                         d:"Mostra nei log i torrent scartati perché il titolo contiene una parola della Blacklist (cam, ts...). Utile per verificare che le regole di esclusione funzionino."},
+                        {k:'debug_quality_rejected', l:'Debug Qualità',    t:'select', o:['no','yes'], flex:1,
+                         d:"Mostra nei log i torrent scartati perché la qualità non corrisponde a quella richiesta (es: cercavi 1080p, trovato solo 480p). Aiuta a capire perché una serie non viene scaricata."},
+                        {k:'debug_size_rejected',    l:'Debug Dimensione', t:'select', o:['no','yes'], flex:1,
+                         d:'Mostra nei log i torrent scartati per dimensione anomala (troppo piccoli o grandi). Utile per diagnosticare falsi negativi su episodi con encoding insolito.'},
+                    ],
                 ]
             },
             {
@@ -3899,15 +3917,16 @@ const app = {
         categories.forEach(cat => {
             let bodyHtml;
             if (cat.rows) {
-                bodyHtml = cat.rows.map(row => {
+                const rowsHtml = cat.rows.map(row => {
                     const fieldsHtml = row.map(f => {
                         const inner = this.renderField({key:f.k, label:f.l, type:f.t, options:f.o, desc:f.d}, settings);
                         return inner.replace('<div class="form-group">', `<div class="form-group" style="flex:${f.flex||1}; min-width:120px; margin:0;">`);
                     }).join('');
                     return `<div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem;">${fieldsHtml}</div>`;
                 }).join('');
+                bodyHtml = `<div class="lt-compact">${rowsHtml}</div>`;
             } else {
-                bodyHtml = `<div class="form-grid">${cat.fields.map(f => this.renderField({key:f.k, label:f.l, type:f.t, options:f.o, desc:f.d}, settings)).join('')}</div>`;
+                bodyHtml = `<div class="lt-compact form-grid">${cat.fields.map(f => this.renderField({key:f.k, label:f.l, type:f.t, options:f.o, desc:f.d}, settings)).join('')}</div>`;
             }
             html += `<div class="card" style="margin-bottom:1.5rem; grid-column: 1 / -1;">
                         <div class="card-header">${cat.title}</div>
