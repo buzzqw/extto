@@ -1713,7 +1713,7 @@ const app = {
 
         const allDays = [0,1,2,3,4,5,6];
         const checkedDays = allDays.filter(d => cb(`sched-day-${d}`));
-        const schedDaysStr = checkedDays.length === 7 || checkedDays.length === 0 ? '' : checkedDays.join(',');
+        const schedDaysStr = checkedDays.join(',');
 
         const tg = id => this._getToggle(id);
         Object.assign(s, {
@@ -1747,6 +1747,11 @@ const app = {
             libtorrent_slow_dl_threshold: v('lt-slow-dl'),
             libtorrent_slow_ul_threshold: v('lt-slow-ul'),
             libtorrent_preallocate: tg('lt-preallocate'),
+            libtorrent_disable_cow:        tg('lt-disable-cow'),
+            libtorrent_cache_size:         v('lt-cache-size')     || '0',
+            libtorrent_max_queued_disk_mb: v('lt-queue-disk-mb')  || '4',
+            libtorrent_send_buffer_kb:     v('lt-send-buffer-kb') || '512',
+            libtorrent_max_peer_list:      v('lt-max-peer-list')  || '200',
             libtorrent_incomplete_ext: v('lt-incomplete-ext'),
             libtorrent_encryption: v('lt-encryption'),
             libtorrent_dht: tg('lt-dht'),
@@ -3365,7 +3370,7 @@ const app = {
         const tg = id => this._getToggle(id);
         const allDays = [0,1,2,3,4,5,6];
         const checkedDays = allDays.filter(d => document.getElementById(`sched-day-${d}`)?.checked);
-        const schedDaysStr = checkedDays.length === 7 || checkedDays.length === 0 ? '' : checkedDays.join(',');
+        const schedDaysStr = checkedDays.join(',');
         Object.assign(s, {
             libtorrent_enabled:            'yes',
             libtorrent_dir:                v('lt-dir'),

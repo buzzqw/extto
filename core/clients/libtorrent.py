@@ -2222,12 +2222,12 @@ class LibtorrentClient:
             now_t   = now.time().replace(second=0, microsecond=0)
             weekday = now.weekday()   # 0=lun … 6=dom
 
-            # Giorni attivi: stringa "0,1,2,3,4" → set di int; vuoto = tutti
+            # Giorni attivi: stringa "0,1,2,3,4" → set di int; vuoto = nessun giorno attivo
             days_str = str(cfg.get('libtorrent_sched_days', '')).strip()
             if days_str:
                 active_days = set(int(d.strip()) for d in days_str.split(',') if d.strip().isdigit())
             else:
-                active_days = set(range(7))
+                active_days = set()
 
             day_ok = weekday in active_days
 
