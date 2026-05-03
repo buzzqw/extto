@@ -1255,12 +1255,14 @@ sudo mount /mnt/ramdisk</div>
                         <div class="card client-form" id="form-qbittorrent"  class="hidden">
                             <div class="card-header"><i class="fa-solid fa-network-wired"></i> qBittorrent</div>
                             <div class="card-body">
-                                <div class="form-grid">
-                                    <div class="form-group"><label><span data-i18n="URL">URL</span></label><input type="text" id="qbt-url" class="form-input" data-i18n-title="Esempio: http://192.168.1.10:8080" title="Esempio: http://192.168.1.10:8080" placeholder="http://localhost:8080"></div>
-                                    <div class="form-group"><label><span data-i18n="Username">Username</span></label><input type="text" id="qbt-user" class="form-input" data-i18n-title="Utente dell'interfaccia web di qBit" title="Utente dell'interfaccia web di qBit" placeholder="admin"></div>
-                                    <div class="form-group"><label><span data-i18n="Password">Password</span></label><input type="password" id="qbt-pass" class="form-input"></div>
-                                    <div class="form-group"><label data-i18n="Categoria">Categoria</label><input type="text" id="qbt-category" class="form-input" data-i18n-title="Etichetta passata a qBittorrent per automatizzare spostamenti file." title="Etichetta passata a qBittorrent per automatizzare spostamenti file." placeholder="tv" data-i18n-placeholder="tv"></div>
-                                    <div class="form-group toggle-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch" title="Passa il link a qBit ma non lo avvia." data-i18n-title="Passa il link a qBit ma non lo avvia."><input type="checkbox" id="qbt-paused" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem;">
+                                    <div class="form-group" style="flex:3; min-width:160px; margin:0;"><label><span data-i18n="URL">URL</span></label><input type="text" id="qbt-url" class="form-input" data-i18n-title="Esempio: http://192.168.1.10:8080" title="Esempio: http://192.168.1.10:8080" placeholder="http://localhost:8080"></div>
+                                    <div class="form-group" style="flex:1; min-width:100px; margin:0;"><label><span data-i18n="Username">Username</span></label><input type="text" id="qbt-user" class="form-input" data-i18n-title="Utente dell'interfaccia web di qBit" title="Utente dell'interfaccia web di qBit" placeholder="admin"></div>
+                                    <div class="form-group" style="flex:1; min-width:100px; margin:0;"><label><span data-i18n="Password">Password</span></label><input type="password" id="qbt-pass" class="form-input"></div>
+                                </div>
+                                <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;">
+                                    <div class="form-group" style="flex:2; min-width:120px; margin:0;"><label data-i18n="Categoria">Categoria</label><input type="text" id="qbt-category" class="form-input" data-i18n-title="Etichetta passata a qBittorrent per automatizzare spostamenti file." title="Etichetta passata a qBittorrent per automatizzare spostamenti file." placeholder="tv" data-i18n-placeholder="tv"></div>
+                                    <div class="form-group toggle-group" style="margin:0; padding-bottom:2px;"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch" title="Passa il link a qBit ma non lo avvia." data-i18n-title="Passa il link a qBit ma non lo avvia."><input type="checkbox" id="qbt-paused" value="yes"><span class="toggle-slider"></span></label></div>
                                 </div>
                             </div>
                         </div>
@@ -1268,11 +1270,11 @@ sudo mount /mnt/ramdisk</div>
                         <div class="card client-form" id="form-transmission"  class="hidden">
                             <div class="card-header"><i class="fa-solid fa-network-wired"></i> Transmission</div>
                             <div class="card-body">
-                                <div class="form-grid">
-                                    <div class="form-group lt-span2"><label><span data-i18n="URL RPC">URL RPC</span></label><input type="text" id="tr-url" class="form-input" data-i18n-title="L'endpoint deve terminare con /transmission/rpc" title="L'endpoint deve terminare con /transmission/rpc" placeholder="http://localhost:9091/transmission/rpc"></div>
-                                    <div class="form-group"><label>Username</label><input type="text" id="tr-user" class="form-input"></div>
-                                    <div class="form-group"><label>Password</label><input type="password" id="tr-pass" class="form-input"></div>
-                                    <div class="form-group toggle-group"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch"><input type="checkbox" id="tr-paused" value="yes"><span class="toggle-slider"></span></label></div>
+                                <div class="form-group" style="margin-bottom:.75rem;"><label><span data-i18n="URL RPC">URL RPC</span></label><input type="text" id="tr-url" class="form-input" data-i18n-title="L'endpoint deve terminare con /transmission/rpc" title="L'endpoint deve terminare con /transmission/rpc" placeholder="http://localhost:9091/transmission/rpc"></div>
+                                <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;">
+                                    <div class="form-group" style="flex:1; min-width:100px; margin:0;"><label>Username</label><input type="text" id="tr-user" class="form-input"></div>
+                                    <div class="form-group" style="flex:1; min-width:100px; margin:0;"><label>Password</label><input type="password" id="tr-pass" class="form-input"></div>
+                                    <div class="form-group toggle-group" style="margin:0; padding-bottom:2px;"><label data-i18n="Aggiungi in pausa">Aggiungi in pausa</label><label class="toggle-switch"><input type="checkbox" id="tr-paused" value="yes"><span class="toggle-slider"></span></label></div>
                                 </div>
                             </div>
                         </div>
@@ -1290,69 +1292,41 @@ sudo mount /mnt/ramdisk</div>
         </div>
 
         <div class="lt-section-title"><span data-i18n="Connessione RPC">Connessione RPC</span></div>
-        <div class="form-grid">
-            <div class="form-group lt-span2">
-                <label>
-                    <span data-i18n="RPC URL">RPC URL</span>
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="URL dell'endpoint JSON-RPC di aria2c. Default: http://localhost:6800/jsonrpc. Se aria2c gira su un altro host, sostituisci localhost con l'IP/hostname. Porta di default: 6800."></i>
-                </label>
+        <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem;">
+            <div class="form-group" style="flex:3; min-width:200px; margin:0;">
+                <label><span data-i18n="RPC URL">RPC URL</span> <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;" title="URL dell'endpoint JSON-RPC di aria2c. Default: http://localhost:6800/jsonrpc."></i></label>
                 <input type="text" id="ar-rpc-url" class="form-input" placeholder="http://localhost:6800/jsonrpc">
             </div>
-            <div class="form-group">
-                <label>
-                    <span data-i18n="RPC Secret">RPC Secret</span>
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="Token segreto per l'autenticazione RPC. Deve corrispondere al valore passato ad aria2c con --rpc-secret=TOKEN. Lascia vuoto se non hai impostato autenticazione (sconsigliato in rete locale)."></i>
-                </label>
+            <div class="form-group" style="flex:1; min-width:120px; margin:0;">
+                <label><span data-i18n="RPC Secret">RPC Secret</span> <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;" title="Token segreto per l'autenticazione RPC (--rpc-secret=TOKEN). Lascia vuoto se non richiesto."></i></label>
                 <input type="password" id="ar-secret" class="form-input">
             </div>
-            <div class="form-group">
-                <label>
-                    <span data-i18n="Destinazione">Destinazione</span>
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="Cartella dove aria2c salverà i file scaricati. Corrisponde al parametro --dir di aria2c. Lascia vuoto per usare la directory di lavoro di aria2c. Usa il selettore cartella per sfogliare il filesystem."></i>
-                </label>
-                <div style="display:flex; gap:8px;">
-                    <input type="text" id="ar-dir" class="form-input" style="flex:1;">
-                    <button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); app.openDirBrowser('ar-dir')"><i class="fa-regular fa-folder-open"></i></button>
-                </div>
+        </div>
+        <div class="form-group" style="margin-bottom:.75rem;">
+            <label><span data-i18n="Destinazione">Destinazione</span> <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;" title="Cartella dove aria2c salverà i file scaricati (--dir). Lascia vuoto per usare la directory di lavoro di aria2c."></i></label>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="ar-dir" class="form-input" style="flex:1;">
+                <button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); app.openDirBrowser('ar-dir')"><i class="fa-regular fa-folder-open"></i></button>
             </div>
         </div>
 
         <div class="lt-section-title"><span data-i18n="Performance & Limiti">Performance & Limiti</span></div>
-        <div class="form-grid">
-            <div class="form-group">
-                <label>
-                    Connessioni per server
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="Numero massimo di connessioni simultanee verso un singolo server (--max-connection-per-server). Valori alti (es. 16) velocizzano il download da server non limitati. Max consentito da aria2: 16."></i>
-                </label>
+        <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem;">
+            <div class="form-group" style="flex:1; min-width:100px; margin:0;">
+                <label>Conn/server <i class="fa-solid fa-circle-question" style="color:var(--text-muted);cursor:help;" title="Max connessioni verso un singolo server (--max-connection-per-server). Max 16."></i></label>
                 <input type="number" id="ar-max-conn" class="form-input" placeholder="16" min="1" max="16">
             </div>
-            <div class="form-group">
-                <label>
-                    Split (Connessioni totali)
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="Numero di segmenti in cui dividere il file (--split). Ogni segmento usa una connessione. Aumentarlo oltre 16 raramente migliora le prestazioni. Deve essere ≥ connessioni per server."></i>
-                </label>
+            <div class="form-group" style="flex:1; min-width:100px; margin:0;">
+                <label>Split <i class="fa-solid fa-circle-question" style="color:var(--text-muted);cursor:help;" title="Segmenti in cui dividere il file (--split). Deve essere ≥ Conn/server."></i></label>
                 <input type="number" id="ar-split" class="form-input" placeholder="16" min="1">
             </div>
-            <div class="form-group">
-                <label>
-                    Limite Download (KB/s)
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="Velocità massima di download globale in KB/s (--max-download-limit). 0 = nessun limite. Esempio: 5120 per limitare a 5 MB/s."></i>
-                </label>
-                <input type="number" id="ar-dl-limit" class="form-input" placeholder="0 (illimitato)">
+            <div class="form-group" style="flex:1; min-width:100px; margin:0;">
+                <label>DL limit (KB/s) <i class="fa-solid fa-circle-question" style="color:var(--text-muted);cursor:help;" title="Limite download globale in KB/s. 0 = illimitato."></i></label>
+                <input type="number" id="ar-dl-limit" class="form-input" placeholder="0">
             </div>
-            <div class="form-group">
-                <label>
-                    Limite Upload (KB/s)
-                    <i class="fa-solid fa-circle-question" style="color:var(--text-muted);margin-left:5px;cursor:help;"
-                       title="Velocità massima di upload (seeding) in KB/s (--max-upload-limit). 0 = nessun limite. Rilevante solo per i torrent. Impostato a 0 di default perché EXTTO passa --seed-time=0."></i>
-                </label>
-                <input type="number" id="ar-ul-limit" class="form-input" placeholder="0 (illimitato)">
+            <div class="form-group" style="flex:1; min-width:100px; margin:0;">
+                <label>UL limit (KB/s) <i class="fa-solid fa-circle-question" style="color:var(--text-muted);cursor:help;" title="Limite upload in KB/s. 0 = illimitato."></i></label>
+                <input type="number" id="ar-ul-limit" class="form-input" placeholder="0">
             </div>
         </div>
 
@@ -1553,10 +1527,10 @@ sudo mount /mnt/ramdisk</div>
                 </div>
                 <div id="config-advanced" class="config-panel">
                     <div class="card" style="margin-bottom:1.5rem;">
-                        <div class="card-header"><i class="fa-solid fa-terminal"></i> <span data-i18n="Log di Sistema">Log di Sistema</span></div>
+                        <div class="card-header"><i class="fa-solid fa-terminal"></i> <span data-i18n="Log e Tempistiche">Log e Tempistiche</span></div>
                         <div class="card-body">
-                            <div class="form-grid">
-                                <div class="form-group">
+                            <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:2; min-width:180px; margin:0;">
                                     <label data-i18n="Livello di Logging">Livello di Logging</label>
                                     <select id="setting-log_level" class="form-input"
                                             data-i18n-title="Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore." title="Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore."
@@ -1566,21 +1540,13 @@ sudo mount /mnt/ramdisk</div>
                                         <option value="warning"><span data-i18n="WARNING — solo avvisi e errori">WARNING — solo avvisi e errori</span></option>
                                         <option value="error"><span data-i18n="ERROR — solo errori critici">ERROR — solo errori critici</span></option>
                                     </select>
-                                    <small style="color:var(--text-muted);" data-i18n="Applicato immediatamente senza riavvio e salvato in Database">Applicato immediatamente senza riavvio e salvato nel Database.</small> 
+                                    <small style="color:var(--text-muted);" data-i18n="Applicato immediatamente senza riavvio e salvato in Database">Applicato immediatamente senza riavvio e salvato nel Database.</small>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card" style="margin-bottom:1.5rem;">
-                        <div class="card-header"><i class="fa-solid fa-clock"></i> <span data-i18n="Tempistiche Motore">Tempistiche Motore</span></div>
-                        <div class="card-body">
-                            <div class="form-grid">
-                                <div class="form-group">
-    <label data-i18n="Intervallo Refresh (minuti)">Intervallo Refresh (minuti)</label>
-    <input type="number" id="setting-refresh_interval" class="form-input" data-i18n-title="Ogni quanti minuti il motore deve ripartire (es: 120 = 2 ore, 60 = 1 ora)." title="Ogni quanti minuti il motore deve ripartire (es: 120 = 2 ore, 60 = 1 ora).">
-    <small style="color:var(--text-muted);">Default: 120 (2 ore). Non scendere sotto i 30.</small>
-</div>
+                                <div class="form-group" style="flex:1; min-width:140px; margin:0;">
+                                    <label data-i18n="Intervallo Refresh (minuti)">Intervallo Refresh (min)</label>
+                                    <input type="number" id="setting-refresh_interval" class="form-input" data-i18n-title="Ogni quanti minuti il motore deve ripartire (es: 120 = 2 ore, 60 = 1 ora)." title="Ogni quanti minuti il motore deve ripartire (es: 120 = 2 ore, 60 = 1 ora).">
+                                    <small style="color:var(--text-muted);">Default: 120. Min: 30.</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1910,28 +1876,27 @@ sudo mount /mnt/ramdisk</div>
                         per aggiornare subito la libreria senza aspettare la scansione schedulata.<br>
                         Ottieni la API Key da <strong>Pannello di controllo → Chiavi API</strong>.
                       </p>
-                      <div class="form-grid" style="margin-bottom:1rem;">
-                        <div class="form-group">
+                      <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.5rem;">
+                        <div class="form-group" style="flex:2; min-width:160px; margin:0;">
                           <label>URL Jellyfin</label>
                           <input type="text" id="jellyfin-url" class="form-input"
-                            placeholder="http://192.168.1.x:8096"
+                            placeholder="http://nas:8096"
                             title="URL base del server Jellyfin, senza slash finale">
-                          <small style="color:var(--text-muted);">Es: http://nas:8096</small>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="flex:2; min-width:160px; margin:0;">
                           <label>API Key</label>
                           <input type="password" id="jellyfin-api-key" class="form-input"
                             placeholder="Incolla la API Key di Jellyfin">
                         </div>
-                      </div>
-                      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
-                        <button class="btn btn-secondary" onclick="app.jellyfinSave()">
-                          <i class="fa-solid fa-floppy-disk"></i> Salva
-                        </button>
-                        <button class="btn btn-primary" onclick="app.jellyfinTestRefresh()">
-                          <i class="fa-solid fa-rotate"></i> Testa Refresh
-                        </button>
-                        <span id="jellyfin-test-result" style="font-size:.85rem;"></span>
+                        <div style="display:flex; gap:.5rem; align-items:center; padding-bottom:2px;">
+                          <button class="btn btn-secondary" onclick="app.jellyfinSave()">
+                            <i class="fa-solid fa-floppy-disk"></i> Salva
+                          </button>
+                          <button class="btn btn-primary" onclick="app.jellyfinTestRefresh()">
+                            <i class="fa-solid fa-rotate"></i> Testa Refresh
+                          </button>
+                          <span id="jellyfin-test-result" style="font-size:.85rem;"></span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1949,28 +1914,27 @@ sudo mount /mnt/ramdisk</div>
                         Ottieni il token da <strong>Account → Preferenze XML → token</strong> oppure via
                         <a href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/" target="_blank" style="color:var(--primary);">questa guida</a>.
                       </p>
-                      <div class="form-grid" style="margin-bottom:1rem;">
-                        <div class="form-group">
+                      <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.5rem;">
+                        <div class="form-group" style="flex:2; min-width:160px; margin:0;">
                           <label>URL Plex</label>
                           <input type="text" id="plex-url" class="form-input"
-                            placeholder="http://192.168.1.x:32400"
+                            placeholder="http://nas:32400"
                             title="URL base del server Plex, senza slash finale">
-                          <small style="color:var(--text-muted);">Es: http://nas:32400</small>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="flex:2; min-width:160px; margin:0;">
                           <label>X-Plex-Token</label>
                           <input type="password" id="plex-token" class="form-input"
                             placeholder="Incolla il tuo X-Plex-Token">
                         </div>
-                      </div>
-                      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
-                        <button class="btn btn-secondary" onclick="app.plexSave()">
-                          <i class="fa-solid fa-floppy-disk"></i> Salva
-                        </button>
-                        <button class="btn btn-primary" onclick="app.plexTestRefresh()">
-                          <i class="fa-solid fa-rotate"></i> Testa Refresh
-                        </button>
-                        <span id="plex-test-result" style="font-size:.85rem;"></span>
+                        <div style="display:flex; gap:.5rem; align-items:center; padding-bottom:2px;">
+                          <button class="btn btn-secondary" onclick="app.plexSave()">
+                            <i class="fa-solid fa-floppy-disk"></i> Salva
+                          </button>
+                          <button class="btn btn-primary" onclick="app.plexTestRefresh()">
+                            <i class="fa-solid fa-rotate"></i> Testa Refresh
+                          </button>
+                          <span id="plex-test-result" style="font-size:.85rem;"></span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1991,32 +1955,38 @@ sudo mount /mnt/ramdisk</div>
                       <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.5;">
                         Puoi configurare Jackett, Prowlarr, o entrambi contemporaneamente. EXTTO li interrogherà tutti e unirà i risultati deduplicando.
                       </p>
-                      <div class="form-grid" style="margin-bottom:1rem;">
-                        <div class="form-group">
-                          <label>Jackett URL</label>
-                          <input type="text" id="indexer-jackett-url" class="form-input" placeholder="http://192.168.1.100:9117">
-                          <small style="color:var(--text-muted);">Lascia vuoto se non usi Jackett.</small>
+                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1rem;">
+                        <div>
+                          <div style="font-weight:600; font-size:0.875rem; margin-bottom:.6rem; color:var(--text-secondary);">Jackett</div>
+                          <div class="form-group" style="margin-bottom:.75rem;">
+                            <label>URL</label>
+                            <input type="text" id="indexer-jackett-url" class="form-input" placeholder="http://192.168.1.100:9117">
+                            <small style="color:var(--text-muted);">Lascia vuoto se non usi Jackett.</small>
+                          </div>
+                          <div class="form-group" style="margin-bottom:.75rem;">
+                            <label>API Key</label>
+                            <input type="password" id="indexer-jackett-api" class="form-input" placeholder="Chiave API Jackett">
+                          </div>
+                          <div class="form-group toggle-group">
+                            <label>Salva risultati in archive.db</label>
+                            <label class="toggle-switch"><input type="checkbox" id="indexer-jackett-archive" checked><span class="toggle-slider"></span></label>
+                          </div>
                         </div>
-                        <div class="form-group">
-                          <label>Jackett API Key</label>
-                          <input type="password" id="indexer-jackett-api" class="form-input" placeholder="Chiave API Jackett">
-                        </div>
-                        <div class="form-group toggle-group">
-                          <label>Salva risultati Jackett in archive.db</label>
-                          <label class="toggle-switch"><input type="checkbox" id="indexer-jackett-archive" checked><span class="toggle-slider"></span></label>
-                        </div>
-                        <div class="form-group">
-                          <label>Prowlarr URL</label>
-                          <input type="text" id="indexer-prowlarr-url" class="form-input" placeholder="http://192.168.1.100:9696">
-                          <small style="color:var(--text-muted);">Lascia vuoto se non usi Prowlarr.</small>
-                        </div>
-                        <div class="form-group">
-                          <label>Prowlarr API Key</label>
-                          <input type="password" id="indexer-prowlarr-api" class="form-input" placeholder="Chiave API Prowlarr">
-                        </div>
-                        <div class="form-group toggle-group">
-                          <label>Salva risultati Prowlarr in archive.db</label>
-                          <label class="toggle-switch"><input type="checkbox" id="indexer-prowlarr-archive" checked><span class="toggle-slider"></span></label>
+                        <div>
+                          <div style="font-weight:600; font-size:0.875rem; margin-bottom:.6rem; color:var(--text-secondary);">Prowlarr</div>
+                          <div class="form-group" style="margin-bottom:.75rem;">
+                            <label>URL</label>
+                            <input type="text" id="indexer-prowlarr-url" class="form-input" placeholder="http://192.168.1.100:9696">
+                            <small style="color:var(--text-muted);">Lascia vuoto se non usi Prowlarr.</small>
+                          </div>
+                          <div class="form-group" style="margin-bottom:.75rem;">
+                            <label>API Key</label>
+                            <input type="password" id="indexer-prowlarr-api" class="form-input" placeholder="Chiave API Prowlarr">
+                          </div>
+                          <div class="form-group toggle-group">
+                            <label>Salva risultati in archive.db</label>
+                            <label class="toggle-switch"><input type="checkbox" id="indexer-prowlarr-archive" checked><span class="toggle-slider"></span></label>
+                          </div>
                         </div>
                       </div>
                       <button class="btn btn-secondary" onclick="app.indexerSave()">
@@ -2036,22 +2006,22 @@ sudo mount /mnt/ramdisk</div>
                         FlareSolverr usa Chrome headless per superare le protezioni Cloudflare. Richiesto per il scraping di ext.to.<br>
                         Installa con Docker: <code>docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest</code>
                       </p>
-                      <div class="form-grid" style="max-width:520px; margin-bottom:1rem;">
-                        <div class="form-group">
+                      <div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.5rem;">
+                        <div class="form-group" style="flex:1; min-width:180px; margin:0;">
                           <label>FlareSolverr URL</label>
                           <input type="text" id="indexer-flare-url" class="form-input" placeholder="http://192.168.1.161:8191">
-                          <small style="color:var(--text-muted);">Lascia vuoto per disabilitare. Senza FlareSolverr ext.to potrebbe restituire 403.</small>
+                        </div>
+                        <div style="display:flex; gap:.5rem; align-items:center; padding-bottom:2px;">
+                          <button class="btn btn-secondary" onclick="app.indexerSave()">
+                            <i class="fa-solid fa-floppy-disk"></i> Salva FlareSolverr
+                          </button>
+                          <button class="btn btn-primary" onclick="app.indexerTestFlare()">
+                            <i class="fa-solid fa-vial"></i> Testa Connessione
+                          </button>
+                          <span id="flare-test-result" style="font-size:.85rem;"></span>
                         </div>
                       </div>
-                      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
-                        <button class="btn btn-secondary" onclick="app.indexerSave()">
-                          <i class="fa-solid fa-floppy-disk"></i> Salva FlareSolverr
-                        </button>
-                        <button class="btn btn-primary" onclick="app.indexerTestFlare()">
-                          <i class="fa-solid fa-vial"></i> Testa Connessione
-                        </button>
-                        <span id="flare-test-result" style="font-size:.85rem;"></span>
-                      </div>
+                      <small style="color:var(--text-muted);">Lascia vuoto per disabilitare. Senza FlareSolverr ext.to potrebbe restituire 403.</small>
                     </div>
                   </div>
 

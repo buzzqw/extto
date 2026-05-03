@@ -3207,9 +3207,14 @@ def update_settings():
                     'error': 'web_port e engine_port non possono essere uguali'}), 400
 
         LIST_KEYS = {'url', 'blacklist', 'wantedlist', 'content_filter', 'archive_root', 'archive_cred', 'custom_score'}
-        # Preserva sia le liste che tutti i punteggi (punti bonus e preferenze)
-        preserved = {k: v for k, v in config['settings'].items() if k in LIST_KEYS or k.startswith('score_')}
-        config['settings'] = {**preserved, **new_settings} # FIX: Permette il salvataggio corretto delle liste!
+        # Merge: tutti i setting esistenti come base + overlay dei nuovi valori.
+        # Per le chiavi lista (JSON array nel DB), non sovrascrivere con valori stringa dall'UI.
+        merged = {**config['settings'], **new_settings}
+        for k in LIST_KEYS:
+            if k in config['settings'] and isinstance(config['settings'][k], list):
+                if not isinstance(merged.get(k), list):
+                    merged[k] = config['settings'][k]
+        config['settings'] = merged
 
         if save_series_config(config):
             try:
