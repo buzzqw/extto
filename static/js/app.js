@@ -3831,17 +3831,21 @@ const app = {
             },
             {
                 title: `🧹 ${t('Pulizia & Eliminazione')}`,
-                fields: [
-                    {k:'cleanup_upgrades',       l:'Pulizia Auto Upgrade',  t:'select', o:['no','yes'],
-                     d:"Se abilitato, quando arriva una versione di qualità superiore i file precedenti vengono spostati in trash. Se arriva una versione peggiore di una già esistente, viene scartata direttamente in trash."},
-                    {k:'cleanup_action',         l:'Azione Pulizia',        t:'select', o:['move','delete'],
-                     d:"Definisce se i file obsoleti devono essere spostati nel cestino (@trash_path) o eliminati fisicamente (Irreversibile)."},
-                    {k:'trash_path',             l:'Cartella Trash',        t:'path',
-                     d:"Percorso assoluto della cartella dove spostare i file obsoleti. Viene creata automaticamente se non esiste. Esempio: /mnt/nas/trash"},
-                    {k:'cleanup_min_score_diff', l:'Diff. Minima Score',    t:'number',
-                     d:"Differenza minima di score tra il nuovo file e quello esistente per attivare la pulizia. 0 = qualsiasi upgrade. 500 = solo salti significativi (es. 720p→4K)."},
-                    {k:'trash_retention_days',   l:'Giorni Retention Cestino', t:'number',
-                     d:"Elimina automaticamente i file nel cestino più vecchi di N giorni ad ogni ciclo. Lascia vuoto per non cancellare mai."},
+                rows: [
+                    [
+                        {k:'cleanup_upgrades',       l:'Pulizia Auto Upgrade',  t:'select', o:['no','yes'],   flex:1,
+                         d:"Se abilitato, quando arriva una versione di qualità superiore i file precedenti vengono spostati in trash. Se arriva una versione peggiore di una già esistente, viene scartata direttamente in trash."},
+                        {k:'cleanup_action',         l:'Azione Pulizia',        t:'select', o:['move','delete'], flex:1,
+                         d:"Definisce se i file obsoleti devono essere spostati nel cestino (@trash_path) o eliminati fisicamente (Irreversibile)."},
+                        {k:'cleanup_min_score_diff', l:'Diff. Minima Score',    t:'number', flex:1,
+                         d:"Differenza minima di score tra il nuovo file e quello esistente per attivare la pulizia. 0 = qualsiasi upgrade. 500 = solo salti significativi (es. 720p→4K)."},
+                    ],
+                    [
+                        {k:'trash_path',             l:'Cartella Trash',           t:'path',   flex:2,
+                         d:"Percorso assoluto della cartella dove spostare i file obsoleti. Viene creata automaticamente se non esiste. Esempio: /mnt/nas/trash"},
+                        {k:'trash_retention_days',   l:'Giorni Retention Cestino', t:'number', flex:1,
+                         d:"Elimina automaticamente i file nel cestino più vecchi di N giorni ad ogni ciclo. Lascia vuoto per non cancellare mai."},
+                    ],
                 ]
             },
             {
@@ -3878,26 +3882,36 @@ const app = {
             },
             {
                 title: `📦 ${t('Database & Archivio')}`,
-                fields: [
-                    {k:'archive_cleanup_enabled', l:'Pulizia Archivio Auto', t:'select', o:['no','yes'],
-                     d:"Abilita la pulizia automatica dell'archivio al termine di ogni ciclo. Rimuove record più vecchi di 'Archive Max Age' mantenendo almeno 'Archive Keep Min' voci."},
-                    {k:'archive_max_age_days',   l:'Archive Max Age (giorni)', t:'number',
-                     d:"Età massima in giorni dei record nell'archivio prima di essere eliminati dalla pulizia automatica. Default: 365. Richiede 'Pulizia Archivio Auto = yes'."},
-                    {k:'archive_keep_min',       l:'Archive Keep Min',     t:'number',
-                     d:"Numero minimo di record da mantenere anche dopo la pulizia. Evita di svuotare completamente l'archivio se tutti i record sono vecchi. Default: 10000."},
+                rows: [
+                    [
+                        {k:'archive_cleanup_enabled', l:'Pulizia Archivio Auto',    t:'select', o:['no','yes'], flex:1,
+                         d:"Abilita la pulizia automatica dell'archivio al termine di ogni ciclo. Rimuove record più vecchi di 'Età Max Archivio' mantenendo almeno 'Min. Record da Mantenere' voci."},
+                        {k:'archive_max_age_days',    l:'Età Max Archivio (giorni)', t:'number', flex:1,
+                         d:"Età massima in giorni dei record nell'archivio prima di essere eliminati dalla pulizia automatica. Default: 365. Richiede 'Pulizia Archivio Auto = sì'."},
+                        {k:'archive_keep_min',        l:'Min. Record da Mantenere',  t:'number', flex:1,
+                         d:"Numero minimo di record da mantenere anche dopo la pulizia. Evita di svuotare completamente l'archivio se tutti i record sono vecchi. Default: 10000."},
+                    ],
                 ]
             }
         ];
 
         let html = '';
         categories.forEach(cat => {
+            let bodyHtml;
+            if (cat.rows) {
+                bodyHtml = cat.rows.map(row => {
+                    const fieldsHtml = row.map(f => {
+                        const inner = this.renderField({key:f.k, label:f.l, type:f.t, options:f.o, desc:f.d}, settings);
+                        return inner.replace('<div class="form-group">', `<div class="form-group" style="flex:${f.flex||1}; min-width:120px; margin:0;">`);
+                    }).join('');
+                    return `<div style="display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.75rem;">${fieldsHtml}</div>`;
+                }).join('');
+            } else {
+                bodyHtml = `<div class="form-grid">${cat.fields.map(f => this.renderField({key:f.k, label:f.l, type:f.t, options:f.o, desc:f.d}, settings)).join('')}</div>`;
+            }
             html += `<div class="card" style="margin-bottom:1.5rem; grid-column: 1 / -1;">
                         <div class="card-header">${cat.title}</div>
-                        <div class="card-body">
-                            <div class="form-grid">
-                                ${cat.fields.map(f => this.renderField({key:f.k, label:f.l, type:f.t, options:f.o, desc:f.d}, settings)).join('')}
-                            </div>
-                        </div>
+                        <div class="card-body">${bodyHtml}</div>
                     </div>`;
         });
 
