@@ -4253,12 +4253,12 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         const infoIcon = f.desc ? ` <span class="tip" data-tip="${this._esc(t(f.desc))}"></span>` : '';
 
         if (f.type === 'select') {
-            return `<div class="form-group"><label>${t(f.label)}${infoIcon}</label><select id="setting-${f.key}">${f.options.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}</select></div>`;
+            return `<div class="form-group"><label>${t(f.label)}${infoIcon}</label><select class="form-input" id="setting-${f.key}">${f.options.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}</select></div>`;
         } else if (f.type === 'password') {
             return `<div class="form-group">
                 <label>${f.label}${infoIcon}</label>
                 <div style="display:flex; gap:0.5rem;">
-                    <input type="password" id="setting-${f.key}" value="${this._esc(val)}" style="flex:1; font-family:var(--font-mono);">
+                    <input type="password" class="form-input" id="setting-${f.key}" value="${this._esc(val)}" style="flex:1; font-family:var(--font-mono);">
                     <button type="button" class="btn btn-secondary" style="flex-shrink:0; padding:0 1rem;"
                         onclick="const i=document.getElementById('setting-${f.key}'); i.type=i.type==='password'?'text':'password'; this.innerHTML=i.type==='password'?'<i class=\\'fa-solid fa-eye\\'></i>':'<i class=\\'fa-solid fa-eye-slash\\'></i>';"
                         title="Mostra/Nascondi"><i class="fa-solid fa-eye"></i></button>
@@ -4273,7 +4273,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             ).join('');
             return `<div class="form-group">
                 <label>${f.label}${infoIcon}</label>
-                <select id="setting-default_language">
+                <select class="form-input" id="setting-default_language">
                     <option value=""${!val?' selected':''}>— Nessun filtro —</option>
                     ${opts}
                 </select>
@@ -4283,7 +4283,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             return `<div class="form-group">
                 <label>${t(f.label)}${infoIcon}</label>
                 <div style="display:flex; gap:8px;">
-                    <input type="text" id="setting-${f.key}" value="${this._esc(val)}" style="flex:1;">
+                    <input type="text" class="form-input" id="setting-${f.key}" value="${this._esc(val)}" style="flex:1;">
                     <button type="button" class="btn btn-secondary btn-small" title="Sfoglia cartelle del server"
                         onclick="event.stopPropagation(); app.openDirBrowser('setting-${f.key}')">
                         <i class="fa-regular fa-folder-open"></i>
@@ -4291,7 +4291,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                 </div>
             </div>`;
         }
-        return `<div class="form-group"><label>${t(f.label)}${infoIcon}</label><input type="${f.type}" id="setting-${f.key}" value="${this._esc(val)}"></div>`;
+        return `<div class="form-group"><label>${t(f.label)}${infoIcon}</label><input type="${f.type}" class="form-input" id="setting-${f.key}" value="${this._esc(val)}"></div>`;
     },
 
     _renderRenameFormatField(currentVal) {

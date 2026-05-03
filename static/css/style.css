@@ -1166,6 +1166,13 @@ select option {
     font-size: 0.83rem;
 }
 
+/* Compatta tutti gli input/select dentro i pannelli di configurazione */
+.config-panel .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.config-panel .form-group select {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.83rem;
+}
+
 .lt-section-title {
     grid-column: span 2;
     font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
