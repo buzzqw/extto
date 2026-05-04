@@ -1971,14 +1971,62 @@ def main():
                         
                             for ep_num in gaps:
                                 # Protezione: se l'episodio è già nel client (magari aggiunto in questo ciclo) skip
-                                # Ma qui abbiamo solo hash, non sappiamo Exx senza parse... 
+                                # Ma qui abbiamo solo hash, non sappiamo Exx senza parse...
                                 # Il check_series dentro il loop gap gestirà la deduplica Exx.
-                                
+
                                 ep_str = f"S{season:02d}E{ep_num:02d}"
                                 search_queries = [f"{serie_cfg['name']} {ep_str}"]
                                 for alias in serie_cfg.get('aliases', []):
                                     search_queries.append(f"{alias} {ep_str}")
-                                
+
+                                # 0. Riusa match già in episode_feed_matches con magnet valido.
+                                # Solo fail_reason=NULL (trovato ma non scaricato) o 'partial'
+                                # (lingua ok, qualità borderline). Magnet deve essere un URI
+                                # reale (sanitize_magnet lo verifica): URL .torrent Jackett
+                                # vengono scartati perché non aggiungibili direttamente.
+                                _feed_downloaded = False
+                                try:
+                                    _fm_list = db.get_feed_matches(series_id, season, ep_num)
+                                    _retryable = [
+                                        fm for fm in _fm_list
+                                        if fm.get('fail_reason') in (None, 'partial')
+                                        and sanitize_magnet(fm.get('magnet', ''), fm.get('title', ''))
+                                    ]
+                                    if _retryable:
+                                        logger.info(f"      📋 Feed cache: {len(_retryable)} candidati validi per {ep_str} — provo prima questi")
+                                    for _fm in sorted(_retryable, key=lambda x: x['quality_score'], reverse=True):
+                                        _fm_mag  = sanitize_magnet(_fm['magnet'], _fm['title'])
+                                        _fm_ep   = Parser.parse_series_episode(_fm['title'])
+                                        if not _fm_ep or _fm_ep['season'] != season or _fm_ep['episode'] != ep_num:
+                                            continue
+                                        _fm_ep['archive_path'] = serie_cfg.get('archive_path', '')
+                                        _dl_ok, _msg = db.check_series(_fm_ep, _fm_mag, serie_cfg['qual'])
+                                        if not _dl_ok:
+                                            logger.debug(f"      📋 Feed cache scarto '{_fm['title']}': {_msg}")
+                                            continue
+                                        _ok_send, _used_cl = _send_with_fallback(_fm_mag)
+                                        if _ok_send:
+                                            stats.gaps_filled += 1
+                                            stats.downloads_started += 1
+                                            logger.info(f"   ✅ GAP FILLED [feed-cache/{_used_cl}]: {serie_cfg['name']} {ep_str} (score={_fm['quality_score']}) '{_fm['title']}'")
+                                            notifier.notify_gap_filled(serie_cfg['name'], season, ep_num)
+                                            tagger.tag_torrent(_fm_mag, TAG_SERIES)
+                                            _ui_tag(_fm_mag, TAG_SERIES)
+                                            try:
+                                                db.record_feed_match(series_id, season, ep_num,
+                                                                     _fm['title'], _fm['quality_score'],
+                                                                     'downloaded', _fm_mag)
+                                            except Exception: pass
+                                            _feed_downloaded = True
+                                            break
+                                        else:
+                                            logger.warning(f"      ⚠️  Feed cache: send fallito per '{_fm['title']}' — magnet non valido o duplicato, provo il successivo")
+                                except Exception as _fce:
+                                    logger.debug(f"gap-fill feed cache: {_fce}")
+
+                                if _feed_downloaded:
+                                    continue  # episodio gestito, vai al prossimo gap
+
                                 results = []
                                 # 1. Cerca prima nell'archivio locale (gratis e veloce)
                                 for sq in search_queries:

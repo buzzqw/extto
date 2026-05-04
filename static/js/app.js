@@ -5885,7 +5885,19 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
     },
 
-    _toggleSingleRemoveDropdown(caretBtn, hash) {
+    removeTorrentSmart(hash, isDone) {
+        document.getElementById('single-remove-drop')?.remove();
+        if (isDone) {
+            // Scarico completato: i file sono già sul NAS/cartella finale, fermia solo il seeding
+            this.directRemoveTorrent(hash, false);
+        } else {
+            // Scarico in corso: chiedi se cancellare i file temporanei parziali
+            const withFiles = confirm(t('Eliminare anche i file temporanei parziali dal disco?'));
+            this.directRemoveTorrent(hash, withFiles);
+        }
+    },
+
+    _toggleSingleRemoveDropdown(caretBtn, hash, isDone) {
         const existing = document.getElementById('single-remove-drop');
         if (existing) { existing.remove(); return; }
 
@@ -5902,13 +5914,14 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
 
         const items = [
             { icon:'fa-solid fa-trash', label:t('Rimuovi'), color:'#f87171',
-              desc:'Mantieni i file sul disco',
+              desc: isDone ? t('Ferma il seeding (file già sul NAS)') : t('Mantieni i file parziali sul disco'),
               fn: () => this.directRemoveTorrent(hash, false) },
-            { icon:'fa-solid fa-trash-can', label:t('Rimuovi ed Elimina'), color:'#ef4444',
-              desc:'Cancella anche i file scaricati',
-              fn: () => this.directRemoveTorrent(hash, true) },
+            // "Rimuovi ed Elimina" ha senso solo se lo scarico è ancora in corso (file temporanei)
+            ...(!isDone ? [{ icon:'fa-solid fa-trash-can', label:t('Rimuovi ed Elimina'), color:'#ef4444',
+              desc: t('Cancella anche i file temporanei parziali'),
+              fn: () => this.directRemoveTorrent(hash, true) }] : []),
             { icon:'fa-solid fa-rotate-right', label:t('Ricomincia'), color:'#fbbf24',
-              desc:'Cancella file parziali e riscarica da zero',
+              desc: t('Cancella file e riscarica da zero'),
               fn: () => this.restartTorrent(hash) },
         ];
         items.forEach((item, i) => {
@@ -6386,7 +6399,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                             : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${torr.hash}')"><i class="fa-solid fa-pause"></i></button>`
                         }
                         <div style="position:relative;display:inline-flex;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--danger);flex-shrink:0;min-width:max-content;" class="single-remove-wrap">
-                            <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.directRemoveTorrent('${torr.hash}', false)" title="${trashTitle}" ${disableTrash}><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${torr.hash}')" ${disableTrash}><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>
+                            <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.removeTorrentSmart('${torr.hash}', ${isDone})" title="${trashTitle}" ${disableTrash}><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${torr.hash}', ${isDone})" ${disableTrash}><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>
                         </div>
                     </div>`;
                 
