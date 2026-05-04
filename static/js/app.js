@@ -5864,6 +5864,27 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         }
     },
 
+    async restartTorrent(hash) {
+        document.getElementById('single-remove-drop')?.remove();
+        if (!confirm(t('Cancella i file parziali e riavvia lo scarico da zero?'))) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/torrents/restart`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({hash})
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            if (data.ok) {
+                this.showToast(t('Torrent riavviato da zero'), 'success');
+            } else {
+                this.showToast(data.error || t('Errore riavvio torrent'), 'error');
+            }
+            await this.loadTorrents();
+        } catch(e) {
+            this.showToast(t('Errore riavvio torrent'), 'error');
+        }
+    },
+
     _toggleSingleRemoveDropdown(caretBtn, hash) {
         const existing = document.getElementById('single-remove-drop');
         if (existing) { existing.remove(); return; }
@@ -5886,6 +5907,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             { icon:'fa-solid fa-trash-can', label:t('Rimuovi ed Elimina'), color:'#ef4444',
               desc:'Cancella anche i file scaricati',
               fn: () => this.directRemoveTorrent(hash, true) },
+            { icon:'fa-solid fa-rotate-right', label:t('Ricomincia'), color:'#fbbf24',
+              desc:'Cancella file parziali e riscarica da zero',
+              fn: () => this.restartTorrent(hash) },
         ];
         items.forEach((item, i) => {
             const btn = document.createElement('button');
@@ -6313,12 +6337,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 // -------------------------------------
 
                 // --- PROTEZIONE AZIONI CRITICHE ---
-                // Calcoliamo isBusy PRIMA di aprire la stringa HTML
-                let isBusy = stateStr.toLowerCase().includes('controllo') || 
-                             stateStr.toLowerCase().includes('allocazione') || 
-                             stateStr.toLowerCase().includes('spostamento') || 
+                // Solo allocazione e spostamento fisico sono pericolosi da interrompere.
+                // "controllo" (checking) è una lettura — è sicuro rimuovere/riavviare.
+                let isBusy = stateStr.toLowerCase().includes('allocazione') ||
+                             stateStr.toLowerCase().includes('spostamento') ||
                              stateStr.toLowerCase().includes('mov');
-                             
+
                 let disableTrash = isBusy ? 'disabled style="opacity:0.4; cursor:not-allowed; box-shadow:none;"' : '';
                 let trashTitle = isBusy ? 'Operazione su disco in corso...' : 'Rimuovi (mantiene i file)';
                 // ----------------------------------

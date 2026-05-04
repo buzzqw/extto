@@ -751,7 +751,62 @@ def web_task():
                         _config_db.delete_torrent_limit(hash_val)
                     self._json_response({'ok': ok})
                     return
-                    
+
+                if self.path == '/api/torrents/restart':
+                    payload  = self._read_json_body()
+                    hash_val = payload.get('hash', '').strip()
+                    if not hash_val:
+                        self._json_response({'ok': False, 'error': 'hash mancante'}, 400)
+                        return
+                    try:
+                        if not LibtorrentClient.session_available():
+                            self._json_response({'ok': False, 'error': 'sessione non disponibile'}, 503)
+                            return
+                        magnet = LibtorrentClient.get_magnet_uri(hash_val)
+                        if not magnet:
+                            self._json_response({'ok': False, 'error': 'torrent non trovato o magnet non ricavabile'})
+                            return
+                        # Recupera save_path e nome PRIMA della rimozione per la pulizia manuale
+                        _save_path = ''
+                        _torrent_name = ''
+                        _h = LibtorrentClient._find(hash_val)
+                        if _h:
+                            try:
+                                _st = _h.status()
+                                _save_path = getattr(_st, 'save_path', '') or ''
+                                _torrent_name = _h.name() or ''
+                            except Exception:
+                                pass
+                        removed = LibtorrentClient.remove_torrent(hash_val, delete_files=True)
+                        if not removed:
+                            self._json_response({'ok': False, 'error': 'rimozione fallita'})
+                            return
+                        try:
+                            _config_db.delete_torrent_limit(hash_val)
+                        except Exception:
+                            pass
+                        # Pulizia manuale del file/cartella nel save_path (sicurezza extra per ramdisk)
+                        if _save_path and _torrent_name:
+                            import shutil as _shutil
+                            _target = os.path.join(_save_path, _torrent_name)
+                            try:
+                                if os.path.isfile(_target):
+                                    os.remove(_target)
+                                    logger.debug(f"🔄 restart: rimosso file {_target}")
+                                elif os.path.isdir(_target):
+                                    _shutil.rmtree(_target, ignore_errors=True)
+                                    logger.debug(f"🔄 restart: rimossa cartella {_target}")
+                            except Exception as _ce:
+                                logger.debug(f"restart cleanup: {_ce}")
+                        time.sleep(0.5)
+                        ok2 = LibtorrentClient.add_magnet(magnet)
+                        logger.info(f"🔄 Torrent riavviato: {'OK' if ok2 else 'FAIL'} — {_torrent_name or hash_val[:16]}")
+                        self._json_response({'ok': ok2, 'error': '' if ok2 else 'add_magnet fallito (vedi log)'})
+                    except Exception as _re:
+                        logger.error(f"❌ restart torrent {hash_val[:16]}: {_re}")
+                        self._json_response({'ok': False, 'error': str(_re)}, 500)
+                    return
+
                 if self.path == '/api/torrents/details':
                     payload = self._read_json_body()
                     info_hash = payload.get('hash', '').strip()

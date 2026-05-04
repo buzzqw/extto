@@ -112,6 +112,30 @@ class LibtorrentClient:
         return final_dir
 
     @classmethod
+    def _ramdisk_uncommitted_bytes(cls, ramdisk_dir: str) -> int:
+        """
+        Somma i byte ancora da scrivere sul ramdisk da parte dei torrent già in corso.
+        Usato da _check_ramdisk_capacity per evitare il race condition in cui due torrent
+        ricevono i metadati quasi simultaneamente e vengono entrambi approvati per il
+        ramdisk anche se insieme ne saturerebbero la capacità.
+        """
+        if cls._session is None:
+            return 0
+        norm_rd = os.path.normpath(os.path.abspath(ramdisk_dir))
+        total = 0
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                save = os.path.normpath(os.path.abspath(getattr(s, 'save_path', '')))
+                if save.startswith(norm_rd):
+                    wanted = int(getattr(s, 'total_wanted', 0))
+                    done   = int(getattr(s, 'total_wanted_done', 0))
+                    total += max(0, wanted - done)
+            except Exception:
+                continue
+        return total
+
+    @classmethod
     def _check_ramdisk_capacity(cls, cfg: dict, total_size: int) -> tuple[bool, str]:
         """
         Verifica se un torrent di total_size byte può stare nel RAM disk.
@@ -119,7 +143,9 @@ class LibtorrentClient:
 
         Criteri — entrambi devono essere soddisfatti:
           1. total_size ≤ libtorrent_ramdisk_threshold_gb
-          2. spazio libero sul ramdisk ≥ total_size + libtorrent_ramdisk_margin_gb
+          2. spazio libero effettivo ≥ total_size + libtorrent_ramdisk_margin_gb
+             dove "effettivo" = free_disk - uncommitted (byte prenotati da altri torrent
+             sul ramdisk che non sono ancora stati scritti su disco)
 
         Il controllo "spazio libero" riflette direttamente il tmpfs: se il disk
         è da 4 GB e ci sono già 1 GB occupati, free = 3 GB. Nessun calcolo
@@ -140,17 +166,22 @@ class LibtorrentClient:
                 f"{total_size / 1024**3:.2f} GB > soglia {threshold_gb} GB"
             )
 
-        # Criterio 2: spazio libero residuo
+        # Criterio 2: spazio libero effettivo (corretto per byte non ancora scritti)
         try:
             free = shutil.disk_usage(ramdisk_dir).free
         except Exception as e:
             return False, f"impossibile leggere spazio libero su '{ramdisk_dir}': {e}"
 
+        uncommitted = cls._ramdisk_uncommitted_bytes(ramdisk_dir)
+        effective_free = max(0, free - uncommitted)
+
         required = total_size + margin_b
-        if free < required:
+        if effective_free < required:
             return False, (
                 f"spazio insufficiente sul RAM disk "
                 f"(libero: {free / 1024**3:.2f} GB, "
+                f"prenotato da altri download: {uncommitted / 1024**3:.2f} GB, "
+                f"libero effettivo: {effective_free / 1024**3:.2f} GB, "
                 f"richiesto: {required / 1024**3:.2f} GB = "
                 f"file {total_size / 1024**3:.2f} GB + margine {margin_gb} GB)"
             )
@@ -1920,6 +1951,35 @@ class LibtorrentClient:
                 logger.warning(f"⚠️ Unable to remove .fastresume file: {e}")
             return True
         return False
+
+    @classmethod
+    def get_magnet_uri(cls, info_hash: str) -> str | None:
+        """Ricava il magnet URI da un torrent handle. Ritorna None se non trovato."""
+        h = cls._find(info_hash)
+        if not h:
+            return None
+        lt = cls._lt
+        # Prova la funzione nativa di libtorrent
+        try:
+            return lt.make_magnet_uri(h)
+        except Exception:
+            pass
+        # Fallback: ricostruisce un magnet minimo dall'info_hash + trackers
+        try:
+            ih_str = str(h.info_hash())
+            magnet = f'magnet:?xt=urn:btih:{ih_str}'
+            from urllib.parse import quote
+            for tr in h.trackers():
+                url = tr.get('url', '') if isinstance(tr, dict) else getattr(tr, 'url', '')
+                if url:
+                    magnet += f'&tr={quote(url, safe="")}'
+            name = h.name()
+            if name:
+                magnet += f'&dn={quote(name, safe="")}'
+            return magnet
+        except Exception as e:
+            logger.warning(f"get_magnet_uri fallback failed: {e}")
+            return None
 
     @classmethod
     def apply_speed_limits(cls, dl_bytes: int, ul_bytes: int) -> bool:
