@@ -2358,13 +2358,13 @@ class TestWebSearchEngines(unittest.TestCase):
     # ── Knaben ───────────────────────────────────────────────────────────────
 
     def test_knaben_struttura_elasticsearch(self):
-        """_search_knaben parsifica la struttura Elasticsearch (hit._source)."""
+        """_search_knaben parsifica il formato flat dell'API (title + magnetUrl)."""
         eng = self._make_engine()
         resp = MagicMock(status_code=200)
         resp.json.return_value = {
             'hits': [
-                {'_source': {'infohash': 'c' * 40, 'title': 'Serie.S02E05.ITA.1080p'}},
-                {'_source': {'infohash': 'd' * 40, 'title': 'Film.2022.720p'}},
+                {'title': 'Serie.S02E05.ITA.1080p', 'magnetUrl': f'magnet:?xt=urn:btih:{"c" * 40}&dn=x'},
+                {'title': 'Film.2022.720p',          'magnetUrl': f'magnet:?xt=urn:btih:{"d" * 40}&dn=x'},
             ]
         }
         with patch.object(eng.sess, 'post', return_value=resp):
@@ -2373,13 +2373,13 @@ class TestWebSearchEngines(unittest.TestCase):
         self.assertTrue(all(r['source'] == 'Knaben' for r in out))
 
     def test_knaben_scarta_hash_invalido(self):
-        """_search_knaben scarta entry con hash di lunghezza errata."""
+        """_search_knaben scarta entry senza magnetUrl o titolo."""
         eng = self._make_engine()
         resp = MagicMock(status_code=200)
         resp.json.return_value = {
             'hits': [
-                {'_source': {'infohash': 'tooshort', 'title': 'Titolo'}},
-                {'_source': {'infohash': 'e' * 40,   'title': 'Valido'}},
+                {'title': 'Senza Magnet', 'magnetUrl': ''},
+                {'title': 'Valido',       'magnetUrl': f'magnet:?xt=urn:btih:{"e" * 40}&dn=x'},
             ]
         }
         with patch.object(eng.sess, 'post', return_value=resp):
@@ -2388,11 +2388,11 @@ class TestWebSearchEngines(unittest.TestCase):
         self.assertEqual(out[0]['title'], 'Valido')
 
     def test_knaben_hash_sha256(self):
-        """_search_knaben accetta anche hash SHA256 (64 hex char)."""
+        """_search_knaben include risultati con magnetUrl valido."""
         eng = self._make_engine()
         resp = MagicMock(status_code=200)
         resp.json.return_value = {
-            'hits': [{'_source': {'infohash': 'f' * 64, 'title': 'SHA256 Torrent'}}]
+            'hits': [{'title': 'Torrent Valido', 'magnetUrl': f'magnet:?xt=urn:btih:{"f" * 64}&dn=x'}]
         }
         with patch.object(eng.sess, 'post', return_value=resp):
             out = eng._search_knaben('test')
@@ -2414,7 +2414,8 @@ class TestWebSearchEngines(unittest.TestCase):
         """_search_btdig estrae correttamente titolo e magnet da HTML btdig.com."""
         eng = self._make_engine()
         h = '1' * 40
-        resp = MagicMock(status_code=200, text=self._btdig_html(h, 'Serie.S01E01.ITA'))
+        html = self._btdig_html(h, 'Serie.S01E01.ITA')
+        resp = MagicMock(status_code=200, text=html, content=html.encode() + b' ' * 1100)
         with patch.object(eng.sess, 'get', return_value=resp):
             out = eng._search_btdig('test')
         self.assertEqual(len(out), 1)
@@ -2433,7 +2434,7 @@ class TestWebSearchEngines(unittest.TestCase):
             f'<a href="magnet:?xt=urn:btih:{h}&dn=X">magnet link</a>'
             f'</body></html>'
         )
-        resp = MagicMock(status_code=200, text=html)
+        resp = MagicMock(status_code=200, text=html, content=html.encode() + b' ' * 1100)
         with patch.object(eng.sess, 'get', return_value=resp):
             out = eng._search_btdig('test')
         self.assertEqual(len(out), 1)
@@ -2452,7 +2453,7 @@ class TestWebSearchEngines(unittest.TestCase):
             f'<a href="magnet:?xt=urn:btih:{h}&dn=Titolo+Da+DN">magnet link</a>'
             f'</body></html>'
         )
-        resp = MagicMock(status_code=200, text=html)
+        resp = MagicMock(status_code=200, text=html, content=html.encode() + b' ' * 1100)
         with patch.object(eng.sess, 'get', return_value=resp):
             out = eng._search_btdig('test')
         self.assertEqual(len(out), 1)
@@ -2463,7 +2464,7 @@ class TestWebSearchEngines(unittest.TestCase):
         eng = self._make_engine()
         h = '4' * 40
         html = self._btdig_html(h, 'Titolo') + self._btdig_html(h, 'Titolo Doppio')
-        resp = MagicMock(status_code=200, text=html)
+        resp = MagicMock(status_code=200, text=html, content=html.encode() + b' ' * 1100)
         with patch.object(eng.sess, 'get', return_value=resp):
             out = eng._search_btdig('test')
         self.assertEqual(len(out), 1)
@@ -2494,8 +2495,9 @@ class TestWebSearchEngines(unittest.TestCase):
             return listing
 
         with patch.object(eng.sess, 'get', side_effect=_fake_get):
-            with patch.object(eng, '_flaresolverr_get', return_value=None):
-                out = eng._search_limetorrents('test')
+            with patch.object(eng.sess, 'post', side_effect=ConnectionError('mocked')):
+                with patch.object(eng, '_flaresolverr_get', return_value=None):
+                    out = eng._search_limetorrents('test')
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]['source'], 'LimeTorrents')
         self.assertIn(h, out[0]['magnet'])
@@ -2506,20 +2508,19 @@ class TestWebSearchEngines(unittest.TestCase):
         h = '6' * 40
         listing = MagicMock(status_code=200, text=self._lime_listing_html('/film-2023.html', 'Film 2023 ITA'))
         detail  = MagicMock(status_code=200, text=self._lime_detail_html(h))
-        call_count = {'n': 0}
 
         def _fake_get(url, **kw):
-            call_count['n'] += 1
-            # Primo dominio (limetorrents.fun): 404
-            if 'limetorrents.fun' in url and not url.endswith('.html'):
+            # Primo dominio (limetorrent.net): 404
+            if 'limetorrent.net' in url and not url.endswith('.html'):
                 return MagicMock(status_code=404, text='')
             if url.endswith('.html'):
                 return detail
-            return listing  # secondo dominio (limetorrents.cc) in poi
+            return listing  # secondo dominio (limetorrents.fun) in poi
 
         with patch.object(eng.sess, 'get', side_effect=_fake_get):
-            with patch.object(eng, '_flaresolverr_get', return_value=None):
-                out = eng._search_limetorrents('test')
+            with patch.object(eng.sess, 'post', side_effect=ConnectionError('mocked')):
+                with patch.object(eng, '_flaresolverr_get', return_value=None):
+                    out = eng._search_limetorrents('test')
         self.assertEqual(len(out), 1)
 
     # ── Torrentz2 ─────────────────────────────────────────────────────────────
