@@ -2474,3 +2474,13 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
    ============================================================================ */
 .tab-btn { position: relative; }
 .tab-btn.dirty::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; }
+
+/* ============================================================================
+   MOVIE FEED SEEN — griglia "Dal Feed" nel pannello Esplora
+   ============================================================================ */
+#mfs-list .table-row { grid-template-columns: 1fr 60px 90px 90px 130px; }
+#mfs-list .table-header { font-weight: 600; font-size: .78rem; }
+.mfs-col-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mfs-col-year  { text-align: center; }
+.mfs-col-res   { text-align: center; }
+.mfs-col-date  { text-align: center; font-size: .75rem; color: var(--text-muted); }

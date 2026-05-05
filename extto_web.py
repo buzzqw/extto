@@ -3027,6 +3027,21 @@ def delete_movie(movie_id):
         logger.exception(f"❌ Error delete_movie {movie_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/movies/seen')
+def movies_seen():
+    """Tutti i film visti nei feed RSS (movie_feed_seen), con paginazione, filtro e ordinamento."""
+    try:
+        page      = int(request.args.get('page', 0))
+        q         = request.args.get('q', '').strip()
+        sort      = request.args.get('sort', 'found_at')
+        direction = request.args.get('dir', 'desc')
+        result    = _CoreDB().get_movies_seen(page=page, q=q, sort=sort,
+                                              direction=direction, per_page=50)
+        return jsonify(result)
+    except Exception as e:
+        logger.exception(f"❌ movies_seen: {e}")
+        return jsonify({'items': [], 'total': 0, 'pages': 1}), 500
+
 @app.route('/api/archive')
 def get_archive():
     """Ricerca nell'archivio"""

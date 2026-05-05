@@ -1674,6 +1674,23 @@ def main():
 # MOVIE - LOGICA BEST-IN-CYCLE (Individua il migliore della run)
             mov = Parser.parse_movie(item['title'])
             if mov:
+                # Registra nel feed globale film (tutti i film visti nei sorgenti RSS)
+                try:
+                    _q = mov['quality']
+                    db.record_movie_seen(
+                        title=item['title'],
+                        name=mov['name'],
+                        year=mov.get('year', 0) or 0,
+                        resolution=_q.resolution,
+                        codec=_q.codec,
+                        audio=_q.audio,
+                        quality_score=_q.score(),
+                        magnet=item.get('magnet', ''),
+                        source=item.get('source', ''),
+                    )
+                except Exception as _mse:
+                    logger.debug(f"record_movie_seen: {_mse}")
+
                 match = cfg.find_movie_match(mov['name'], mov['year'])
                 if match:
                     lang_req = match.get('lang', match.get('language', 'ita'))
@@ -2858,6 +2875,12 @@ def main():
         # -------------------------------------------------------------
         
         stats.report(cfg)
+
+        # Cleanup movie_feed_seen (keep 90 days / max 5000 rows)
+        try:
+            db.cleanup_movie_feed_seen()
+        except Exception as _csme:
+            logger.debug(f"cleanup_movie_feed_seen: {_csme}")
 
         # 5. Ciclo Fumetti (getcomics.org)
         comics_interval = int(getattr(cfg, 'comics_check_interval', 604800))  # default: 7 giorni

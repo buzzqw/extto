@@ -217,22 +217,55 @@
                 <div class="view-header" style="margin-bottom:.75rem;">
                     <h3 style="margin:0;white-space:nowrap;"><i class="fa-regular fa-compass" style="color:var(--primary)"></i> Esplora</h3>
                     <div class="config-tabs" style="margin:0;border:none;background:transparent;flex-shrink:0;">
-                        <button class="tab-btn active" id="discover-btn-movie" onclick="app.loadDiscovery('movie','trending')">🎬 <span data-i18n="Film">Film</span></button>
-                        <button class="tab-btn" id="discover-btn-tv" onclick="app.loadDiscovery('tv','trending')">📺 <span data-i18n="Serie TV">Serie TV</span></button>
-                    </div> </div> <div style="position:relative;margin-bottom:.75rem;">
-                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
-                    <input id="discover-search-input" type="text" class="search-input" placeholder="Cerca un titolo su TMDB…" data-i18n-placeholder="Cerca un titolo su TMDB…" style="padding-left:2.75rem;" oninput="app.discoverySearchKeyup(event)">
+                        <button class="tab-btn active" id="discover-btn-movie" onclick="app.discoverySetTab('tmdb'); app.loadDiscovery('movie','trending')">🎬 <span data-i18n="Film">Film</span></button>
+                        <button class="tab-btn" id="discover-btn-tv" onclick="app.discoverySetTab('tmdb'); app.loadDiscovery('tv','trending')">📺 <span data-i18n="Serie TV">Serie TV</span></button>
+                        <button class="tab-btn" id="discover-btn-feed" onclick="app.discoverySetTab('feed')">📡 <span data-i18n="Dal Feed">Dal Feed</span></button>
+                    </div>
                 </div>
-                
-                <div class="config-tabs" style="margin-bottom:1.25rem;gap:.35rem;">
-                    <button class="tab-btn discover-cat-btn active" data-cat="trending"   onclick="app.loadDiscovery(app._discovery.mediaType,'trending')">🔥 <span data-i18n="Tendenze">Tendenze</span></button>
-                    <button class="tab-btn discover-cat-btn"        data-cat="top_rated"  onclick="app.loadDiscovery(app._discovery.mediaType,'top_rated')">⭐ <span data-i18n="Meglio Votati">Meglio Votati</span></button>
-                    <button class="tab-btn discover-cat-btn"        data-cat="now_playing" onclick="app.loadDiscovery(app._discovery.mediaType,'now_playing')">▶️ <span data-i18n="In Corso">In Corso</span></button>
-                    <button class="tab-btn discover-cat-btn"        data-cat="upcoming"   onclick="app.loadDiscovery(app._discovery.mediaType,'upcoming')">🗓️ <span data-i18n="In Arrivo">In Arrivo</span></button>
+
+                <!-- pannello TMDB -->
+                <div id="discover-panel-tmdb">
+                    <div style="position:relative;margin-bottom:.75rem;">
+                        <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
+                        <input id="discover-search-input" type="text" class="search-input" placeholder="Cerca un titolo su TMDB…" data-i18n-placeholder="Cerca un titolo su TMDB…" style="padding-left:2.75rem;" oninput="app.discoverySearchKeyup(event)">
+                    </div>
+                    <div class="config-tabs" style="margin-bottom:1.25rem;gap:.35rem;">
+                        <button class="tab-btn discover-cat-btn active" data-cat="trending"   onclick="app.loadDiscovery(app._discovery.mediaType,'trending')">🔥 <span data-i18n="Tendenze">Tendenze</span></button>
+                        <button class="tab-btn discover-cat-btn"        data-cat="top_rated"  onclick="app.loadDiscovery(app._discovery.mediaType,'top_rated')">⭐ <span data-i18n="Meglio Votati">Meglio Votati</span></button>
+                        <button class="tab-btn discover-cat-btn"        data-cat="now_playing" onclick="app.loadDiscovery(app._discovery.mediaType,'now_playing')">▶️ <span data-i18n="In Corso">In Corso</span></button>
+                        <button class="tab-btn discover-cat-btn"        data-cat="upcoming"   onclick="app.loadDiscovery(app._discovery.mediaType,'upcoming')">🗓️ <span data-i18n="In Arrivo">In Arrivo</span></button>
+                    </div>
+                    <div id="discovery-loading" class="hidden" style="text-align:center;padding:40px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
+                    <div id="discovery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;padding-bottom:1rem;"></div>
                 </div>
-                
-                <div id="discovery-loading"  class="hidden" style="text-align:center;padding:40px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
-                <div id="discovery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;padding-bottom:1rem;"></div>
+
+                <!-- pannello Dal Feed -->
+                <div id="discover-panel-feed" style="display:none;">
+                    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+                        <div style="position:relative;flex:1;min-width:180px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
+                            <input id="mfs-search" type="text" class="search-input" placeholder="Filtra per titolo…" style="padding-left:2.75rem;"
+                                   oninput="app._mfsSearchKeyup(event)">
+                        </div>
+                        <span id="mfs-total" style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;"></span>
+                    </div>
+
+                    <div id="mfs-list" class="data-table archive-table">
+                        <div class="table-row table-header">
+                            <div class="mfs-col-name" style="cursor:pointer;user-select:none;" onclick="app._mfsSort('name')">
+                                Nome <span id="mfs-sort-name"></span></div>
+                            <div class="mfs-col-year" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('year')">
+                                Anno <span id="mfs-sort-year"></span></div>
+                            <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score')">
+                                Qualità <span id="mfs-sort-quality_score"></span></div>
+                            <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at')">
+                                Trovato <span id="mfs-sort-found_at">▼</span></div>
+                            <div style="text-align:right;">Azioni</div>
+                        </div>
+                        <div id="mfs-rows"></div>
+                    </div>
+                    <div id="mfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
+                </div>
             </div>
 
             <div id="view-comics" class="view">

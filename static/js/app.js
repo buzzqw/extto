@@ -322,7 +322,7 @@ const app = {
         // Carica i dati specifici della view
         switch(view) {
             case 'dashboard': this.loadDashboard(); break;
-            case 'discovery': this.loadDiscovery('movie'); break;
+            case 'discovery': this.discoverySetTab('tmdb'); this.loadDiscovery('movie'); break;
             case 'license': this.loadLicense(); break;
             case 'series': this.loadSeries(); break;
             case 'movies': this.loadMovies(); break;
@@ -979,6 +979,131 @@ const app = {
             document.querySelectorAll('.discover-cat-btn').forEach(b => b.classList.remove('active'));
             this.loadDiscovery(this._discovery.mediaType, 'search');
         }, 450);
+    },
+
+    // -------------------------------------------------------------------------
+    // ESPLORA — gestione tab TMDB / Dal Feed
+    // -------------------------------------------------------------------------
+    _mfsState: { page: 0, q: '', sort: 'found_at', dir: 'desc' },
+    _mfsSearchTimer: null,
+
+    discoverySetTab(tab) {
+        const tmdb = document.getElementById('discover-panel-tmdb');
+        const feed = document.getElementById('discover-panel-feed');
+        const btnMovie = document.getElementById('discover-btn-movie');
+        const btnTv    = document.getElementById('discover-btn-tv');
+        const btnFeed  = document.getElementById('discover-btn-feed');
+        if (tab === 'feed') {
+            if (tmdb) tmdb.style.display = 'none';
+            if (feed) feed.style.display = '';
+            btnFeed?.classList.add('active');
+            btnMovie?.classList.remove('active');
+            btnTv?.classList.remove('active');
+            this.loadMoviesSeen(0);
+        } else {
+            if (tmdb) tmdb.style.display = '';
+            if (feed) feed.style.display = 'none';
+            btnFeed?.classList.remove('active');
+        }
+    },
+
+    async loadMoviesSeen(page = 0) {
+        const state = this._mfsState;
+        state.page = page;
+        const params = new URLSearchParams({
+            page: page, q: state.q, sort: state.sort, dir: state.dir
+        });
+        try {
+            const res  = await fetch(`${API_BASE}/api/movies/seen?${params}`);
+            const data = await res.json();
+            const rows = document.getElementById('mfs-rows');
+            const tot  = document.getElementById('mfs-total');
+            const pag  = document.getElementById('mfs-pagination');
+            if (!rows) return;
+
+            if (tot) tot.textContent = `${data.total} film trovati nei feed`;
+
+            // Aggiorna icone ordinamento
+            ['name','year','quality_score','found_at'].forEach(col => {
+                const el = document.getElementById(`mfs-sort-${col}`);
+                if (!el) return;
+                el.textContent = state.sort === col ? (state.dir === 'desc' ? '▼' : '▲') : '';
+            });
+
+            const RES_BADGE = {
+                '2160p': 'background:#7c3aed;color:#fff',
+                '1080p': 'background:#2563eb;color:#fff',
+                '720p':  'background:#059669;color:#fff',
+                '576p':  'background:#6b7280;color:#fff',
+                '480p':  'background:#6b7280;color:#fff',
+                'unknown': 'background:#374151;color:#9ca3af',
+            };
+
+            let html = '';
+            data.items.forEach(item => {
+                const safeTitle  = this.escapeHtml(item.title || '');
+                const safeMagnet = this.escapeHtml(item.magnet || '');
+                const name  = this.escapeHtml(item.name || item.title || '');
+                const year  = item.year || '—';
+                const res   = item.resolution || 'unknown';
+                const codec = (item.codec && item.codec !== 'unknown') ? ` ${item.codec.toUpperCase()}` : '';
+                const audio = (item.audio  && item.audio  !== 'unknown') ? ` ${item.audio.toUpperCase()}` : '';
+                const badge = RES_BADGE[res] || RES_BADGE['unknown'];
+                const date  = item.found_at ? this.formatDate(item.found_at) : '—';
+                const src   = item.source ? `<small style="color:var(--text-muted)"> · ${this.escapeHtml(item.source)}</small>` : '';
+                const hasMag = !!item.magnet;
+                html += `<div class="table-row" data-magnet="${safeMagnet}" title="${safeTitle}">
+                    <div class="mfs-col-name"><small><strong>${name}</strong>${src}</small></div>
+                    <div class="mfs-col-year"><small>${year}</small></div>
+                    <div class="mfs-col-res">
+                        <span style="font-size:.7rem;padding:1px 5px;border-radius:4px;${badge}">${res}${codec}${audio}</span>
+                    </div>
+                    <div class="mfs-col-date">${date}</div>
+                    <div class="table-actions">
+                        <button class="btn btn-small" style="background:#0ea5e9;color:white;border:none;"
+                                onclick="app.searchArchiveOnTMDB('${this.escapeJs(item.name || item.title)}')"
+                                title="Cerca su TMDB"><i class="fa-solid fa-magnifying-glass"></i> TMDB</button>
+                        ${hasMag ? `<button class="btn btn-small btn-success"
+                                onclick="app._promptNoRename('${this.escapeJs(item.magnet)}','',true,'${this.escapeJs(item.title)}')"
+                                title="Scarica"><i class="fa-solid fa-download"></i></button>
+                        <button class="btn btn-small btn-secondary"
+                                onclick="app.copyMagnet('${this.escapeJs(item.magnet)}')"
+                                title="Copia magnet"><i class="fa-regular fa-copy"></i></button>` : ''}
+                    </div>
+                </div>`;
+            });
+            if (!data.items.length) {
+                html = `<div style="padding:30px;text-align:center;color:var(--text-muted);">
+                    ${t('Nessun film trovato nei feed')}<br>
+                    <small>${t('I film appariranno qui al prossimo ciclo di scraping')}</small></div>`;
+            }
+            rows.innerHTML = html;
+
+            // Paginazione
+            const totalPages = Math.max(1, data.pages);
+            let pagHtml = '';
+            if (page > 0)
+                pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.loadMoviesSeen(${page-1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+            pagHtml += `<span style="margin:0 10px;font-weight:700;">${t('Pag')} ${page+1} / ${totalPages}</span>`;
+            if (page < totalPages - 1)
+                pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.loadMoviesSeen(${page+1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+            pag.innerHTML = pagHtml;
+        } catch(e) { console.error('loadMoviesSeen:', e); }
+    },
+
+    _mfsSort(col) {
+        const s = this._mfsState;
+        if (s.sort === col) s.dir = s.dir === 'desc' ? 'asc' : 'desc';
+        else { s.sort = col; s.dir = 'desc'; }
+        this.loadMoviesSeen(0);
+    },
+
+    _mfsSearchKeyup(e) {
+        clearTimeout(this._mfsSearchTimer);
+        this._mfsSearchTimer = setTimeout(() => {
+            this._mfsState.q = e.target.value.trim();
+            this.loadMoviesSeen(0);
+        }, 320);
     },
 
     quickAddMovie(title, year) {

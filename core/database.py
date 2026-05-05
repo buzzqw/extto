@@ -191,6 +191,28 @@ class Database:
             pass
 
         c.execute('''
+            CREATE TABLE IF NOT EXISTS movie_feed_seen (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                title        TEXT    NOT NULL UNIQUE,
+                name         TEXT,
+                year         INTEGER DEFAULT 0,
+                resolution   TEXT    DEFAULT 'unknown',
+                codec        TEXT    DEFAULT 'unknown',
+                audio        TEXT    DEFAULT 'unknown',
+                quality_score INTEGER DEFAULT 0,
+                magnet       TEXT,
+                source       TEXT,
+                found_at     TEXT    NOT NULL
+            )
+        ''')
+        try:
+            c.execute('CREATE INDEX IF NOT EXISTS idx_mfs_found ON movie_feed_seen(found_at DESC)')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_mfs_year  ON movie_feed_seen(year DESC)')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_mfs_score ON movie_feed_seen(quality_score DESC)')
+        except Exception:
+            pass
+
+        c.execute('''
             CREATE TABLE IF NOT EXISTS pending_downloads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 series_id INTEGER,
@@ -441,6 +463,76 @@ class Database:
             self.conn.commit()
         except Exception as e:
             logger.debug(f"record_movie_discard: {e}")
+
+    # ------------------------------------------------------------------
+    # MOVIE FEED SEEN  (tutti i film visti nei feed RSS, non solo quelli in config)
+    # ------------------------------------------------------------------
+
+    def record_movie_seen(self, title: str, name: str, year: int,
+                          resolution: str, codec: str, audio: str,
+                          quality_score: int, magnet: str, source: str):
+        try:
+            c = self.conn.cursor()
+            found_at = datetime.now(timezone.utc).isoformat()
+            c.execute('''
+                INSERT INTO movie_feed_seen
+                    (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(title) DO UPDATE SET
+                    found_at=excluded.found_at,
+                    magnet=excluded.magnet,
+                    source=excluded.source
+            ''', (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at))
+            self.conn.commit()
+        except Exception as e:
+            logger.debug(f"record_movie_seen: {e}")
+
+    def get_movies_seen(self, page: int = 0, q: str = '',
+                        sort: str = 'found_at', direction: str = 'desc',
+                        per_page: int = 50):
+        allowed_sorts = {'found_at', 'year', 'name', 'resolution', 'quality_score'}
+        sort = sort if sort in allowed_sorts else 'found_at'
+        direction = 'DESC' if direction.lower() == 'desc' else 'ASC'
+        try:
+            c = self.conn.cursor()
+            where = ''
+            params_count: list = []
+            params_data:  list = []
+            if q:
+                where = 'WHERE (name LIKE ? OR title LIKE ?)'
+                like = f'%{q}%'
+                params_count = [like, like]
+                params_data  = [like, like]
+            c.execute(f'SELECT COUNT(*) FROM movie_feed_seen {where}', params_count)
+            total = c.fetchone()[0]
+            offset = page * per_page
+            params_data += [per_page, offset]
+            c.execute(f'''
+                SELECT id, title, name, year, resolution, codec, audio,
+                       quality_score, magnet, source, found_at
+                FROM movie_feed_seen {where}
+                ORDER BY {sort} {direction}
+                LIMIT ? OFFSET ?
+            ''', params_data)
+            rows = [dict(r) for r in c.fetchall()]
+            return {'items': rows, 'total': total, 'pages': max(1, -(-total // per_page))}
+        except Exception as e:
+            logger.warning(f"get_movies_seen: {e}")
+            return {'items': [], 'total': 0, 'pages': 1}
+
+    def cleanup_movie_feed_seen(self, max_age_days: int = 90, keep_max: int = 5000):
+        try:
+            c = self.conn.cursor()
+            cutoff = (datetime.now(timezone.utc).replace(
+                tzinfo=None) - __import__('datetime').timedelta(days=max_age_days)).isoformat()
+            c.execute('DELETE FROM movie_feed_seen WHERE found_at < ? AND id NOT IN (SELECT id FROM movie_feed_seen ORDER BY found_at DESC LIMIT ?)',
+                      (cutoff, keep_max))
+            deleted = c.rowcount
+            self.conn.commit()
+            if deleted:
+                logger.debug(f"cleanup_movie_feed_seen: rimossi {deleted} record")
+        except Exception as e:
+            logger.warning(f"cleanup_movie_feed_seen: {e}")
 
     # ------------------------------------------------------------------
     # FEED MATCHES
