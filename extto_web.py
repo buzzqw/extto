@@ -3035,6 +3035,7 @@ def movies_seen():
         q         = request.args.get('q', '').strip()
         sort      = request.args.get('sort', 'found_at')
         direction = request.args.get('dir', 'desc')
+        from core.database import Database as _CoreDB
         result    = _CoreDB().get_movies_seen(page=page, q=q, sort=sort,
                                               direction=direction, per_page=50)
         return jsonify(result)
