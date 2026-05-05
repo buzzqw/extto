@@ -97,8 +97,8 @@ def _apply_saved_limits() -> None:
     except Exception as e:
         logger.debug(f"Error applying saved limits from DB: {e}")
 
-def _ui_tag(magnet: str, tag: str) -> None:
-    """Scrive il tag nella tabella torrent_meta del database operativo."""
+def _ui_tag(magnet: str, tag: str, source: str = '') -> None:
+    """Scrive il tag e la sorgente download nella tabella torrent_meta."""
     m = re.search(r'btih:([a-fA-F0-9]{40})', magnet or '', re.I)
     if not m:
         return
@@ -106,13 +106,18 @@ def _ui_tag(magnet: str, tag: str) -> None:
     try:
         import sqlite3
         from core.constants import DB_FILE
-        # Scrive direttamente nel DB dove extto_web si aspetta di trovare i tag
         with sqlite3.connect(DB_FILE, timeout=10) as conn:
+            try:
+                conn.execute("ALTER TABLE torrent_meta ADD COLUMN dl_source TEXT DEFAULT ''")
+            except Exception:
+                pass
             conn.execute("""
-                INSERT INTO torrent_meta (hash, tag, updated_at)
-                VALUES (?, ?, strftime('%s','now'))
-                ON CONFLICT(hash) DO UPDATE SET tag=excluded.tag, updated_at=excluded.updated_at
-            """, (ih, str(tag).strip()))
+                INSERT INTO torrent_meta (hash, tag, dl_source, updated_at)
+                VALUES (?, ?, ?, strftime('%s','now'))
+                ON CONFLICT(hash) DO UPDATE SET
+                    tag=excluded.tag, dl_source=excluded.dl_source,
+                    updated_at=excluded.updated_at
+            """, (ih, str(tag).strip(), str(source).strip()))
     except Exception as e:
         logger.debug(f"Error saving UI tag to DB: {e}")
 
@@ -1776,7 +1781,7 @@ def main():
                                                      cand['title'], cand['score'],
                                                      'best-in-cycle-upgrade' if detail == 'upgrade' else 'best-in-cycle-new')
                             tagger.tag_torrent(safe_magnet, TAG_SERIES)
-                            _ui_tag(safe_magnet, TAG_SERIES)
+                            _ui_tag(safe_magnet, TAG_SERIES, _src)
                             # Registra il match scaricato nel feed_matches
                             try:
                                 _sid = key[0]
@@ -1801,7 +1806,7 @@ def main():
                             logger.info(f"✅ MOVIE [{used_cl}] (best-in-cycle){_src_tag}: {name} (Score: {cand['score']})")
                             notifier.notify_movie(name, cand['mov']['year'], cand['title'], cand['score'])
                             tagger.tag_torrent(cand['magnet'], TAG_FILM)
-                            _ui_tag(cand['magnet'], TAG_FILM)
+                            _ui_tag(cand['magnet'], TAG_FILM, _src)
                             # Registra il download nel feed film
                             try:
                                 db.record_movie_feed_match(name, cand['title'],
@@ -1849,7 +1854,7 @@ def main():
                                              r['best_title'], r['best_quality_score'],
                                              'timeframe-upgrade' if detail == 'upgrade' else 'timeframe-new')
                     tagger.tag_torrent(safe_magnet, TAG_SERIES)
-                    _ui_tag(safe_magnet, TAG_SERIES)
+                    _ui_tag(safe_magnet, TAG_SERIES, 'Timeframe')
 
         if not comics_only_cycle and not series_only_cycle and not movies_only_cycle:
             # 3. Scansione archivio locale (solo se run-now completo)
@@ -2028,7 +2033,7 @@ def main():
                                             logger.info(f"   ✅ GAP FILLED [feed-cache/{_used_cl}]: {serie_cfg['name']} {ep_str} (score={_fm['quality_score']}) '{_fm['title']}'")
                                             notifier.notify_gap_filled(serie_cfg['name'], season, ep_num)
                                             tagger.tag_torrent(_fm_mag, TAG_SERIES)
-                                            _ui_tag(_fm_mag, TAG_SERIES)
+                                            _ui_tag(_fm_mag, TAG_SERIES, _fm.get('source', 'Feed'))
                                             try:
                                                 db.record_feed_match(series_id, season, ep_num,
                                                                      _fm['title'], _fm['quality_score'],
@@ -2301,7 +2306,7 @@ def main():
                                         logger.info(f"   ✅ GAP FILLED [{used_cl}] via {source}: {serie_cfg['name']} {ep_str} (Score: {best_ep_score})")
                                         notifier.notify_gap_filled(serie_cfg['name'], season, ep_num)
                                         tagger.tag_torrent(safe_magnet, TAG_SERIES)
-                                        _ui_tag(safe_magnet, TAG_SERIES)
+                                        _ui_tag(safe_magnet, TAG_SERIES, source)
                                         # Registra il match come 'downloaded'
                                         if _gap_series_id:
                                             try:
@@ -2383,7 +2388,7 @@ def main():
                         logger.info(f"   🚀 MOVIE FOUND [{used_cl}] via {source}: {match['name']} (Score: {best_movie_score})")
                         notifier.notify_movie(match['name'], mov_p['year'], raw_title, best_movie_score)
                         tagger.tag_torrent(safe_magnet, TAG_FILM)
-                        _ui_tag(safe_magnet, TAG_FILM)
+                        _ui_tag(safe_magnet, TAG_FILM, source)
                 else:
                     if results:
                         sample = results[0]['title'][:50]
@@ -2915,7 +2920,7 @@ def main():
                         except Exception as _te:
                             logger.debug(f"Comics tag_torrent: {_te}")
                         try:
-                            _ui_tag(magnet, TAG_COMIC)
+                            _ui_tag(magnet, TAG_COMIC, 'Fumetti')
                         except Exception as _ute:
                             logger.debug(f"Comics _ui_tag: {_ute}")
                     return sent
@@ -3145,7 +3150,7 @@ def main():
                                                     logger.info(f"   ✅ DOWNLOAD FAST-RSS [{used_cl}]: {match['name']} {ep_label}")
                                                     notifier.notify_download(match['name'], ep['season'], ep['episode'], item['title'], ep['quality'].score() + cfg_live.get_custom_score(item['title']), "rss-fast")
                                                     tagger.tag_torrent(safe_mag, TAG_SERIES)
-                                                    _ui_tag(safe_mag, TAG_SERIES)
+                                                    _ui_tag(safe_mag, TAG_SERIES, item.get('source', ''))
                                 continue
                                 
                                 # 2. FILM
@@ -3164,8 +3169,8 @@ def main():
                                                 logger.info(f"   🚀 MOVIE FAST-RSS [{used_cl}]: {match['name']} (Score: {score})")
                                                 notifier.notify_movie(match['name'], mov['year'], item['title'], score)
                                                 tagger.tag_torrent(safe_mag, TAG_FILM)
-                                                _ui_tag(safe_mag, TAG_FILM)
-                                                
+                                                _ui_tag(safe_mag, TAG_FILM, item.get('source', ''))
+
                             if fast_s_up > 0 or fast_m_up > 0:
                                 logger.info(f"   🎉 New downloads sent from RSS! Series: {fast_s_up}, Movies: {fast_m_up}")
                                 

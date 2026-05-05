@@ -5738,6 +5738,12 @@ def _torrent_meta_db():
         conn.commit()
     except Exception:
         pass  # Colonna già esistente
+    # Migration: aggiunge dl_source (sorgente download: ExtTo, Jackett, ThePirateBay, ...)
+    try:
+        conn.execute("ALTER TABLE torrent_meta ADD COLUMN dl_source TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass
     # Migrazione una-tantum da torrent_tags.json
     _migrate_tags_json(conn)
     return conn
@@ -6664,6 +6670,16 @@ def proxy_torrents_base():
             pass
         # ---> FINE INIEZIONE <---
 
+        # Carica dl_source da torrent_meta per mostrare la sorgente nel torrent manager
+        try:
+            with _torrent_meta_db() as _src_conn:
+                _src_rows = _src_conn.execute(
+                    "SELECT hash, dl_source FROM torrent_meta WHERE dl_source != ''"
+                ).fetchall()
+            _src_map = {r[0].lower(): r[1] for r in _src_rows}
+        except Exception:
+            _src_map = {}
+
         import re, os
         from urllib.parse import unquote_plus
         from core.models import normalize_series_name, _series_name_matches
@@ -6684,6 +6700,8 @@ def proxy_torrents_base():
 
         for t in torrents:
             t_name = unquote_plus(t.get('name', ''))
+            if 'dl_source' not in t:
+                t['dl_source'] = _src_map.get(t.get('hash', '').lower(), '')
 
             # ---> INIZIO FIX CONSUMI: Cattura il peso in tempo reale <---
             t_hash = t.get('hash', '')

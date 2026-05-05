@@ -6428,15 +6428,27 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
 
                 let displayName = torr.name || '';
                 let sourceHtml = '';
-                
-                const tagMatch = displayName.match(/\s+\[(ExtTo[^\]]*|Corsaro[^\]]*|Jackett[^\]]*)\]$/i);
-                
-                if (tagMatch) {
-                    sourceHtml = `<span style="color:var(--info); font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid fa-satellite-dish"></i> ${this._esc(tagMatch[1])}</span>`;
-                    displayName = displayName.replace(tagMatch[0], ''); 
+
+                const dlSrc = (torr.dl_source || '').trim();
+                let srcIcon, srcColor, srcLabel;
+                const _rssNames = ['ExtTo', 'Corsaro', 'ExtTo Live', 'Corsaro Live'];
+                const _webNames = ['ThePirateBay', 'Knaben', 'BTDigg', 'LimeTorrents', 'Torrentz2', 'BitSearch'];
+                if (!dlSrc) {
+                    srcIcon = 'fa-hand-pointer'; srcColor = 'var(--text-muted)'; srcLabel = 'Manuale';
+                } else if (_rssNames.some(s => dlSrc.includes(s))) {
+                    srcIcon = 'fa-rss'; srcColor = 'var(--info)'; srcLabel = dlSrc;
+                } else if (dlSrc === 'Jackett' || dlSrc === 'Prowlarr') {
+                    srcIcon = 'fa-database'; srcColor = 'var(--info)'; srcLabel = dlSrc;
+                } else if (_webNames.includes(dlSrc)) {
+                    srcIcon = 'fa-globe'; srcColor = 'var(--warning)'; srcLabel = dlSrc;
+                } else if (dlSrc === 'Archivio') {
+                    srcIcon = 'fa-box-archive'; srcColor = 'var(--text-secondary)'; srcLabel = 'Archivio';
+                } else if (dlSrc === 'Timeframe') {
+                    srcIcon = 'fa-clock'; srcColor = 'var(--text-secondary)'; srcLabel = 'Timeframe';
                 } else {
-                    sourceHtml = `<span style="color:var(--text-muted); font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid fa-hand-pointer"></i> Manuale</span>`;
+                    srcIcon = 'fa-satellite-dish'; srcColor = 'var(--info)'; srcLabel = dlSrc;
                 }
+                sourceHtml = `<span style="color:${srcColor}; font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid ${srcIcon}"></i> ${this._esc(srcLabel)}</span>`;
                 
                 const myTag = torrentTagsDb[torr.hash];
                 if (myTag && String(myTag).trim() !== '') {
