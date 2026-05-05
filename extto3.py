@@ -2315,9 +2315,11 @@ def main():
                 if not results and run_movies_triggered:
                     _ws_engs = getattr(cfg, 'websearch_engines', []) or []
                     if _ws_engs:
-                        logger.info(f"      🌐 Web search film: '{search_str}'")
+                        _lang_tag = mov_cfg.get('language', mov_cfg.get('lang', 'ita')) or 'ita'
+                        ws_search_str = f"{search_str} {_lang_tag}"
+                        logger.info(f"      🌐 Web search film: '{ws_search_str}'")
                         try:
-                            _ws_mov = eng._web_search_all(search_str)
+                            _ws_mov = eng._web_search_all(ws_search_str)
                             if _ws_mov:
                                 results = _ws_mov
                                 logger.info(f"      🌐 Web search: {len(_ws_mov)} candidati")

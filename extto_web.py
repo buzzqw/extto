@@ -1062,7 +1062,7 @@ def manual_search():
             else:
                 _c = db.conn.cursor()
                 _all_series = _c.execute('SELECT id, name, aliases FROM series').fetchall()
-                logger.info(f"📋 feed_match: {len(results)} results to process, {len(_all_series)} series in DB")
+                logger.info(f"📋 Salvataggio in 'Ultimi trovati': {len(results)} risultati dalla ricerca manuale da abbinare a {len(_all_series)} serie in DB")
                 _fm_saved = 0
                 _fm_no_ep = 0
                 _fm_no_series = 0
@@ -1118,7 +1118,10 @@ def manual_search():
                         logger.debug(f"   feed_match OK: S{ep['season']:02d}E{ep['episode']:02d} score={_score} fail={_fail} | '{_title[:60]}'")
                     except Exception as _fm_err:
                         logger.warning(f"   feed_match error on '{res.get('title','')[:60]}': {_fm_err}")
-                logger.info(f"📋 feed_match: saved={_fm_saved} | no_ep={_fm_no_ep} | series_not_found={_fm_no_series} | no_magnet={_fm_no_magnet}")
+                logger.info(f"📋 Ultimi trovati: {_fm_saved} episodi salvati" +
+                            (f", {_fm_no_ep} scartati (nessun S/E riconoscibile)" if _fm_no_ep else "") +
+                            (f", {_fm_no_series} scartati (serie non in DB)" if _fm_no_series else "") +
+                            (f", {_fm_no_magnet} scartati (nessun magnet)" if _fm_no_magnet else ""))
         except Exception as _fm_outer_err:
             logger.error(f"❌ feed_match critical error: {_fm_outer_err}")
         return jsonify({'success': True, 'results': results})
