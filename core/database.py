@@ -495,44 +495,34 @@ class Database:
         direction = 'DESC' if direction.lower() == 'desc' else 'ASC'
         try:
             c = self.conn.cursor()
-            where = ''
-            params_count: list = []
-            params_data:  list = []
+            conditions: list = []
+            params:     list = []
             if q:
-                where = 'WHERE (name LIKE ? OR title LIKE ?)'
-                like = f'%{q}%'
-                params_count = [like, like]
-                params_data  = [like, like]
-            c.execute(f'SELECT COUNT(*) FROM movie_feed_seen {where}', params_count)
+                for token in q.strip().split():
+                    exclude = token.startswith('-') and len(token) > 1
+                    kw = token[1:] if token.startswith(('+', '-')) and len(token) > 1 else token
+                    kw_like = kw.replace('*', '%').replace('?', '_') if ('*' in kw or '?' in kw) else f'%{kw}%'
+                    if exclude:
+                        conditions.append('(title NOT LIKE ? AND name NOT LIKE ?)')
+                    else:
+                        conditions.append('(title LIKE ? OR name LIKE ?)')
+                    params.extend([kw_like, kw_like])
+            where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+            c.execute(f'SELECT COUNT(*) FROM movie_feed_seen {where}', params)
             total = c.fetchone()[0]
             offset = page * per_page
-            params_data += [per_page, offset]
             c.execute(f'''
                 SELECT id, title, name, year, resolution, codec, audio,
                        quality_score, magnet, source, found_at
                 FROM movie_feed_seen {where}
                 ORDER BY {sort} {direction}
                 LIMIT ? OFFSET ?
-            ''', params_data)
+            ''', params + [per_page, offset])
             rows = [dict(r) for r in c.fetchall()]
             return {'items': rows, 'total': total, 'pages': max(1, -(-total // per_page))}
         except Exception as e:
             logger.warning(f"get_movies_seen: {e}")
             return {'items': [], 'total': 0, 'pages': 1}
-
-    def cleanup_movie_feed_seen(self, max_age_days: int = 90, keep_max: int = 5000):
-        try:
-            c = self.conn.cursor()
-            cutoff = (datetime.now(timezone.utc).replace(
-                tzinfo=None) - __import__('datetime').timedelta(days=max_age_days)).isoformat()
-            c.execute('DELETE FROM movie_feed_seen WHERE found_at < ? AND id NOT IN (SELECT id FROM movie_feed_seen ORDER BY found_at DESC LIMIT ?)',
-                      (cutoff, keep_max))
-            deleted = c.rowcount
-            self.conn.commit()
-            if deleted:
-                logger.debug(f"cleanup_movie_feed_seen: rimossi {deleted} record")
-        except Exception as e:
-            logger.warning(f"cleanup_movie_feed_seen: {e}")
 
     # ------------------------------------------------------------------
     # FEED MATCHES

@@ -6320,7 +6320,19 @@ def prune_archive():
             c.execute("DELETE FROM archive WHERE added_at < ?", (cutoff_iso,))
             deleted = c.rowcount
 
-        msg = f'Rimossi {deleted} elementi obsoleti'
+        # Stessa pulizia su movie_feed_seen (extto_series.db)
+        mfs_deleted = 0
+        try:
+            from core.database import Database as _CoreDB
+            with _CoreDB() as _cdb:
+                cur = _cdb.conn.cursor()
+                cur.execute("DELETE FROM movie_feed_seen WHERE found_at < ?", (cutoff_iso,))
+                mfs_deleted = cur.rowcount
+                _cdb.conn.commit()
+        except Exception as _mfs_e:
+            log_maintenance(f"⚠️ Pulizia movie_feed_seen: {_mfs_e}")
+
+        msg = f'Rimossi {deleted} elementi obsoleti dall\'archivio, {mfs_deleted} dal feed film'
         log_maintenance(f"✅ Pulizia completata: {msg}")
 
         return jsonify({'success': True, 'deleted': deleted, 'message': msg})
@@ -6409,10 +6421,40 @@ def prune_archive_keyword():
                 total = len(matched)
                 rows  = matched[:limit]
 
+        # Aggiunge risultati da movie_feed_seen (extto_series.db)
+        try:
+            from core.database import Database as _CoreDB
+            with _CoreDB() as _cdb:
+                _c2 = _cdb.conn.cursor()
+                if not script_tokens:
+                    _cond = ' OR '.join(['(title LIKE ? OR name LIKE ?)' for _ in regular_kws])
+                    _par  = [v for k in regular_kws for v in (f'%{k}%', f'%{k}%')]
+                    _c2.execute(f"SELECT id, title, found_at FROM movie_feed_seen WHERE {_cond} ORDER BY found_at DESC LIMIT ?", _par + [limit])
+                    mfs_rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['found_at'], 'db': 'mfs'} for r in _c2.fetchall()]
+                else:
+                    _c2.execute("SELECT id, title, found_at FROM movie_feed_seen ORDER BY found_at DESC")
+                    mfs_rows = []
+                    for r in _c2:
+                        _t = r['title'] or ''
+                        ok = any(kw.lower() in _t.lower() for kw in regular_kws)
+                        ok = ok or any(_title_has_script(_t, tok) for tok in script_tokens)
+                        if ok:
+                            mfs_rows.append({'id': r['id'], 'title': _t, 'added_at': r['found_at'], 'db': 'mfs'})
+                    mfs_rows = mfs_rows[:limit]
+        except Exception as _mfs_e:
+            log_maintenance(f"⚠️ keyword-search movie_feed_seen: {_mfs_e}")
+            mfs_rows = []
+
+        # Marca i record archivio con db='archive' e combina
+        for row in rows:
+            row['db'] = 'archive'
+        combined     = rows + mfs_rows
+        total_combined = total + len(mfs_rows)
+
         used_kws = regular_kws + script_tokens
-        log_maintenance(f"🔍 Keyword-search '{', '.join(used_kws)}': {total} record trovati (restituiti {len(rows)})")
-        return jsonify({'success': True, 'total': total, 'returned': len(rows),
-                        'keywords': used_kws, 'rows': rows})
+        log_maintenance(f"🔍 Keyword-search '{', '.join(used_kws)}': {total} archivio + {len(mfs_rows)} feed film trovati")
+        return jsonify({'success': True, 'total': total_combined, 'returned': len(combined),
+                        'keywords': used_kws, 'rows': combined})
 
     except Exception as e:
         log_maintenance(f"❌ Errore keyword-search: {e}")
@@ -6434,15 +6476,31 @@ def prune_archive_by_ids():
         if not os.path.exists(ARCHIVE_FILE):
             return jsonify({'success': False, 'error': 'Archivio non trovato'})
 
-        placeholders = ','.join('?' * len(ids))
-        with sqlite3.connect(ARCHIVE_FILE) as conn:
-            c = conn.cursor()
-            c.execute(f"DELETE FROM archive WHERE id IN ({placeholders})", ids)
-            deleted = c.rowcount
+        deleted = 0
+        if ids:
+            placeholders = ','.join('?' * len(ids))
+            with sqlite3.connect(ARCHIVE_FILE) as conn:
+                c = conn.cursor()
+                c.execute(f"DELETE FROM archive WHERE id IN ({placeholders})", ids)
+                deleted = c.rowcount
 
-        msg = f"Rimossi {deleted} record selezionati dall'archivio"
+        mfs_deleted = 0
+        movie_feed_ids = [int(i) for i in data.get('movie_feed_ids', []) if str(i).isdigit()]
+        if movie_feed_ids:
+            try:
+                from core.database import Database as _CoreDB
+                with _CoreDB() as _cdb:
+                    _ph = ','.join('?' * len(movie_feed_ids))
+                    _cdb.conn.execute(f"DELETE FROM movie_feed_seen WHERE id IN ({_ph})", movie_feed_ids)
+                    mfs_deleted = _cdb.conn.execute("SELECT changes()").fetchone()[0]
+                    _cdb.conn.commit()
+            except Exception as _mfs_e:
+                log_maintenance(f"⚠️ prune-by-ids movie_feed_seen: {_mfs_e}")
+
+        total_deleted = deleted + mfs_deleted
+        msg = f"Rimossi {deleted} dall'archivio, {mfs_deleted} dal feed film"
         log_maintenance(f"✅ Prune-by-ids: {msg}")
-        return jsonify({'success': True, 'deleted': deleted, 'message': msg})
+        return jsonify({'success': True, 'deleted': total_deleted, 'message': msg})
 
     except Exception as e:
         log_maintenance(f"❌ Errore prune-by-ids: {e}")

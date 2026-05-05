@@ -2876,12 +2876,6 @@ def main():
         
         stats.report(cfg)
 
-        # Cleanup movie_feed_seen (keep 90 days / max 5000 rows)
-        try:
-            db.cleanup_movie_feed_seen()
-        except Exception as _csme:
-            logger.debug(f"cleanup_movie_feed_seen: {_csme}")
-
         # 5. Ciclo Fumetti (getcomics.org)
         comics_interval = int(getattr(cfg, 'comics_check_interval', 604800))  # default: 7 giorni
         _comics_due = comics_interval > 0 and (time.time() - last_comics_check) >= comics_interval

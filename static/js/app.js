@@ -7782,13 +7782,17 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         rows.forEach(row => {
             const safe = row.title.replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const date = (row.added_at || '').substring(0, 10);
-            html += `<tr data-id="${row.id}" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            const db   = row.db || 'archive';
+            const dbBadge = db === 'mfs'
+                ? `<span style="font-size:.68rem;padding:1px 4px;border-radius:3px;background:rgba(14,165,233,0.2);color:#38bdf8;margin-left:4px;">feed</span>`
+                : '';
+            html += `<tr data-id="${row.id}" data-db="${db}" style="border-bottom:1px solid rgba(255,255,255,0.04);">
                 <td style="padding:5px 8px;">
-                    <input type="checkbox" class="pkw-row-cb" data-id="${row.id}"
+                    <input type="checkbox" class="pkw-row-cb" data-id="${row.id}" data-db="${db}"
                         onchange="app._pruneKwUpdateCount()"
                         style="width:14px;height:14px;accent-color:var(--danger);cursor:pointer;">
                 </td>
-                <td style="padding:5px 8px;color:var(--text-primary);max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${safe}">${safe}</td>
+                <td style="padding:5px 8px;color:var(--text-primary);max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${safe}">${safe}${dbBadge}</td>
                 <td style="padding:5px 8px;color:var(--text-muted);text-align:right;white-space:nowrap;">${date}</td>
                 <td style="padding:5px 4px;text-align:center;">
                     <button class="btn btn-small" style="padding:1px 6px;background:transparent;border:none;color:var(--text-muted);cursor:pointer;"
@@ -7835,7 +7839,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     async pruneByKeywordDeleteSelected() {
         const checked = [...document.querySelectorAll('.pkw-row-cb:checked')];
         if (!checked.length) return;
-        const ids = checked.map(cb => parseInt(cb.dataset.id));
+        const ids            = checked.filter(cb => cb.dataset.db !== 'mfs').map(cb => parseInt(cb.dataset.id));
+        const movie_feed_ids = checked.filter(cb => cb.dataset.db === 'mfs').map(cb => parseInt(cb.dataset.id));
 
         if (!confirm(`${t('Eliminare definitivamente')} ${ids.length} ${t('record selezionati dall\'archivio?')}\n\n${t('L\'operazione non è reversibile.')}`)) return;
 
@@ -7846,7 +7851,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         try {
             const res  = await fetch(`${API_BASE}/api/db/prune-by-ids`, {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ids})
+                body: JSON.stringify({ids, movie_feed_ids})
             });
             const data = await res.json();
             if (data.success) {

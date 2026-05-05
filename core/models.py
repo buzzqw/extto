@@ -593,6 +593,15 @@ class Parser:
             return None
         if re.search(r'[Ss]\d{1,2}[Ee]\d{1,2}', title):
             return None
+        # Stagioni complete di serie TV (senza SxxExx)
+        if re.search(r'\bStagion[ei]\b|\bSeason\s+\d|\bComplete\s+S\d+|\bCOMPLETA\b', title, re.I):
+            return None
+        # Videogiochi: build, DLC, versioni, launcher
+        if re.search(r'\bDLCs?\b|\bPortable\b|Build\s+\d{5,}|\bv20\d\d[._]\d{2}[._]\d{2}\b|\bGameDrive\b|\bHypervisor\b|\bDenuvO\b', title, re.I):
+            return None
+        # ROM / emulazione console
+        if re.search(r'PlayStation\s+\d|Nintendo\s+(DS|3DS|64|Switch|Wii)|\bN64\b|\bGBA\b|\bNDS\b|\bPSX\b|\bPS[123]\b', title, re.I):
+            return None
         year = 0
         ym = re.search(r'\b(19|20)\d{2}\b', title)
         if ym:
