@@ -582,7 +582,7 @@ class LibtorrentClient:
                 'send_buffer_watermark':     mem_send_kb * 1024,
                 'send_buffer_low_watermark': 16384,
                 'read_cache_line_size':      1,
-                'alert_queue_size':          200,
+                'alert_queue_size':          1000,
                 'max_peer_list_size':        mem_peer_list,
             }
             # disk_disable_copy_on_write — introdotto in libtorrent 2.0.12
@@ -703,9 +703,9 @@ class LibtorrentClient:
             logger.debug(f"rename_episodes non attivo — skip rename per '{h.name()}'")
             return None
 
+        _db = None
         try:
             from ..renamer import rename_completed_torrent, rename_completed_movie
-            _db = None
             try:
                 from ..database import Database
                 _db = Database()
@@ -729,7 +729,13 @@ class LibtorrentClient:
             return new_path or None
         except Exception as _re:
             logger.warning(f"⚠️ Rename failed: {_re}")
-            return None   
+            return None
+        finally:
+            try:
+                if _db:
+                    _db.conn.close()
+            except Exception:
+                pass   
             
     @classmethod
     def _trigger_folder_scan(cls, h):
@@ -741,16 +747,27 @@ class LibtorrentClient:
             if not ep_info: return
             
             series_name = ep_info['name']
+            s_id = None
             from ..database import Database
-            db = Database()
-            c = db.conn.cursor()
-            c.execute("SELECT id FROM series WHERE name LIKE ?", (f"%{series_name}%",))
-            row = c.fetchone()
-            if not row: return
-            
-            s_id = row['id']
+            _fdb = None
+            try:
+                _fdb = Database()
+                c = _fdb.conn.cursor()
+                c.execute("SELECT id FROM series WHERE name LIKE ?", (f"%{series_name}%",))
+                row = c.fetchone()
+                if row:
+                    s_id = row['id']
+            finally:
+                try:
+                    if _fdb:
+                        _fdb.conn.close()
+                except Exception:
+                    pass
+            if not s_id:
+                return
+
             port = full_cfg.get('web_port', 5000)
-            
+
             import threading
             import requests
             def _bg_scan():
@@ -758,7 +775,7 @@ class LibtorrentClient:
                     logger.info(f"🔄 Starting automatic NAS scan for '{series_name}' post-download...")
                     requests.post(f"http://127.0.0.1:{port}/api/series/{s_id}/scan-archive", timeout=15)
                 except Exception: pass
-                
+
             # Lo avvia in un thread separato per non bloccare i download attivi
             threading.Thread(target=_bg_scan, daemon=True).start()
         except Exception:
@@ -1947,6 +1964,20 @@ class LibtorrentClient:
                     _cdb.delete_torrent_limit(ih)
                 except Exception as _le:
                     logger.debug(f"remove_torrent: DB limit cleanup failed: {_le}")
+                # Pulizia torrent_meta (accumulo infinito senza questo)
+                try:
+                    import sqlite3 as _sq
+                    from ..constants import DB_FILE
+                    with _sq.connect(DB_FILE, timeout=5) as _mc:
+                        _mc.execute("DELETE FROM torrent_meta WHERE hash=?", (ih.lower(),))
+                except Exception as _me:
+                    logger.debug(f"remove_torrent: torrent_meta cleanup: {_me}")
+                # Pulizia strutture class-level
+                ih_lower = ih.lower()
+                cls._restored_seeding.discard(ih_lower)
+                getattr(cls, '_nas_move_pending',    set()).discard(ih)
+                getattr(cls, '_recheck_pause_queue', set()).discard(ih)
+                cls._ui_state_cache = None
             except Exception as e:
                 logger.warning(f"⚠️ Unable to remove .fastresume file: {e}")
             return True

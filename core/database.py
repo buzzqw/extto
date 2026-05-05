@@ -1686,3 +1686,6 @@ class SmartCache:
 
     def set(self, key: str, val: str):
         self.data[key] = val
+        if len(self.data) > 5000:
+            # Evict oldest half (dict preserves insertion order Python 3.7+)
+            self.data = dict(list(self.data.items())[2500:])
