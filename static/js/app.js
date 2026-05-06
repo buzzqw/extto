@@ -5798,8 +5798,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             fetch(`${API_BASE}/api/torrent-tags`)
                 .then(r => r.json())
                 .then(tags => { 
-                    torrentTagsDb = tags; 
-                    this._updateTagFilterDropdown(); 
+                    torrentTagsDb = Object.fromEntries(Object.entries(tags).map(([h,t]) => [h.toLowerCase(), t]));
+                    this._updateTagFilterDropdown();
                 }).catch(()=>{});
 
             const unavail = document.getElementById('torrent-unavailable');
@@ -6353,9 +6353,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         let filteredTorrents = torrents;
         if (currentTagFilter !== 'all') {
             if (currentTagFilter === 'untagged') {
-                filteredTorrents = torrents.filter(torr => !torrentTagsDb[torr.hash] || String(torrentTagsDb[torr.hash]).trim() === '');
+                filteredTorrents = torrents.filter(torr => !torrentTagsDb[(torr.hash||'').toLowerCase()] || String(torrentTagsDb[(torr.hash||'').toLowerCase()]).trim() === '');
             } else {
-                filteredTorrents = torrents.filter(torr => torrentTagsDb[torr.hash] === currentTagFilter);
+                filteredTorrents = torrents.filter(torr => torrentTagsDb[(torr.hash||'').toLowerCase()] === currentTagFilter);
             }
         }
         
@@ -6450,7 +6450,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 }
                 sourceHtml = `<span style="color:${srcColor}; font-weight:600; margin-right:8px; border-right:1px solid rgba(255,255,255,0.1); padding-right:8px;" title="Sorgente"><i class="fa-solid ${srcIcon}"></i> ${this._esc(srcLabel)}</span>`;
                 
-                const myTag = torrentTagsDb[torr.hash];
+                const myTag = torrentTagsDb[(torr.hash||'').toLowerCase()];
                 if (myTag && String(myTag).trim() !== '') {
                     sourceHtml += `<span class="badge badge-secondary" style="margin-right:8px; padding:0.2rem 0.5rem; font-size:0.65rem; background:rgba(255,255,255,0.1); text-transform: none; letter-spacing: normal;"><i class="fa-solid fa-tag"></i> ${this._esc(myTag)}</span>`;
                 }
@@ -6826,7 +6826,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         if (!hash || !tag) return;
         
         // Aggiorna sempre la mappa locale per il filtraggio UI
-        torrentTagsDb[hash] = tag;
+        torrentTagsDb[(hash||'').toLowerCase()] = tag;
         this._updateTagFilterDropdown();
         
         // Comunica SEMPRE il nuovo tag al Database del server
@@ -6909,8 +6909,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             });
             
             hashes.forEach(h => {
-                if (tag) torrentTagsDb[h] = tag;
-                else delete torrentTagsDb[h];
+                const hl = (h||'').toLowerCase();
+                if (tag) torrentTagsDb[hl] = tag;
+                else delete torrentTagsDb[hl];
             });
             
             this.showToast(t('Tag aggiornati con successo'), 'success');

@@ -1232,6 +1232,7 @@ class LibtorrentClient:
                             full_cfg = cls._load_full_cfg()
 
                             # --- Notifica completamento ---
+                            _is_series = False
                             try:
                                 s = h.status()
                                 from ..notifier import Notifier
@@ -1246,6 +1247,18 @@ class LibtorrentClient:
                                     active_time_secs = s.active_time,
                                     is_series        = _is_series,
                                 )
+                                # Per torrent non-serie (film, fumetti, manuali) la notifica
+                                # è già stata inviata qui: marca pp_notified per evitare
+                                # la notifica duplicata dal loop post-processing di extto3.
+                                if not _is_series:
+                                    import sqlite3 as _sq3
+                                    with _sq3.connect(DB_FILE, timeout=5) as _mn:
+                                        _mn.execute("""
+                                            INSERT INTO torrent_meta (hash, pp_notified, updated_at)
+                                            VALUES (?, 1, strftime('%s','now'))
+                                            ON CONFLICT(hash) DO UPDATE SET
+                                                pp_notified=1, updated_at=excluded.updated_at
+                                        """, (_ih_key,))
                             except Exception as e:
                                 logger.warning(f"⚠️ Completion notification error: {e}")
 
