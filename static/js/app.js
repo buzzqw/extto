@@ -6017,8 +6017,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             this.directRemoveTorrent(hash, false);
         } else {
             // Scarico in corso: chiedi se cancellare i file temporanei parziali
-            const withFiles = confirm(t('Eliminare anche i file temporanei parziali dal disco?'));
-            this.directRemoveTorrent(hash, withFiles);
+            // "Annulla" = abort, non "rimuovi senza file"
+            if (!confirm(t('Rimuovere il torrent dal client? I file parziali verranno mantenuti sul disco.'))) return;
+            this.directRemoveTorrent(hash, false);
         }
     },
 
