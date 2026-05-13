@@ -539,7 +539,7 @@ def _load_series_from_db_web() -> list:
             rows = conn.execute(
                 """SELECT name, quality_requirement, seasons, language, enabled,
                           archive_path, timeframe, aliases, ignored_seasons,
-                          tmdb_id, subtitle, season_subfolders
+                          tmdb_id, subtitle, season_subfolders, exclude
                    FROM series ORDER BY name"""
             ).fetchall()
         result = []
@@ -565,6 +565,7 @@ def _load_series_from_db_web() -> list:
                 'tmdb_id':           r['tmdb_id'] or '',
                 'subtitle':          r['subtitle'] or '',
                 'season_subfolders': bool(r['season_subfolders']) if r['season_subfolders'] is not None else False,
+                'exclude':           r['exclude'] or '',
             })
         return result
     except Exception as e:
@@ -588,8 +589,8 @@ def _save_series_to_db(series_list: list, sync_delete: bool = False) -> None:
                 """INSERT INTO series
                        (name, quality_requirement, seasons, language, enabled,
                         archive_path, timeframe, aliases, ignored_seasons, tmdb_id, subtitle,
-                        season_subfolders)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                        season_subfolders, exclude)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(name) DO UPDATE SET
                        quality_requirement = excluded.quality_requirement,
                        seasons             = excluded.seasons,
@@ -601,7 +602,8 @@ def _save_series_to_db(series_list: list, sync_delete: bool = False) -> None:
                        ignored_seasons     = excluded.ignored_seasons,
                        tmdb_id             = excluded.tmdb_id,
                        subtitle            = excluded.subtitle,
-                       season_subfolders   = excluded.season_subfolders
+                       season_subfolders   = excluded.season_subfolders,
+                       exclude             = excluded.exclude
                 """,
                 (
                     s['name'],
@@ -616,6 +618,7 @@ def _save_series_to_db(series_list: list, sync_delete: bool = False) -> None:
                     str(s.get('tmdb_id', '') or ''),
                     str(s.get('subtitle', '') or ''),
                     1 if s.get('season_subfolders', False) else 0,
+                    str(s.get('exclude', '') or ''),
                 )
             )
         # Rimuove le serie non più presenti (solo se sync_delete=True)
@@ -870,6 +873,7 @@ def parse_movies_config() -> List[dict]:
             'language': m['language'],
             'enabled':  bool(m['enabled']),
             'subtitle': m['subtitle'],
+            'exclude':  m.get('exclude', ''),
         }
         for m in raw
     ]
@@ -1398,7 +1402,8 @@ def update_series_fields(series_id: int):
                 ignored_seasons     = ?,
                 tmdb_id             = ?,
                 subtitle            = ?,
-                season_subfolders   = ?
+                season_subfolders   = ?,
+                exclude             = ?
             WHERE id = ?
         """, (
             _get('name',              row['name']),
@@ -1413,6 +1418,7 @@ def update_series_fields(series_id: int):
             str(_get('tmdb_id',       row['tmdb_id'] or '') or ''),
             str(_get('subtitle',      row['subtitle'] or '') or ''),
             1 if _get('season_subfolders', bool(row['season_subfolders'] if 'season_subfolders' in row.keys() else 0)) else 0,
+            str(_get('exclude',       row['exclude'] if 'exclude' in row.keys() else '') or ''),
             series_id,
         ))
         conn5.commit()

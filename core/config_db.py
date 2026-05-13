@@ -134,6 +134,13 @@ def _get_conn() -> sqlite3.Connection:
         stmt = stmt.strip()
         if stmt:
             conn.execute(stmt)
+    for col_sql in [
+        "ALTER TABLE movies_config ADD COLUMN exclude TEXT NOT NULL DEFAULT ''",
+    ]:
+        try:
+            conn.execute(col_sql)
+        except Exception:
+            pass
     conn.commit()
     return conn
 
@@ -240,7 +247,7 @@ def get_movies_config() -> List[Dict]:
         conn = _get_conn()
         try:
             rows = conn.execute(
-                "SELECT id, name, year, quality, language, enabled, subtitle "
+                "SELECT id, name, year, quality, language, enabled, subtitle, exclude "
                 "FROM movies_config ORDER BY name"
             ).fetchall()
             return [dict(r) for r in rows]
@@ -256,8 +263,8 @@ def save_movies_config(movies: List[Dict]) -> None:
             conn.execute("DELETE FROM movies_config")
             for m in movies:
                 conn.execute(
-                    "INSERT INTO movies_config(name,year,quality,language,enabled,subtitle) "
-                    "VALUES(?,?,?,?,?,?)",
+                    "INSERT INTO movies_config(name,year,quality,language,enabled,subtitle,exclude) "
+                    "VALUES(?,?,?,?,?,?,?)",
                     (
                         m.get('name', ''),
                         str(m.get('year', '') or ''),
@@ -265,6 +272,7 @@ def save_movies_config(movies: List[Dict]) -> None:
                         m.get('language', m.get('lang', 'ita')),
                         1 if m.get('enabled', True) else 0,
                         m.get('subtitle', ''),
+                        m.get('exclude', ''),
                     )
                 )
             conn.commit()

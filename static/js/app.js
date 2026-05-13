@@ -1576,6 +1576,7 @@ const app = {
             setFieldValue('edit-series-tmdb-id',  series.tmdb_id  || '');
             setFieldValue('edit-series-timeframe', series.timeframe != null ? series.timeframe : 0);
             setFieldValue('edit-series-season-subfolders', !!series.season_subfolders);
+            setFieldValue('edit-series-exclude',  series.exclude || '');
 
             // Subtitle preset
             const subPresetEl  = document.getElementById('edit-series-subtitle-preset');
@@ -1661,6 +1662,7 @@ const app = {
             set('extto-edit-timeframe',     series.timeframe || 0);
             set('extto-edit-archive-path',  series.archive_path || '');
             set('extto-edit-aliases',       (series.aliases || []).join(', '));
+            set('extto-edit-exclude',       series.exclude || '');
             set('extto-edit-enabled',       series.enabled === true || series.enabled === 'yes');
 
             // Lingua
@@ -1701,6 +1703,7 @@ const app = {
             timeframe:    parseInt(document.getElementById('extto-edit-timeframe').value) || 0,
             archive_path: document.getElementById('extto-edit-archive-path').value.trim(),
             aliases:      document.getElementById('extto-edit-aliases').value.split(',').map(a => a.trim()).filter(a => a),
+            exclude:      document.getElementById('extto-edit-exclude')?.value.trim() || '',
             enabled:      document.getElementById('extto-edit-enabled').checked,
             tmdb_id:      document.getElementById('extto-edit-tmdb-id')?.value || '',
             subtitle: (() => {
@@ -1762,6 +1765,8 @@ const app = {
             document.getElementById('radarr-edit-year').value          = movie.year || '';
             document.getElementById('radarr-edit-quality').value       = movie.quality || '720p-1080p';
             document.getElementById('radarr-edit-enabled').checked     = movie.enabled === true || movie.enabled === 'yes';
+            const radarrExcludeEl = document.getElementById('radarr-edit-exclude');
+            if (radarrExcludeEl) radarrExcludeEl.value = movie.exclude || '';
 
             const lang    = (movie.language || app._primaryLang || '').toLowerCase();
             const langSel = document.getElementById('radarr-edit-language');
@@ -1797,6 +1802,7 @@ const app = {
             quality:  document.getElementById('radarr-edit-quality').value,
             language: langVal === 'custom' ? langCustom.trim() : langVal,
             enabled:  document.getElementById('radarr-edit-enabled').checked,
+            exclude:  document.getElementById('radarr-edit-exclude')?.value.trim() || '',
             subtitle: (() => {
                 const p = document.getElementById('radarr-edit-subtitle-preset')?.value || '';
                 return p === 'custom' ? (document.getElementById('radarr-edit-subtitle-custom')?.value.trim() || '') : p;
@@ -2010,6 +2016,7 @@ const app = {
             archive_path: document.getElementById('edit-series-archive-path').value.trim(),
             timeframe: parseInt(document.getElementById('edit-series-timeframe').value) || 0,
             aliases: document.getElementById('edit-series-aliases').value.split(',').map(a => a.trim()).filter(a => a),
+            exclude: document.getElementById('edit-series-exclude')?.value.trim() || '',
             tmdb_id: document.getElementById('edit-series-tmdb-id')?.value || '',
             season_subfolders: document.getElementById('edit-series-season-subfolders')?.checked || false,
             subtitle: (() => {
@@ -2652,6 +2659,8 @@ const app = {
             document.getElementById('edit-movie-language').value = (movie.language || app._primaryLang || 'ita').toLowerCase();
             document.getElementById('edit-movie-quality').value = movie.quality || '720p-1080p';
             document.getElementById('edit-movie-enabled').checked = movie.enabled === true || movie.enabled === 'yes';
+            const editMovieExcludeEl = document.getElementById('edit-movie-exclude');
+            if (editMovieExcludeEl) editMovieExcludeEl.value = movie.exclude || '';
             _populateSubtitleWidget('edit-movie-subtitle-preset', 'edit-movie-subtitle-custom', movie.subtitle || '');
             
             document.getElementById('edit-movie-modal').classList.add('active');
@@ -2668,6 +2677,7 @@ const app = {
             language: (() => { const s = document.getElementById('edit-movie-language'); return s.value === 'custom' ? (document.getElementById('edit-movie-language-custom')?.value.trim() || '') : s.value; })(),
             quality: document.getElementById('edit-movie-quality').value,
             enabled: document.getElementById('edit-movie-enabled').checked,
+            exclude: document.getElementById('edit-movie-exclude')?.value.trim() || '',
             subtitle: (() => {
                 const p = document.getElementById('edit-movie-subtitle-preset')?.value || '';
                 return p === 'custom' ? (document.getElementById('edit-movie-subtitle-custom')?.value.trim() || '') : p;
@@ -5429,6 +5439,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             subtitle: subPreset === 'custom' ? (document.getElementById('series-subtitle-custom')?.value.trim() || '') : (subPreset || ''),
             enabled: document.getElementById('series-enabled').checked,
             aliases: document.getElementById('series-aliases').value.split(',').map(a => a.trim()).filter(a => a),
+            exclude: document.getElementById('series-exclude')?.value.trim() || '',
             tmdb_id: document.getElementById('series-tmdb-id')?.value || '',
             season_subfolders: document.getElementById('series-season-subfolders')?.checked || false,
         };
@@ -5457,6 +5468,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             quality: document.getElementById('movie-quality').value,
             language: lang === 'custom' ? document.getElementById('movie-language-custom').value : lang,
             subtitle: subPreset === 'custom' ? (document.getElementById('movie-subtitle-custom')?.value.trim() || '') : (subPreset || ''),
+            exclude: document.getElementById('movie-exclude')?.value.trim() || '',
         };
         try {
             const r = await fetch(`${API_BASE}/api/config`);
@@ -8829,6 +8841,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                             <div style="font-weight:600; color:${data.cfg_info.enabled ? 'var(--success)' : 'var(--warning)'};">${data.cfg_info.enabled ? t('Attivo') : t('Sospeso')}</div>
                         </div>
                     </div>`;
+                if (data.cfg_info.exclude) {
+                    html += `<div style="margin-top:0.75rem; background:var(--bg-main); padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); display:flex; align-items:center; gap:0.6rem;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:800; letter-spacing:1px; white-space:nowrap;">${t('Escludi se contiene')}</span>
+                        <span style="color:var(--warning); font-family:var(--font-mono); font-size:0.85rem;">${this.escapeHtml(data.cfg_info.exclude)}</span>
+                    </div>`;
+                }
             }
             html += `</div></div>`;
             document.getElementById('radarr-details').innerHTML = html;

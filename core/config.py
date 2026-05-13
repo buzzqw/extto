@@ -377,6 +377,7 @@ class Config:
                 "ALTER TABLE series ADD COLUMN tmdb_id TEXT DEFAULT ''",
                 "ALTER TABLE series ADD COLUMN subtitle TEXT DEFAULT ''",
                 "ALTER TABLE series ADD COLUMN season_subfolders INTEGER DEFAULT 0",
+                "ALTER TABLE series ADD COLUMN exclude TEXT DEFAULT ''",
             ]:
                 try:
                     conn.execute(col_sql)
@@ -387,7 +388,7 @@ class Config:
             rows = conn.execute(
                 """SELECT name, seasons, language, enabled, archive_path,
                           timeframe, aliases, ignored_seasons, tmdb_id,
-                          subtitle, quality_requirement, season_subfolders
+                          subtitle, quality_requirement, season_subfolders, exclude
                    FROM series ORDER BY name"""
             ).fetchall()
             conn.close()
@@ -417,6 +418,7 @@ class Config:
                     'tmdb_id':           r['tmdb_id'] or '',
                     'subtitle':          r['subtitle'] or '',
                     'season_subfolders': bool(r['season_subfolders']) if r['season_subfolders'] is not None else False,
+                    'exclude':           r['exclude'] or '',
                 })
 
             # Sanity check: se TUTTE le serie hanno seasons='1+' ma _migrated_series
@@ -477,10 +479,11 @@ class Config:
             movies_raw = _cdb.get_movies_config()
             self.movies = [
                 {
-                    'name': m['name'],
-                    'year': m['year'],
-                    'qual': m['quality'],
-                    'lang': m['language'],
+                    'name':    m['name'],
+                    'year':    m['year'],
+                    'qual':    m['quality'],
+                    'lang':    m['language'],
+                    'exclude': m.get('exclude', ''),
                 }
                 for m in movies_raw
                 if m.get('enabled', 1)
@@ -544,6 +547,12 @@ class Config:
                           for c in candidates)
             if not matched:
                 continue
+            # Controlla parole/frasi da escludere
+            exclude_list = [e.strip() for e in str(s.get('exclude', '') or '').split(',') if e.strip()]
+            if exclude_list:
+                excl_norm = re.sub(r'[._\-]', ' ', name.lower())
+                if any(re.search(rf'\b{re.escape(e.lower())}\b', excl_norm) for e in exclude_list):
+                    continue
             seasons = s['seasons']
             if seasons == '*':
                 return s
@@ -577,9 +586,15 @@ class Config:
             if not all(re.search(rf'\b{re.escape(w)}\b', title_norm) for w in words):
                 continue
 
+            # Controlla parole/frasi da escludere
+            exclude_list = [e.strip() for e in str(m.get('exclude', '') or '').split(',') if e.strip()]
+            if exclude_list:
+                if any(re.search(rf'\b{re.escape(e.lower())}\b', title_norm) for e in exclude_list):
+                    continue
+
             cfg_year = str(m.get('year', '') or '').strip()
             if not cfg_year: return m
-            
+
             try:
                 wanted = int(cfg_year)
                 # FIX: Usa \d (singolo) per trovare le cifre dell'anno

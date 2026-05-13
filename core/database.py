@@ -71,6 +71,7 @@ class Database:
             "ALTER TABLE series ADD COLUMN ignored_seasons TEXT DEFAULT '[]'",
             "ALTER TABLE series ADD COLUMN tmdb_id TEXT DEFAULT ''",
             "ALTER TABLE series ADD COLUMN subtitle TEXT DEFAULT ''",
+            "ALTER TABLE series ADD COLUMN exclude TEXT DEFAULT ''",
         ]:
             try: 
                 c.execute(col_sql)
