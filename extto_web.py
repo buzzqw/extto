@@ -1545,10 +1545,13 @@ def scan_one_series_archive(series_id: int):
         for (sea, epi), best in found.items():
             fake_title = f"{series_name} S{sea:02d}E{epi:02d}"
                 
-            c.execute('SELECT id, quality_score FROM episodes WHERE series_id=? AND season=? AND episode=?', (series_id, sea, epi))
+            c.execute('SELECT id, quality_score, magnet_hash FROM episodes WHERE series_id=? AND season=? AND episode=?', (series_id, sea, epi))
             row = c.fetchone()
             if row:
-                if (row['quality_score'] or 0) <= int(best):
+                # Se l'episodio è stato scaricato via torrent (magnet_hash valido), non
+                # sovrascrivere: il DB è autorevole. Solo le entry scan-archive (hash=NULL)
+                # vengono aggiornate se il file su disco ha uno score migliore.
+                if not row['magnet_hash'] and (row['quality_score'] or 0) <= int(best):
                     c.execute('UPDATE episodes SET title=?, quality_score=?, downloaded_at=? WHERE id=?', (fake_title, int(best), now_iso, row['id']))
                     upserts += 1
             else:

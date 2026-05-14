@@ -1960,10 +1960,13 @@ def main():
                         seasons_to_check = list(range(min_s, max_s + 1))
 
                     for season in seasons_to_check:
-                        # Episodi già posseduti in DB per questa stagione
+                        # Episodi già posseduti in DB per questa stagione.
+                        # Esclude magnet_hash=NULL: sono entry inserite da scan-archive
+                        # (rilevate su disco ma mai scaricate via torrent). Vanno ancora
+                        # cercate dal gap filling per ottenere un download "reale" con hash.
                         c2 = db.conn.cursor()
                         c2.execute(
-                            "SELECT episode FROM episodes WHERE series_id=? AND season=? ORDER BY episode",
+                            "SELECT episode FROM episodes WHERE series_id=? AND season=? AND magnet_hash IS NOT NULL ORDER BY episode",
                             (series_id, season)
                         )
                         have = set(r[0] for r in c2.fetchall())
