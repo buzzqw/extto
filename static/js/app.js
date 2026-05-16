@@ -3866,12 +3866,13 @@ const app = {
         const el = document.getElementById('browser-handlers-card');
         if (!el) return;
         const base = API_BASE;
+        const origin = window.location.origin;
 
         // Il one-liner bash contiene $f che NON deve essere interpolato da JS —
         // lo costruiamo come stringa normale (non template literal) e lo iniettiamo dopo.
         const files = ['extto-magnet', 'extto-torrent', 'extto-magnet.desktop', 'extto-torrent.desktop', 'install.sh'];
         const dlParts = files.map(f =>
-            'curl -fsSL "' + base + '/api/browser-handlers/download?file=' + encodeURIComponent(f) + '" -o "' + f + '"'
+            'curl -fsSL "' + origin + '/api/browser-handlers/download?file=' + encodeURIComponent(f) + '" -o "' + f + '"'
         ).join(' && \\\n  ');
         const oneliner = 'cd /tmp && mkdir -p extto-handlers && cd extto-handlers && \\\n  ' +
                          dlParts + ' && \\\n  chmod +x extto-magnet extto-torrent install.sh && bash install.sh';
@@ -3916,7 +3917,7 @@ const app = {
                         '</p>' +
                         '<div style="position:relative;">' +
                             '<pre id="bh-oneliner" style="background:var(--bg-main);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:0.78rem;overflow-x:auto;white-space:pre;margin:0;padding-right:48px;"></pre>' +
-                            '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-oneliner\').textContent).then(()=>app.showToast(t(\'Copiato!\'),\'success\'))" ' +
+                            '<button onclick="app.copyText(\'bh-oneliner\')" ' +
                                     'class="btn btn-small btn-secondary" ' +
                                     'style="position:absolute;top:6px;right:6px;" title="' + t('Copia negli appunti') + '">' +
                                 '<i class="fa-regular fa-copy"></i>' +
@@ -3936,7 +3937,7 @@ const app = {
                     '</summary>' +
                     '<div style="margin-top:10px;position:relative;">' +
                         '<pre id="bh-uninstall" style="background:var(--bg-main);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:0.78rem;overflow-x:auto;white-space:pre;margin:0;padding-right:48px;"></pre>' +
-                        '<button onclick="navigator.clipboard.writeText(document.getElementById(\'bh-uninstall\').textContent).then(()=>app.showToast(t(\'Copiato!\'),\'success\'))" ' +
+                        '<button onclick="app.copyText(\'bh-uninstall\')" ' +
                                 'class="btn btn-small btn-secondary" ' +
                                 'style="position:absolute;top:6px;right:6px;" title="' + t('Copia negli appunti') + '">' +
                             '<i class="fa-regular fa-copy"></i>' +
@@ -5122,13 +5123,25 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
             this._copyFallback(m);
         }
     },
-    _copyFallback(text) {
-        const t = document.createElement('textarea');
-        t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
-        document.body.appendChild(t); t.focus(); t.select();
-        try { document.execCommand('copy'); this.showToast(t('Magnet copied to clipboard'), 'success'); }
+    copyText(elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const text = el.textContent;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text)
+                .then(() => this.showToast(t('Copiato!'), 'success'))
+                .catch(() => this._copyFallback(text, true));
+        } else {
+            this._copyFallback(text, true);
+        }
+    },
+    _copyFallback(text, generic) {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand('copy'); this.showToast(generic ? t('Copiato!') : t('Magnet copied to clipboard'), 'success'); }
         catch(e) { this.showToast(t('Copy failed'), 'error'); }
-        document.body.removeChild(t);
+        document.body.removeChild(ta);
     },
 
     // Modals
