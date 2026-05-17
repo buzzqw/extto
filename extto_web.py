@@ -2236,9 +2236,11 @@ def run_backup():
 
         EXCLUDE_PATTERNS = [
             '__pycache__', '*.pyc', '*.pyo',
-            'backups/', '*.log', '.git/', '.venv/', '.claude/',
+            'backups/', '*.log', '*.log.*', '.git/', '.venv/', '.claude/',
             'extto_torrents_state/',   # dati resume libtorrent: non portabili
             '*.db-wal', '*.db-shm',   # SQLite WAL/SHM: temporanei, possono superare 60 MB
+            'corsaro_cache.json',      # cache RSS Corsaro: rigenerabile
+            'static/posters/',         # poster TMDB: pesanti, rigenerabili
         ]
 
         def _should_exclude(rel_path: str) -> bool:
@@ -6400,9 +6402,12 @@ def prune_archive_keyword():
         import re as _re
         all_parts     = [k.strip() for k in _re.split(r'[,\s]+', raw) if k.strip()]
         script_tokens = [p.lower() for p in all_parts if p.lower() in _SCRIPT_RANGES]
-        regular_kws   = [k for k in all_parts if k.lower() not in _SCRIPT_RANGES and len(k) >= 2]
+        _all_kws      = [k for k in all_parts if k.lower() not in _SCRIPT_RANGES and len(k) >= 2]
+        # =keyword → word-boundary match (Python scan); plain keyword → LIKE substring
+        exact_kws     = [k[1:] for k in _all_kws if k.startswith('=') and len(k) >= 3]
+        regular_kws   = [k for k in _all_kws if not k.startswith('=')]
 
-        if not script_tokens and not regular_kws:
+        if not script_tokens and not exact_kws and not regular_kws:
             return jsonify({'success': False, 'error': 'Keyword troppo corte (minimo 2 caratteri)'})
 
         if not os.path.exists(ARCHIVE_FILE):
@@ -6412,7 +6417,7 @@ def prune_archive_keyword():
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
 
-            if not script_tokens:
+            if not script_tokens and not exact_kws:
                 # Fast path: solo SQL LIKE
                 conditions = ' OR '.join(['title LIKE ?' for _ in regular_kws])
                 params = [f'%{k}%' for k in regular_kws]
@@ -6424,12 +6429,14 @@ def prune_archive_keyword():
                 )
                 rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['added_at']} for r in c.fetchall()]
             else:
-                # Scan Python: SQLite LIKE non supporta range Unicode
+                # Scan Python: Unicode ranges o word-boundary (=keyword)
                 c.execute("SELECT id, title, added_at FROM archive ORDER BY added_at DESC")
                 matched = []
                 for r in c:
                     title = r['title'] or ''
-                    ok = any(kw.lower() in title.lower() for kw in regular_kws)
+                    t_low = title.lower()
+                    ok = any(kw.lower() in t_low for kw in regular_kws)
+                    ok = ok or any(_re.search(rf'\b{_re.escape(kw.lower())}\b', t_low) for kw in exact_kws)
                     ok = ok or any(_title_has_script(title, tok) for tok in script_tokens)
                     if ok:
                         matched.append({'id': r['id'], 'title': title, 'added_at': r['added_at']})
@@ -6441,7 +6448,7 @@ def prune_archive_keyword():
             from core.database import Database as _CoreDB
             with _CoreDB() as _cdb:
                 _c2 = _cdb.conn.cursor()
-                if not script_tokens:
+                if not script_tokens and not exact_kws:
                     _cond = ' OR '.join(['(title LIKE ? OR name LIKE ?)' for _ in regular_kws])
                     _par  = [v for k in regular_kws for v in (f'%{k}%', f'%{k}%')]
                     _c2.execute(f"SELECT id, title, found_at FROM movie_feed_seen WHERE {_cond} ORDER BY found_at DESC LIMIT ?", _par + [limit])
@@ -6451,7 +6458,9 @@ def prune_archive_keyword():
                     mfs_rows = []
                     for r in _c2:
                         _t = r['title'] or ''
-                        ok = any(kw.lower() in _t.lower() for kw in regular_kws)
+                        _t_low = _t.lower()
+                        ok = any(kw.lower() in _t_low for kw in regular_kws)
+                        ok = ok or any(_re.search(rf'\b{_re.escape(kw.lower())}\b', _t_low) for kw in exact_kws)
                         ok = ok or any(_title_has_script(_t, tok) for tok in script_tokens)
                         if ok:
                             mfs_rows.append({'id': r['id'], 'title': _t, 'added_at': r['found_at'], 'db': 'mfs'})
@@ -6466,7 +6475,7 @@ def prune_archive_keyword():
         combined     = rows + mfs_rows
         total_combined = total + len(mfs_rows)
 
-        used_kws = regular_kws + script_tokens
+        used_kws = regular_kws + ['=' + k for k in exact_kws] + script_tokens
         log_maintenance(f"🔍 Keyword-search '{', '.join(used_kws)}': {total} archivio + {len(mfs_rows)} feed film trovati")
         return jsonify({'success': True, 'total': total_combined, 'returned': len(combined),
                         'keywords': used_kws, 'rows': combined})

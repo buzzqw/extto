@@ -7766,6 +7766,29 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         el.focus();
     },
 
+    pruneAddPornFilter() {
+        const el = document.getElementById('prune-keyword-input');
+        if (!el) return;
+        // tutte con = → word-boundary, evita falsi positivi (Riddick, hotel, classic, analyst…)
+        const PORN_KW = ['=xxx', '=porno', '=porn', '=hentai', '=hot', '=adult', '=erotico', '=erotica', '=erotic', '=hardcore', '=milf', '=tits', '=dick', '=ass', '=whore', '=anal'];
+        const cur = el.value.trim();
+        const existing = cur ? cur.split(/[,\s]+/).map(k => k.trim().toLowerCase()).filter(Boolean) : [];
+        const toAdd = PORN_KW.filter(k => !existing.includes(k));
+        el.value = cur ? (cur + (toAdd.length ? ', ' + toAdd.join(', ') : '')) : toAdd.join(', ');
+        el.focus();
+    },
+
+    contentFilterAddPorn() {
+        const el = document.getElementById('content-filter-list');
+        if (!el) return;
+        // is_content_filtered() usa già \b word-boundary, no prefisso = necessario
+        const PORN_KW = ['xxx', 'porno', 'porn', 'hentai', 'hot', 'adult', 'erotico', 'erotica', 'erotic', 'hardcore', 'milf', 'tits', 'dick', 'ass', 'whore', 'anal'];
+        const lines = el.value.split('\n').map(l => l.trim()).filter(Boolean);
+        PORN_KW.forEach(k => { if (!lines.includes(k)) lines.push(k); });
+        el.value = lines.join('\n');
+        el.focus();
+    },
+
     _pruneKwRenderResults(data, resBox) {
         if (!resBox) return;
         const rows  = data.rows || [];
@@ -7774,9 +7797,12 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const _SCRIPT_TOKENS = ['[cjk]','[cirillico]','[arabo]','[ebraico]','[thai]','[non-latino]'];
         const kws = (data.keywords || []).map(k => {
             const isScript = _SCRIPT_TOKENS.includes(k.toLowerCase());
-            return isScript
-                ? `<code style="background:rgba(99,102,241,0.2);padding:1px 5px;border-radius:3px;"><i class="fa-solid fa-globe" style="font-size:.7em;margin-right:2px;"></i>${this.escapeHtml(k)}</code>`
-                : `<code style="background:rgba(239,68,68,0.15);padding:1px 5px;border-radius:3px;">${this.escapeHtml(k)}</code>`;
+            const isExact  = k.startsWith('=');
+            if (isScript)
+                return `<code style="background:rgba(99,102,241,0.2);padding:1px 5px;border-radius:3px;"><i class="fa-solid fa-globe" style="font-size:.7em;margin-right:2px;"></i>${this.escapeHtml(k)}</code>`;
+            if (isExact)
+                return `<code style="background:rgba(239,68,68,0.15);padding:1px 5px;border-radius:3px;" title="Parola intera (word boundary)">${this.escapeHtml(k.slice(1))} <i class="fa-solid fa-text-width" style="font-size:.65em;opacity:.7;"></i></code>`;
+            return `<code style="background:rgba(239,68,68,0.15);padding:1px 5px;border-radius:3px;">${this.escapeHtml(k)}</code>`;
         }).join(' ');
 
         if (total === 0) {
