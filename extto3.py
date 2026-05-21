@@ -1706,6 +1706,7 @@ def main():
                     sub_bonus = cfg._sub_score(item['title'], sub_req) if sub_req else 0
 
                     mov['config_name'] = match['name']
+                    mov['archive_path'] = match.get('archive_path', '')
                     safe_magnet = sanitize_magnet(item['magnet'], item['title']) or item['magnet']
 
                     base_score    = mov['quality'].score() + cfg.get_custom_score(item['title'])
@@ -2372,6 +2373,7 @@ def main():
                     match = cfg.find_movie_match(mov_p['name'], mov_p['year'])
                     if match and match['name'] == mov_cfg['name']:
                         mov_p['config_name'] = match['name']
+                        mov_p['archive_path'] = match.get('archive_path', '')
                         safe_magnet = sanitize_magnet(item['magnet'], item['title']) or item['magnet']
 
                         dl_ok, msg = db.check_movie(mov_p, safe_magnet, match.get('qual', match.get('quality', '')))
@@ -3165,6 +3167,7 @@ def main():
                                     match = cfg_live.find_movie_match(mov['name'], mov['year'])
                                     if match and cfg_live._lang_ok(item['title'], match.get('language', match.get('lang', 'ita'))):
                                         mov['config_name'] = match['name']
+                                        mov['archive_path'] = match.get('archive_path', '')
                                         safe_mag = sanitize_magnet(item['magnet'], item['title']) or item['magnet']
                                         dl, msg = db.check_movie(mov, safe_mag, match.get('quality', match.get('qual', '')))
                                         if dl:
