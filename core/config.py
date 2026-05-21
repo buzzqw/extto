@@ -103,7 +103,7 @@ class Config:
         # Move episodes / misc
         self.move_episodes           = False
         self.web_port                = 5000
-        self.comics_check_interval   = 604800  # 7 giorni
+        self.comics_check_interval   = 86400   # 1 giorno
         self.min_free_space_gb       = 10.0
 
         self._load()
@@ -294,9 +294,9 @@ class Config:
         except Exception:
             self.web_port = 5000
         try:
-            self.comics_check_interval = int(str(raw.get('comics_check_interval', 604800)).split('#')[0].strip())
+            self.comics_check_interval = int(str(raw.get('comics_check_interval', 86400)).split('#')[0].strip())
         except Exception:
-            self.comics_check_interval = 604800
+            self.comics_check_interval = 86400
         try:
             self.min_free_space_gb = float(str(raw.get('min_free_space_gb', 10)).split('#')[0].strip())
         except Exception:
