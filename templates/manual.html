@@ -23,7 +23,7 @@
                             <a href="#man-seasons" onclick="manualGoTo('man-seasons')">3. Stagioni — Sintassi</a>
                             <a href="#man-libtorrent" onclick="manualGoTo('man-libtorrent')">4. libtorrent (client embedded)</a>
                             <a href="#man-clients" onclick="manualGoTo('man-clients')">5. Client esterni (qBit, Transmission, aria2)</a>
-                            <a href="#man-notifications" onclick="manualGoTo('man-notifications')">6. Notifiche (Telegram, Email)</a>
+                            <a href="#man-notifications" onclick="manualGoTo('man-notifications')">6. Notifiche (Telegram, Email, Webhook)</a>
                             <a href="#man-engine" onclick="manualGoTo('man-engine')">7. Motore — Sorgenti, Jackett/Prowlarr e Fast RSS</a>
                             <a href="#man-gapfilling" onclick="manualGoTo('man-gapfilling')">8. Gap Filling (Deep Search)</a>
                             <a href="#man-tmdb" onclick="manualGoTo('man-tmdb')">9. TMDB — Esplora e Rinomina</a>
@@ -511,7 +511,7 @@
                         <div class="man-section" id="man-notifications">
                             <div class="man-section-header">
                                 <span class="man-section-num">06</span>
-                                <h2>Notifiche — Telegram e Email</h2>
+                                <h2>Notifiche — Telegram, Email e Webhook</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
@@ -543,8 +543,18 @@
                                     <div class="man-param"><div class="man-param-name">email_from / email_to</div><div class="man-param-desc">Indirizzo mittente e destinatario. Possono coincidere.</div></div>
                                     <div class="man-param"><div class="man-param-name">email_password</div><div class="man-param-desc">Password SMTP. Per Gmail, generare una <em>App Password</em> in Impostazioni Account → Sicurezza → Password per le app.</div></div>
                                 </div>
+                                <div class="man-subsection">Webhook</div>
+                                <p>EXTTO può inviare notifiche JSON a qualsiasi endpoint HTTP compatibile (ntfy, Gotify, n8n, Home Assistant, script custom…). Il payload viene inviato con metodo <code>POST</code> e <code>Content-Type: application/json</code>.</p>
+                                <div class="man-params">
+                                    <div class="man-param"><div class="man-param-name">notify_webhook_url</div><div class="man-param-desc">URL dell'endpoint che riceverà le notifiche. Lascia vuoto per disabilitare. Esempio: <code>https://ntfy.sh/mio-canale</code> oppure <code>http://gotify.local/message?token=xxx</code>.</div></div>
+                                    <div class="man-param"><div class="man-param-name">notify_webhook_secret</div><div class="man-param-desc">Segreto opzionale per firmare ogni payload con HMAC-SHA256. Se configurato, viene aggiunto l'header <code>X-EXTTO-Signature: sha256=&lt;hex&gt;</code>. Lascia vuoto se il tuo endpoint non richiede autenticazione.</div></div>
+                                </div>
+                                <div class="man-callout man-callout-info">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <div><strong>Struttura payload:</strong> ogni notifica contiene <code>event</code> (tipo di evento: <code>download_started</code>, <code>download_complete</code>, <code>gap_filled</code>, <code>post_processing</code>, <code>system_event</code>), <code>ts</code> (timestamp Unix) e i dettagli specifici dell'evento (nome serie, episodio, qualità, ecc.).</div>
+                                </div>
                                 <div class="man-subsection">Jellyfin / Plex — Library Refresh</div>
-                                <p>Oltre a Telegram ed Email, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Integrazioni</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a> per i dettagli.</p>
+                                <p>Oltre a Telegram, Email e Webhook, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Integrazioni</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a> per i dettagli.</p>
                             </div>
                         </div>
 
@@ -702,7 +712,7 @@
                                     <i class="fa-solid fa-circle-info"></i>
                                     <div><strong>Deep Gap Filling:</strong> Ogni 6 ore, il motore esegue una ricerca chirurgica (Deep Search) in cascata per ogni episodio mancante:
                                         <ol style="margin:.5rem 0 0 1rem;">
-                                            <li>Archivio locale (<code>extto_archive.db</code>) — gratuito e istantaneo</li>
+                                            <li>Archivio locale (<code>extto_archive.db</code>) — gratuito e istantaneo, sempre eseguito</li>
                                             <li>Jackett / Prowlarr — API <code>tvsearch</code> con stagione ed episodio esatti; max 5 query/serie ogni 6h</li>
                                             <li>eD2k / aMule — solo se <code>gap_fill_ed2k=yes</code> e aMule configurato</li>
                                             <li>Motori di ricerca web (BitSearch, TPB, Knaben, BTDigg, LimeTorrents, Torrentz2, TorrentsCSV) — solo se <code>websearch_engines</code> configurato; query testuale <code>"Nome S##E##"</code></li>
@@ -710,8 +720,14 @@
                                     Il sistema si ferma al primo livello che trova un candidato valido.</div>
                                 </div>
 
+                                <div class="man-callout man-callout-info">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <div><strong>Cooldown 23h (smart gap-fill):</strong> Per evitare di bombardare Jackett e i motori web ad ogni ciclo per gli stessi episodi non trovati, EXTTO registra il timestamp di ogni ricerca live. Se un episodio è stato cercato nelle ultime 23 ore, la query live viene saltata. La ricerca nell'archivio locale viene sempre eseguita perché è gratuita e istantanea. Questo garantisce almeno una ricerca live al giorno per ogni episodio mancante.</div>
+                                </div>
+
                                <div class="man-params">
                                     <div class="man-param"><div class="man-param-name">gap_filling</div><div class="man-param-desc"><code>yes</code> / <code>no</code>. Abilita o disabilita il gap filling per tutte le serie. Quando attivo, ad ogni ciclo viene verificata la completezza di ogni stagione configurata e i torrent mancanti vengono cercati su tutti gli indexer configurati (Jackett e/o Prowlarr).</div></div>
+                                    <div class="man-param"><div class="man-param-name">gap_fill_max_per_series</div><div class="man-param-desc">Numero intero. Limite massimo di episodi mancanti scaricati per stagione per ciclo. <code>0</code> = nessun limite (default — comportamento precedente). Utile su connessioni lente o con molte serie monitorate contemporaneamente. Configurabile in <strong>Configurazione → Avanzate DL → Automazione &amp; Ricerca</strong>.</div></div>
                                 </div>
 
                                 <div class="man-subsection">Ignorare Stagioni Specifiche (Unmonitor)</div>
