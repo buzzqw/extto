@@ -3054,6 +3054,43 @@ def movies_seen():
         logger.exception(f"❌ movies_seen: {e}")
         return jsonify({'items': [], 'total': 0, 'pages': 1}), 500
 
+_mfs_migrated = False
+
+@app.route('/api/movies/seen/grouped')
+def movies_seen_grouped():
+    """Film dai feed raggruppati per nome, con paginazione."""
+    global _mfs_migrated
+    try:
+        page      = int(request.args.get('page', 0))
+        q         = request.args.get('q', '').strip()
+        sort      = request.args.get('sort', 'found_at')
+        direction = request.args.get('dir', 'desc')
+        from core.database import Database as _CoreDB
+        _db = _CoreDB()
+        if not _mfs_migrated:
+            _db.migrate_movie_feed_names()
+            _mfs_migrated = True
+        result = _db.get_movies_seen_grouped(page=page, q=q, sort=sort,
+                                             direction=direction, per_page=50)
+        return jsonify(result)
+    except Exception as e:
+        logger.exception(f"❌ movies_seen_grouped: {e}")
+        return jsonify({'groups': [], 'total': 0, 'pages': 1}), 500
+
+@app.route('/api/movies/seen/by-name')
+def movies_seen_by_name():
+    """Tutte le release di un film specifico."""
+    try:
+        name = request.args.get('name', '').strip()
+        if not name:
+            return jsonify([])
+        from core.database import Database as _CoreDB
+        items = _CoreDB().get_movies_seen_by_name(name)
+        return jsonify(items)
+    except Exception as e:
+        logger.exception(f"❌ movies_seen_by_name: {e}")
+        return jsonify([]), 500
+
 @app.route('/api/archive')
 def get_archive():
     """Ricerca nell'archivio"""

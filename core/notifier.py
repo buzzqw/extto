@@ -58,6 +58,10 @@ class Notifier:
         self.em_to      = str(self.cfg.get('email_to', '')).strip()
         self.em_pass    = str(self.cfg.get('email_password', '')).strip()
 
+        # Webhook generico (POST JSON su URL arbitrario — ntfy, Gotify, n8n, Home Assistant, ecc.)
+        self.wh_url    = str(self.cfg.get('notify_webhook_url', '')).strip()
+        self.wh_secret = str(self.cfg.get('notify_webhook_secret', '')).strip()
+
         # SSL
         self.ctx = ssl.create_default_context()
         self.ctx.check_hostname = False
@@ -75,6 +79,24 @@ class Notifier:
         return self._i18n.get(key, key)
 
     # -----------------------------------------------------------------------
+
+    def _send_webhook(self, event: str, data: dict):
+        """POST JSON a notify_webhook_url. Firma HMAC-SHA256 opzionale via notify_webhook_secret."""
+        if not self.wh_url:
+            return
+        try:
+            import time as _t
+            import hmac as _hmac
+            import hashlib as _hs
+            payload = json.dumps({'event': event, 'ts': _t.time(), **data}).encode()
+            headers = {'Content-Type': 'application/json', 'User-Agent': 'EXTTO/1.0'}
+            if self.wh_secret:
+                sig = _hmac.new(self.wh_secret.encode(), payload, _hs.sha256).hexdigest()
+                headers['X-EXTTO-Signature'] = f'sha256={sig}'
+            req = urllib.request.Request(self.wh_url, data=payload, headers=headers)
+            urllib.request.urlopen(req, timeout=5, context=self.ctx)
+        except Exception as e:
+            logger.debug(f"Webhook send error: {e}")
 
     # Timestamp ultimo invio Telegram (condiviso tra istanze tramite class var)
     _tg_last_sent: float = 0.0
@@ -240,6 +262,10 @@ class Notifier:
         )
         self._send_telegram(msg)
         self._send_email(f"EXTTO: {series_name} {ep_label}", msg)
+        self._send_webhook('download', {
+            'series': series_name, 'season': season, 'episode': episode,
+            'release': release_name, 'score': score, 'trigger': trigger,
+        })
 
     def notify_movie(self, name, year, release_name, score):
         msg = (
@@ -250,6 +276,7 @@ class Notifier:
         )
         self._send_telegram(msg)
         self._send_email(f"EXTTO: {self.t('Download Film')} {name}", msg)
+        self._send_webhook('movie', {'title': name, 'year': year, 'release': release_name, 'score': score})
 
     def notify_gap_filled(self, name, season, episode):
         msg = (
@@ -261,6 +288,7 @@ class Notifier:
         )
         self._send_telegram(msg)
         self._send_email(f"EXTTO: {self.t('Recuperato')} {name} S{season:02d}E{episode:02d}", msg)
+        self._send_webhook('gap_filled', {'series': name, 'season': season, 'episode': episode})
 
     def notify_series_complete(self, series_name):
         msg = (
@@ -361,6 +389,7 @@ class Notifier:
         )
         self._send_telegram(msg)
         self._send_email(f"EXTTO Alert: {title}", msg)
+        self._send_webhook('system', {'event_type': event_type, 'message': message})
 
     def notify_post_processing(self, title_name, size_bytes, time_sec,
                                 action_log, is_series=True, is_processed=False,
@@ -435,3 +464,7 @@ class Notifier:
 
         self._send_telegram(msg)
         self._send_email(f"✅ EXTTO: {self.t('Completato')} - {title_name}", msg)
+        self._send_webhook('completed', {
+            'title': title_name, 'size_bytes': size_bytes,
+            'is_series': is_series, 'renamed_to': renamed_to, 'final_path': final_path,
+        })

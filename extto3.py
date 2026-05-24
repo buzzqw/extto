@@ -38,7 +38,7 @@ from core import (
     rescore_archive,
 )
 from core.clients.amule import AmuleClient
-from core.models import Quality
+from core.models import Quality, extract_clean_movie_name
 from core.tagger import Tagger, TAG_SERIES, TAG_FILM
 
 def _extract_ed2k_hash(uri: str) -> str:
@@ -1528,11 +1528,18 @@ def main():
         def _resolve_series_id(ep_name: str) -> int | None:
             nonlocal _series_cache
             if _series_cache is None:
-                _series_cache = db.conn.execute('SELECT id, name FROM series').fetchall()
+                _series_cache = db.conn.execute('SELECT id, name, aliases FROM series').fetchall()
             norm = _norm_name(ep_name)
             for row in _series_cache:
                 if _name_match(_norm_name(row['name']), norm):
                     return row['id']
+                try:
+                    import json as _jj
+                    for alias in _jj.loads(row['aliases'] or '[]'):
+                        if _name_match(_norm_name(alias), norm):
+                            return row['id']
+                except Exception:
+                    pass
             return None
 
         for item in candidates:
@@ -1540,6 +1547,7 @@ def main():
             if ep:
                 match = cfg.find_series_match(ep['name'], ep['season'])
                 if match:
+                    ep['name'] = match['name']  # normalizza al nome canonico (gestisce alias RSS)
                     timeframe = match.get('timeframe', 0)
                     min_rank  = cfg._min_res_from_qual_req(match.get('qual', ''))
                     max_rank  = cfg._max_res_from_qual_req(match.get('qual', ''))
@@ -1684,7 +1692,7 @@ def main():
                     _q = mov['quality']
                     db.record_movie_seen(
                         title=item['title'],
-                        name=mov['name'],
+                        name=extract_clean_movie_name(item['title']),
                         year=mov.get('year', 0) or 0,
                         resolution=_q.resolution,
                         codec=_q.codec,
@@ -1997,8 +2005,13 @@ def main():
                         if gaps:
                             logger.info(f"   → {serie_cfg['name']} S{season:02d} gap: {gaps}")
                             live_queries_count = 0  # <--- Contatore di sicurezza anti-ban
-                        
+                            _gap_fill_max = int(config_db.get_setting('gap_fill_max_per_series', '0') or 0)
+                            _gaps_sent_this_season = 0
+
                             for ep_num in gaps:
+                                if _gap_fill_max > 0 and _gaps_sent_this_season >= _gap_fill_max:
+                                    logger.debug(f"   → {serie_cfg['name']} S{season:02d}: gap fill limit ({_gap_fill_max}) raggiunto, episodi restanti al prossimo ciclo")
+                                    break
                                 # Protezione: se l'episodio è già nel client (magari aggiunto in questo ciclo) skip
                                 # Ma qui abbiamo solo hash, non sappiamo Exx senza parse...
                                 # Il check_series dentro il loop gap gestirà la deduplica Exx.
@@ -2037,6 +2050,7 @@ def main():
                                         if _ok_send:
                                             stats.gaps_filled += 1
                                             stats.downloads_started += 1
+                                            _gaps_sent_this_season += 1
                                             logger.info(f"   ✅ GAP FILLED [feed-cache/{_used_cl}]: {serie_cfg['name']} {ep_str} (score={_fm['quality_score']}) '{_fm['title']}'")
                                             notifier.notify_gap_filled(serie_cfg['name'], season, ep_num)
                                             tagger.tag_torrent(_fm_mag, TAG_SERIES)
@@ -2056,6 +2070,13 @@ def main():
                                 if _feed_downloaded:
                                     continue  # episodio gestito, vai al prossimo gap
 
+                                # Controlla se abbiamo già fatto una ricerca live nelle ultime 23h.
+                                # L'archivio locale è sempre interrogato (gratis); Jackett/web vengono
+                                # saltati se troppo recenti per non spammare gli indexer.
+                                _skip_live_search = db.was_gap_recently_searched(series_id, season, ep_num)
+                                if _skip_live_search:
+                                    logger.debug(f"      ⏭️  {ep_str}: skip live search (cercato nelle ultime 23h)")
+
                                 results = []
                                 # 1. Cerca prima nell'archivio locale (gratis e veloce)
                                 for sq in search_queries:
@@ -2067,7 +2088,7 @@ def main():
                                     logger.debug(f"      📂 Archive: no results for {ep_str}")
 
                                 # 2. DEEP SEARCH MIRATA: interroga tutti gli indexer configurati
-                                if not results and is_deep_gap_run and live_queries_count < 5:
+                                if not results and is_deep_gap_run and live_queries_count < 5 and not _skip_live_search:
                                     from core.engine import Engine as _Eng
                                     _active_indexers = _Eng._get_indexers(cfg)
                                     if not _active_indexers:
@@ -2193,6 +2214,7 @@ def main():
                                                     if amule_cl.download_result(_best_am['idx'], name=_best_am['name']):
                                                         stats.gaps_filled += 1
                                                         stats.downloads_started += 1
+                                                        _gaps_sent_this_season += 1
                                                         logger.info(f"   ✅ GAP FILLED [amule/eD2k]: "
                                                                     f"{serie_cfg['name']} {ep_str} "
                                                                     f"(score={_best_am_score})")
@@ -2237,11 +2259,12 @@ def main():
                                                 except Exception as _wse:
                                                     logger.warning(f"      ⚠️ Web search error: {_wse}")
 
+                                        db.update_gap_search_time(series_id, season, ep_num)
                                         live_queries_count += 1
                                         time.sleep(2)
 
                                 # Web search per ciclo triggered dall'utente (senza deep gap run)
-                                if not results and run_series_triggered and not is_deep_gap_run:
+                                if not results and run_series_triggered and not is_deep_gap_run and not _skip_live_search:
                                     _ws_engs = getattr(cfg, 'websearch_engines', []) or []
                                     if _ws_engs:
                                         _lang_trig = serie_cfg.get('language', serie_cfg.get('lang', 'ita'))
@@ -2260,18 +2283,12 @@ def main():
 
                                 best_ep_cand = None
                                 best_ep_score = -1
-                                _gap_series_id = None
-                                try:
-                                    _gap_series_id = _resolve_series_id(serie_cfg['name'])
-                                except Exception as e:
-                                    logger.debug(f"_resolve_series_id: {e}")
-                                    pass
 
                                 for item in results:
                                     lang_req = serie_cfg.get('language', serie_cfg.get('lang', 'ita'))
                                     if not cfg._lang_ok(item['title'], lang_req):
                                         continue
-                                
+
                                     ep_p = Parser.parse_series_episode(item['title'])
                                     if ep_p and ep_p['season'] == season and ep_p['episode'] == ep_num:
                                         match = cfg.find_series_match(ep_p['name'], ep_p['season'])
@@ -2284,45 +2301,40 @@ def main():
                                         _score = ep_p['quality'].score() if hasattr(ep_p['quality'], 'score') else 0
 
                                         # Registra il match parziale (lingua OK, qualità non matchava o era già ok)
-                                        if _gap_series_id:
-                                            _reason = None if dl_ok else (msg or 'partial')
-                                            try:
-                                                db.record_feed_match(_gap_series_id, season, ep_num,
-                                                                     item['title'], int(_score),
-                                                                     _reason, safe_magnet)
-                                            except Exception as e:
-                                                logger.debug(f"record_feed_match gap: {e}")
-                                                pass
+                                        _reason = None if dl_ok else (msg or 'partial')
+                                        try:
+                                            db.record_feed_match(series_id, season, ep_num,
+                                                                 item['title'], int(_score),
+                                                                 _reason, safe_magnet)
+                                        except Exception as e:
+                                            logger.debug(f"record_feed_match gap: {e}")
 
                                         if dl_ok:
                                             if _score > best_ep_score:
                                                 best_ep_score = _score
-                                                # Identifica l'uploader o usa Archivio come fallback
                                                 source = item.get('uploader') or "Archivio"
                                                 best_ep_cand = (ep_p, safe_magnet, source)
-                                            
+
                                 if best_ep_cand:
                                     ep_p, safe_magnet, source = best_ep_cand
                                     ok_send, used_cl = _send_with_fallback(safe_magnet)
-                                    if not ok_send and _gap_series_id:
-                                        db.undo_episode_send(_gap_series_id, season, ep_num, safe_magnet)
+                                    if not ok_send:
+                                        db.undo_episode_send(series_id, season, ep_num, safe_magnet)
                                         logger.warning(f"⚠️  Send failed (gap-fill): {serie_cfg['name']} S{season:02d}E{ep_num:02d} — DB record removed")
                                     if ok_send:
                                         stats.gaps_filled += 1
                                         stats.downloads_started += 1
+                                        _gaps_sent_this_season += 1
                                         logger.info(f"   ✅ GAP FILLED [{used_cl}] via {source}: {serie_cfg['name']} {ep_str} (Score: {best_ep_score})")
                                         notifier.notify_gap_filled(serie_cfg['name'], season, ep_num)
                                         tagger.tag_torrent(safe_magnet, TAG_SERIES)
                                         _ui_tag(safe_magnet, TAG_SERIES, source)
-                                        # Registra il match come 'downloaded'
-                                        if _gap_series_id:
-                                            try:
-                                                db.record_feed_match(_gap_series_id, season, ep_num,
-                                                                     ep_p['title'], int(best_ep_score),
-                                                                     'downloaded', safe_magnet)
-                                            except Exception as e:
-                                                logger.debug(f"record_feed_match gap downloaded: {e}")
-                                                pass
+                                        try:
+                                            db.record_feed_match(series_id, season, ep_num,
+                                                                 ep_p['title'], int(best_ep_score),
+                                                                 'downloaded', safe_magnet)
+                                        except Exception as e:
+                                            logger.debug(f"record_feed_match gap downloaded: {e}")
 
         if not comics_only_cycle and not series_only_cycle:
             # 4b. Ricerca Retroattiva Film in Archivio

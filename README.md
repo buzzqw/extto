@@ -44,6 +44,8 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 | Multi-engine web search | **✅ 6 engines** | ❌ Indexer only |
 | Cloudflare bypass | **✅ FlareSolverr** | ❌ Not possible |
 | Tag-based folder routing | **✅ Built-in** | ❌ Manual |
+| Webhook notifications | **✅ Built-in** | ❌ Via plugins only |
+| Smart gap-fill cooldown | **✅ 24 h per episode** | ❌ Retries every cycle |
 | Web UI | **✅ Modern, flat** | Mixed |
 
 ---
@@ -82,6 +84,25 @@ Two levels of filtering: the **Blacklist** blocks at parse time but still archiv
 
 ### 🌐 Browser Integration
 Click a `magnet:` link or a `.torrent` file anywhere in your browser — EXTTO receives it instantly. One-time setup via a script generated directly from the Web UI, already configured with your server URL.
+
+### 🔔 Webhook Notifications
+Connect EXTTO to any external service — **ntfy, Gotify, n8n, Home Assistant, Make, Zapier** — with a single URL.  
+Every download, upgrade, gap-fill, and system event fires a signed JSON POST to your endpoint.  
+Optional HMAC-SHA256 signature for secure verification. No plugins, no extra setup.
+
+```
+notify_webhook_url    = https://ntfy.sh/my-channel
+notify_webhook_secret = mysecret     # optional, signs payloads
+```
+
+### 🔍 Smart Gap-Fill with 24 h Cooldown
+The gap-filler is smarter now. For each missing episode it tracks the last time a live indexer search was performed.  
+The local archive is always scanned (free), but Jackett and web-search queries fire **at most once per 24 hours** per episode — no more hammering your indexers for the same buco every 6-hour cycle.  
+A configurable `gap_fill_max_per_series` cap prevents a series with many gaps from monopolising search slots.
+
+### 🏷️ Alias-Aware RSS Matching
+When an Italian RSS feed publishes a release under an alternative title (e.g. *"Agenti di S.H.I.E.L.D."* instead of the configured *"Agents of S.H.I.E.L.D."*), EXTTO now recognises it automatically.  
+Aliases defined in the series config are checked at every stage — RSS parsing, deduplication, feed-match tracking, and gap-fill search queries.
 
 ### 🔒 Privacy First
 VPN killswitch that binds all traffic to `tun0`/`wg0`. Automatic IP blocklist updates. Your downloads stay private.
@@ -194,6 +215,8 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 | Ricerca web multi-motore | **✅ 6 motori** | ❌ Solo indexer |
 | Bypass Cloudflare | **✅ FlareSolverr** | ❌ Impossibile |
 | Cartelle per tag | **✅ Integrato** | ❌ Manuale |
+| Notifiche webhook | **✅ Integrato** | ❌ Solo tramite plugin |
+| Gap fill con cooldown | **✅ 24 h per episodio** | ❌ Riprova ad ogni ciclo |
 | Web UI | **✅ Moderna, flat** | Variabile |
 
 ---
@@ -232,6 +255,25 @@ Due livelli di filtraggio: la **Blacklist** blocca al parsing ma archivia comunq
 
 ### 🌐 Integrazione Browser
 Clicca su un link `magnet:` o su un file `.torrent` ovunque nel browser — EXTTO lo riceve istantaneamente. Setup unico via uno script generato direttamente dalla Web UI, già configurato con l'URL del tuo server.
+
+### 🔔 Notifiche Webhook
+Collega EXTTO a qualsiasi servizio esterno — **ntfy, Gotify, n8n, Home Assistant, Make, Zapier** — con un solo URL.  
+Ogni download, upgrade, gap-fill ed evento di sistema invia un POST JSON firmato al tuo endpoint.  
+Firma HMAC-SHA256 opzionale per la verifica sicura. Nessun plugin, nessuna configurazione aggiuntiva.
+
+```
+notify_webhook_url    = https://ntfy.sh/mio-canale
+notify_webhook_secret = segreto     # opzionale, firma i payload
+```
+
+### 🔍 Gap Fill Intelligente con Cooldown 24 h
+Il gap filler è diventato più intelligente. Per ogni episodio mancante tiene traccia dell'ultima volta che è stata eseguita una ricerca live su un indexer.  
+L'archivio locale viene sempre interrogato (è gratis), ma le query a Jackett e ai motori web vengono eseguite **al massimo una volta ogni 24 ore** per episodio — fine allo spam degli indexer ad ogni ciclo di 6 ore.  
+Un parametro `gap_fill_max_per_series` configurabile impedisce a una serie con molti buchi di monopolizzare tutti gli slot di ricerca.
+
+### 🏷️ Matching RSS con Alias
+Quando un feed RSS italiano pubblica una release con un titolo alternativo (es. *"Agenti di S.H.I.E.L.D."* invece del nome configurato *"Agents of S.H.I.E.L.D."*), EXTTO ora la riconosce automaticamente.  
+Gli alias definiti nella configurazione della serie vengono controllati in ogni fase — parsing RSS, deduplicazione, tracciamento feed-match e query di gap-fill.
 
 ### 🔒 Privacy Prima di Tutto
 VPN killswitch che vincola il traffico a `tun0`/`wg0`. Aggiornamento automatico delle IP blocklist. I tuoi download restano privati.

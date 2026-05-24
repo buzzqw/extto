@@ -986,6 +986,7 @@ const app = {
     // -------------------------------------------------------------------------
     _mfsState: { page: 0, q: '', sort: 'found_at', dir: 'desc' },
     _mfsSearchTimer: null,
+    _mfsGroupMap: {},   // idx -> group_name per _mfsToggleGroup
 
     discoverySetTab(tab) {
         const tmdb = document.getElementById('discover-panel-tmdb');
@@ -1010,11 +1011,12 @@ const app = {
     async loadMoviesSeen(page = 0) {
         const state = this._mfsState;
         state.page = page;
+        this._mfsGroupMap = {};
         const params = new URLSearchParams({
             page: page, q: state.q, sort: state.sort, dir: state.dir
         });
         try {
-            const res  = await fetch(`${API_BASE}/api/movies/seen?${params}`);
+            const res  = await fetch(`${API_BASE}/api/movies/seen/grouped?${params}`);
             const data = await res.json();
             const rows = document.getElementById('mfs-rows');
             const tot  = document.getElementById('mfs-total');
@@ -1024,7 +1026,7 @@ const app = {
             if (tot) tot.textContent = `${data.total} film trovati nei feed`;
 
             // Aggiorna icone ordinamento
-            ['name','year','quality_score','found_at'].forEach(col => {
+            ['name','year','quality_score','count','found_at'].forEach(col => {
                 const el = document.getElementById(`mfs-sort-${col}`);
                 if (!el) return;
                 el.textContent = state.sort === col ? (state.dir === 'desc' ? '▼' : '▲') : '';
@@ -1040,39 +1042,36 @@ const app = {
             };
 
             let html = '';
-            data.items.forEach(item => {
-                const safeTitle  = this.escapeHtml(item.title || '');
-                const safeMagnet = this.escapeHtml(item.magnet || '');
-                const name  = this.escapeHtml(item.name || item.title || '');
-                const year  = item.year || '—';
-                const res   = item.resolution || 'unknown';
-                const codec = (item.codec && item.codec !== 'unknown') ? ` ${item.codec.toUpperCase()}` : '';
-                const audio = (item.audio  && item.audio  !== 'unknown') ? ` ${item.audio.toUpperCase()}` : '';
+            data.groups.forEach((g, idx) => {
+                this._mfsGroupMap[idx] = g.group_name;
+                const name  = this.escapeHtml(g.group_name || '');
+                const year  = g.year || '—';
+                const res   = g.best_resolution || 'unknown';
                 const badge = RES_BADGE[res] || RES_BADGE['unknown'];
-                const date  = item.found_at ? this.formatDate(item.found_at) : '—';
-                const src   = item.source ? `<small style="color:var(--text-muted)"> · ${this.escapeHtml(item.source)}</small>` : '';
-                const hasMag = !!item.magnet;
-                html += `<div class="table-row" data-magnet="${safeMagnet}" title="${safeTitle}">
-                    <div class="mfs-col-name"><small><strong>${name}</strong>${src}</small></div>
+                const date  = g.latest_found ? this.formatDate(g.latest_found) : '—';
+                const cnt   = g.cnt || 1;
+                html += `<div class="table-row" style="cursor:default;">
+                    <div class="mfs-col-name"><small><strong>${name}</strong></small></div>
                     <div class="mfs-col-year"><small>${year}</small></div>
                     <div class="mfs-col-res">
-                        <span style="font-size:.7rem;padding:1px 5px;border-radius:4px;${badge}">${res}${codec}${audio}</span>
+                        <span style="font-size:.7rem;padding:1px 5px;border-radius:4px;${badge}">${res}</span>
+                    </div>
+                    <div class="mfs-col-count">
+                        <span style="font-size:.72rem;color:var(--text-muted);">${cnt}</span>
                     </div>
                     <div class="mfs-col-date">${date}</div>
                     <div class="table-actions">
                         <button class="btn btn-small" style="background:#0ea5e9;color:white;border:none;"
-                                onclick="app.searchArchiveOnTMDB('${this.escapeJs(item.name || item.title)}')"
+                                onclick="app.searchArchiveOnTMDB('${this.escapeJs(g.group_name)}')"
                                 title="Cerca su TMDB"><i class="fa-solid fa-magnifying-glass"></i> TMDB</button>
-                        ${hasMag ? `<button class="btn btn-small btn-success"
-                                onclick="app._promptNoRename('${this.escapeJs(item.magnet)}','',true,'${this.escapeJs(item.title)}')"
-                                title="Scarica"><i class="fa-solid fa-download"></i></button>
-                        <button class="btn btn-small btn-secondary"
-                                onclick="app.copyMagnet('${this.escapeJs(item.magnet)}')"
-                                title="Copia magnet"><i class="fa-regular fa-copy"></i></button>` : ''}
+                        <button id="mfs-exp-btn-${idx}" class="btn btn-small btn-secondary"
+                                onclick="app._mfsToggleGroup(${idx})"
+                                title="Mostra sorgenti"><i class="fa-solid fa-chevron-down"></i></button>
                     </div>
-                </div>`;
+                </div>
+                <div id="mfs-sub-${idx}" class="mfs-sub-rows" style="display:none;"></div>`;
             });
-            if (!data.items.length) {
+            if (!data.groups.length) {
                 html = `<div style="padding:30px;text-align:center;color:var(--text-muted);">
                     ${t('Nessun film trovato nei feed')}<br>
                     <small>${t('I film appariranno qui al prossimo ciclo di scraping')}</small></div>`;
@@ -1089,6 +1088,72 @@ const app = {
                 pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.loadMoviesSeen(${page+1})"><i class="fa-solid fa-chevron-right"></i></button>`;
             pag.innerHTML = pagHtml;
         } catch(e) { console.error('loadMoviesSeen:', e); }
+    },
+
+    async _mfsToggleGroup(idx) {
+        const container = document.getElementById(`mfs-sub-${idx}`);
+        const btn       = document.getElementById(`mfs-exp-btn-${idx}`);
+        if (!container) return;
+
+        if (container._mfsLoaded) {
+            const open = container.style.display === 'none';
+            container.style.display = open ? '' : 'none';
+            if (btn) btn.querySelector('i').className =
+                open ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+            return;
+        }
+
+        container.innerHTML = `<div style="padding:.4rem 1rem;color:var(--text-muted);font-size:.8rem;">
+            <i class="fa-solid fa-spinner fa-spin"></i></div>`;
+        container.style.display = '';
+        if (btn) btn.querySelector('i').className = 'fa-solid fa-chevron-up';
+
+        const groupName = this._mfsGroupMap[idx];
+        try {
+            const res   = await fetch(`${API_BASE}/api/movies/seen/by-name?name=${encodeURIComponent(groupName)}`);
+            const items = await res.json();
+            const RES_BADGE = {
+                '2160p': 'background:#7c3aed;color:#fff',
+                '1080p': 'background:#2563eb;color:#fff',
+                '720p':  'background:#059669;color:#fff',
+                '576p':  'background:#6b7280;color:#fff',
+                '480p':  'background:#6b7280;color:#fff',
+                'unknown': 'background:#374151;color:#9ca3af',
+            };
+            let inner = '';
+            items.forEach(item => {
+                const res    = item.resolution || 'unknown';
+                const codec  = (item.codec && item.codec !== 'unknown') ? ` ${item.codec.toUpperCase()}` : '';
+                const audio  = (item.audio  && item.audio  !== 'unknown') ? ` ${item.audio.toUpperCase()}` : '';
+                const badge  = RES_BADGE[res] || RES_BADGE['unknown'];
+                const date   = item.found_at ? this.formatDate(item.found_at) : '—';
+                const src    = item.source ? `<span style="color:var(--text-muted);font-size:.72rem"> · ${this.escapeHtml(item.source)}</span>` : '';
+                const hasMag = !!item.magnet;
+                inner += `<div class="mfs-item-row">
+                    <div class="mfs-item-title" title="${this.escapeHtml(item.title || '')}">
+                        ${this.escapeHtml(item.title || '')}${src}
+                    </div>
+                    <div style="text-align:center;">
+                        <span style="font-size:.68rem;padding:1px 4px;border-radius:3px;${badge}">${res}${codec}${audio}</span>
+                    </div>
+                    <div style="text-align:center;font-size:.72rem;color:var(--text-muted);">${date}</div>
+                    <div></div>
+                    <div class="mfs-item-actions">
+                        ${hasMag ? `<button class="btn btn-small btn-success"
+                                onclick="app._promptNoRename('${this.escapeJs(item.magnet)}','',true,'${this.escapeJs(item.title)}')"
+                                title="Scarica"><i class="fa-solid fa-download"></i></button>
+                            <button class="btn btn-small btn-secondary"
+                                onclick="app.copyMagnet('${this.escapeJs(item.magnet)}')"
+                                title="Copia magnet"><i class="fa-regular fa-copy"></i></button>` : ''}
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = inner || `<div style="padding:.4rem 1rem;color:var(--text-muted);font-size:.8rem;">Nessuna sorgente</div>`;
+            container._mfsLoaded = true;
+        } catch(e) {
+            container.innerHTML = `<div style="padding:.4rem 1rem;color:#ef4444;font-size:.8rem;">Errore caricamento</div>`;
+            console.error('_mfsToggleGroup:', e);
+        }
     },
 
     _mfsSort(col) {
@@ -3859,6 +3924,18 @@ const app = {
                     ${this.renderField({key:'email_to', label:'To', type:'text'}, settings)}
                     ${this.renderField({key:'email_password', label:'Pass', type:'password'}, settings)}
                 </div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-header"><i class="fa-solid fa-share-nodes"></i> Webhook</div>
+                <div class="card-body">
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 1rem 0; line-height:1.5;">
+                        Invia notifiche JSON a qualsiasi URL (ntfy, Gotify, n8n, Home Assistant…). Il payload include <code>event</code>, <code>ts</code> e i dettagli del download. Firma HMAC-SHA256 opzionale.
+                    </p>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        ${this.renderField({key:'notify_webhook_url', label:'URL Webhook', type:'text', desc:'URL endpoint che riceverà le notifiche POST JSON. Lascia vuoto per disabilitare.'}, settings)}
+                        ${this.renderField({key:'notify_webhook_secret', label:'Segreto HMAC', type:'password', desc:'Firma ogni payload con HMAC-SHA256 (header X-EXTTO-Signature). Lascia vuoto se il tuo endpoint non lo richiede.'}, settings)}
+                    </div>
+                </div>
             </div>`;
     },
 
@@ -4016,6 +4093,8 @@ const app = {
                          d:'Ignora i torrent più vecchi di N giorni. 0 = nessun filtro. Esempio: 365 = ignora torrent caricati oltre 1 anno fa.'},
                         {k:'stop_on_old_page_threshold', l:'Stop Scraping (%)', t:'number', flex:1,
                          d:"Ottimizzazione: se una pagina ha più del X% di torrent già in archivio, smette di scorrere le pagine successive. Esempio: 0.8 = ferma all'80%. Range: 0.0–1.0."},
+                        {k:'gap_fill_max_per_series', l:'Max Gap per Stagione', t:'number', flex:1,
+                         d:'Numero massimo di episodi mancanti scaricati per stagione per ciclo. 0 = nessun limite (default). Utile su connessioni lente o con molte serie.'},
                     ],
                 ]
             },

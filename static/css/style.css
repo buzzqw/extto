@@ -2478,9 +2478,24 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 /* ============================================================================
    MOVIE FEED SEEN — griglia "Dal Feed" nel pannello Esplora
    ============================================================================ */
-#mfs-list .table-row { grid-template-columns: 1fr 60px 90px 90px 130px; }
+#mfs-list .table-row { grid-template-columns: 1fr 60px 90px 60px 90px 130px; }
 #mfs-list .table-header { font-weight: 600; font-size: .78rem; }
 .mfs-col-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mfs-col-year  { text-align: center; }
 .mfs-col-res   { text-align: center; }
+.mfs-col-count { text-align: center; font-size: .75rem; }
 .mfs-col-date  { text-align: center; font-size: .75rem; color: var(--text-muted); }
+.mfs-sub-rows  { grid-column: 1 / -1; padding: 0; }
+.mfs-item-row  {
+    display: grid;
+    grid-template-columns: 1fr 90px 80px 70px auto;
+    align-items: center;
+    gap: .5rem;
+    padding: .3rem .75rem .3rem 1.75rem;
+    border-top: 1px solid var(--border);
+    font-size: .78rem;
+    background: var(--bg-secondary);
+}
+.mfs-item-row:last-child { border-radius: 0 0 6px 6px; }
+.mfs-item-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.mfs-item-actions { display: flex; gap: 4px; justify-content: flex-end; }

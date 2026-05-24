@@ -263,6 +263,18 @@ class Database:
         ''')
         c.execute('CREATE INDEX IF NOT EXISTS idx_series_metadata ON series_metadata(series_id, season)')
 
+        # Traccia l'ultima ricerca live (Jackett/web) per ogni episodio mancante.
+        # Evita di interrogare gli indexer più di una volta ogni 23h per lo stesso buco.
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS gap_search_log (
+                series_id INTEGER NOT NULL,
+                season    INTEGER NOT NULL,
+                episode   INTEGER NOT NULL,
+                last_searched_at TEXT NOT NULL,
+                PRIMARY KEY (series_id, season, episode)
+            )
+        ''')
+
         # Indici su downloaded_at: usati da get_consumption_stats (SUM con WHERE su date)
         # Senza di questi, su 100k+ episodi ogni query di stats è un full scan.
         c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_dl_at ON episodes(downloaded_at)')
@@ -482,7 +494,12 @@ class Database:
                 ON CONFLICT(title) DO UPDATE SET
                     found_at=excluded.found_at,
                     magnet=excluded.magnet,
-                    source=excluded.source
+                    source=excluded.source,
+                    name=excluded.name,
+                    quality_score=excluded.quality_score,
+                    resolution=excluded.resolution,
+                    codec=excluded.codec,
+                    audio=excluded.audio
             ''', (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at))
             self.conn.commit()
         except Exception as e:
@@ -524,6 +541,91 @@ class Database:
         except Exception as e:
             logger.warning(f"get_movies_seen: {e}")
             return {'items': [], 'total': 0, 'pages': 1}
+
+    def get_movies_seen_grouped(self, page: int = 0, q: str = '',
+                                sort: str = 'found_at', direction: str = 'desc',
+                                per_page: int = 50):
+        sort_map = {
+            'found_at': 'latest_found', 'name': 'group_name',
+            'year': 'year', 'quality_score': 'best_score', 'count': 'cnt',
+        }
+        sort_col  = sort_map.get(sort, 'latest_found')
+        direction = 'DESC' if direction.lower() == 'desc' else 'ASC'
+        try:
+            c = self.conn.cursor()
+            conditions: list = []
+            params:     list = []
+            if q:
+                for token in q.strip().split():
+                    exclude = token.startswith('-') and len(token) > 1
+                    kw = token[1:] if token.startswith(('+', '-')) and len(token) > 1 else token
+                    kw_like = kw.replace('*', '%').replace('?', '_') if ('*' in kw or '?' in kw) else f'%{kw}%'
+                    if exclude:
+                        conditions.append('(title NOT LIKE ? AND name NOT LIKE ?)')
+                    else:
+                        conditions.append('(title LIKE ? OR name LIKE ?)')
+                    params.extend([kw_like, kw_like])
+            where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+            c.execute(f'SELECT COUNT(DISTINCT COALESCE(name, title)) FROM movie_feed_seen {where}', params)
+            total = c.fetchone()[0]
+            offset = page * per_page
+            c.execute(f'''
+                SELECT
+                    COALESCE(m.name, m.title)  AS group_name,
+                    MAX(m.year)                AS year,
+                    COUNT(*)                   AS cnt,
+                    MAX(m.quality_score)       AS best_score,
+                    MAX(m.found_at)            AS latest_found,
+                    (SELECT m2.resolution FROM movie_feed_seen m2
+                     WHERE COALESCE(m2.name, m2.title) = COALESCE(m.name, m.title)
+                     ORDER BY m2.quality_score DESC LIMIT 1) AS best_resolution
+                FROM movie_feed_seen m
+                {where}
+                GROUP BY COALESCE(m.name, m.title)
+                ORDER BY {sort_col} {direction}
+                LIMIT ? OFFSET ?
+            ''', params + [per_page, offset])
+            rows = [dict(r) for r in c.fetchall()]
+            return {'groups': rows, 'total': total, 'pages': max(1, -(-total // per_page))}
+        except Exception as e:
+            logger.warning(f"get_movies_seen_grouped: {e}")
+            return {'groups': [], 'total': 0, 'pages': 1}
+
+    def get_movies_seen_by_name(self, name: str):
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT id, title, name, year, resolution, codec, audio,
+                       quality_score, magnet, source, found_at
+                FROM movie_feed_seen
+                WHERE COALESCE(name, title) = ?
+                ORDER BY quality_score DESC, found_at DESC
+            ''', [name])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_movies_seen_by_name: {e}")
+            return []
+
+    def migrate_movie_feed_names(self) -> int:
+        """Aggiorna i record dove name == title con il nome pulito estratto dal titolo."""
+        from core.models import extract_clean_movie_name
+        try:
+            c = self.conn.cursor()
+            c.execute("SELECT id, title FROM movie_feed_seen WHERE name = title OR name IS NULL OR name = ''")
+            rows = c.fetchall()
+            updates = []
+            for row in rows:
+                clean = extract_clean_movie_name(row['title'])
+                if clean and clean != row['title']:
+                    updates.append((clean, row['id']))
+            if updates:
+                c.executemany("UPDATE movie_feed_seen SET name = ? WHERE id = ?", updates)
+                self.conn.commit()
+                logger.info(f"migrate_movie_feed_names: aggiornati {len(updates)} record")
+            return len(updates)
+        except Exception as e:
+            logger.warning(f"migrate_movie_feed_names: {e}")
+            return 0
 
     # ------------------------------------------------------------------
     # FEED MATCHES
@@ -1278,6 +1380,39 @@ class Database:
             if not have:
                 return []
             return sorted(set(range(1, max(have) + 1)) - have)
+
+    def was_gap_recently_searched(self, series_id: int, season: int, episode: int,
+                                   min_hours: int = 23) -> bool:
+        """True se l'episodio è stato cercato su indexer/web nelle ultime min_hours ore."""
+        try:
+            c = self.conn.cursor()
+            c.execute(
+                "SELECT last_searched_at FROM gap_search_log WHERE series_id=? AND season=? AND episode=?",
+                (series_id, season, episode)
+            )
+            row = c.fetchone()
+            if not row:
+                return False
+            ts = datetime.fromisoformat(row[0].replace('Z', '+00:00'))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - ts).total_seconds() < min_hours * 3600
+        except Exception:
+            return False
+
+    def update_gap_search_time(self, series_id: int, season: int, episode: int):
+        """Registra che è stata eseguita una ricerca live per questo episodio."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                INSERT INTO gap_search_log (series_id, season, episode, last_searched_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(series_id, season, episode) DO UPDATE SET
+                    last_searched_at = excluded.last_searched_at
+            ''', (series_id, season, episode, datetime.now(timezone.utc).isoformat()))
+            self.conn.commit()
+        except Exception as e:
+            logger.debug(f"update_gap_search_time: {e}")
 
     def get_series_stats(self) -> dict:
         """Ritorna statistiche per serie: episodi scaricati, ultimo episodio, is_ended, is_completed."""

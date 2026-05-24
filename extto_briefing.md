@@ -90,7 +90,21 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 
 ---
 
-## Stato attuale del progetto (v49)
+## Stato attuale del progetto (v50)
+
+### v50 — Smart Gap Fill · Webhook · Alias RSS · Parser fix (24 Maggio 2026)
+
+Ispirata dall'analisi dei changelog di Sonarr v4, FlexGet e PyMedusa.
+
+- **Gap Fill con cooldown 24h** (`extto3.py`, `core/database.py`): nuova tabella `gap_search_log (series_id, season, episode, last_searched_at)`. Per ogni episodio mancante, le ricerche live su Jackett/web vengono eseguite **al massimo una volta ogni 23h** (garantendo almeno 1 ricerca al giorno). L'archivio locale è sempre interrogato (gratis). Metodi aggiunti: `db.was_gap_recently_searched()`, `db.update_gap_search_time()`. Flag `_skip_live_search` nel loop gap; `db.update_gap_search_time()` chiamato dopo ogni ricerca Jackett completata.
+
+- **Gap fill limit per stagione** (`extto3.py`): parametro `@gap_fill_max_per_series` (default: `0` = illimitato). Contatore `_gaps_sent_this_season` resettato per ogni stagione; quando raggiunge il limite, i gap restanti vengono rinviati al ciclo successivo. Impedisce a serie con molti buchi di monopolizzare tutti gli slot.
+
+- **Webhook notification generico** (`core/notifier.py`): parametri `notify_webhook_url` e `notify_webhook_secret` (opzionale). Metodo `_send_webhook(event, data)` — POST JSON con firma HMAC-SHA256. Chiamato da: `notify_download`, `notify_movie`, `notify_gap_filled`, `notify_system_event`, `notify_post_processing`. Compatibile con ntfy, Gotify, n8n, Home Assistant, Make, Zapier.
+
+- **Alias-aware RSS matching** (`extto3.py`): `_resolve_series_id()` ora carica `aliases` dal DB e li controlla nel matching (prima controllava solo `name`). Dopo `cfg.find_series_match()`, `ep['name']` viene normalizzato al nome canonico della config — tutto il downstream (stats, log, DB, feed-match) usa il nome corretto anche quando il torrent RSS usa un alias. Rimuove anche il blocco ridondante `_gap_series_id = _resolve_series_id(...)` nel loop gap, sostituendolo con `series_id` già disponibile.
+
+- **Parser fix NxNN falsi positivi** (`core/models.py`): pattern `(\d{1,2})x(\d{1,4})` ora accettato solo se stagione 1–40. Evita che titoli come `SerieNome.20x265.WEB` vengano parsati come stagione 20 episodio 265 (falso positivo da codec H.265).
 
 ### v49 — Nuovi motori di ricerca web + log sorgente download (1 Maggio 2026)
 

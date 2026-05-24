@@ -528,9 +528,9 @@ class Parser:
                 'title': title
             }
 
-        # 2. NxNN (1x02)
+        # 2. NxNN (1x02) — stagione > 40 è un anno o codec (es. 20x265), non una stagione
         match = re.search(r'(.+?)[ ._-]+(\d{1,2})x(\d{1,4})(?:[ ._-]|$)', title)
-        if match:
+        if match and 1 <= int(match.group(2)) <= 40:
             return {
                 'type': 'series',
                 'name': match.group(1).replace('.', ' ').strip(),
@@ -584,6 +584,9 @@ class Parser:
 
     @staticmethod
     def parse_movie(title: str):
+        # NOTE: 'name' is deliberately left as full title so find_movie_match()
+        # can search for configured movie keywords within the release title.
+        # Use extract_clean_movie_name() when you need the human-readable title.
         is_bl, reason = Parser.is_blacklisted(title)
         if is_bl:
             return None
@@ -627,3 +630,39 @@ class Parser:
         num, unit = float(m.group(1)), m.group(2).upper()
         units = {'K': 0.001, 'M': 1, 'G': 1024, 'T': 1024 * 1024}
         return num * units.get(unit, 1)
+
+
+_TECH_TOKEN_RE = re.compile(
+    r'\b(2160p|1080p|720p|576p|480p|4k|uhd'
+    r'|blu[-\s]?ray|bluray|bdrip|bdrip|dvdrip|dvdscr|dvd'
+    r'|webrip|web[-\s]?dl|webdl|web|hdtv|pdtv|ts|cam|hdrip'
+    r'|h[\.\s]?264|h[\.\s]?265|x264|x265|xvid|divx|hevc|avc'
+    r'|aac|ac3|ddp[57]|dd[57]\.?1|dts|truehd|flac|mp3|opus'
+    r'|ita|eng|multi|sub|subs|dub|ita[-\s]?eng'
+    r'|hdr10\+|hdr10|hdr|dv|sdr|remux|proper|repack|extended|theatrical'
+    r'|mkv|mp4|avi|m4v)\b',
+    re.I
+)
+
+
+def extract_clean_movie_name(title: str) -> str:
+    """Estrae il nome leggibile del film dal titolo di una release.
+    Es: 'The Veil (2024) 1080p BluRay [Jackett RSS]' → 'The Veil'
+    """
+    # Rimuovi tag tra parentesi quadre/graffe (sorgente, uploader, ecc.)
+    s = re.sub(r'\[.*?\]', ' ', title)
+    s = re.sub(r'\{.*?\}', ' ', s)
+    # Trova il primo anno (1900-2029)
+    ym = re.search(r'\b(19\d{2}|20[012]\d)\b', s)
+    if ym:
+        before = s[:ym.start()]
+        name = re.sub(r'[\s(._\-]+$', '', before).strip()
+        if len(name) > 2:
+            return name
+    # Fallback: tronca al primo token tecnico
+    tm = _TECH_TOKEN_RE.search(s)
+    if tm:
+        name = re.sub(r'[\s(._\-]+$', '', s[:tm.start()]).strip()
+        if len(name) > 2:
+            return name
+    return title.strip()

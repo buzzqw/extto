@@ -258,6 +258,8 @@
                                 Anno <span id="mfs-sort-year"></span></div>
                             <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score')">
                                 Qualità <span id="mfs-sort-quality_score"></span></div>
+                            <div class="mfs-col-count" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('count')">
+                                Sorgenti <span id="mfs-sort-count"></span></div>
                             <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at')">
                                 Trovato <span id="mfs-sort-found_at">▼</span></div>
                             <div style="text-align:right;">Azioni</div>
@@ -1553,7 +1555,7 @@ sudo mount /mnt/ramdisk</div>
                     </div>
                     <div id="notifications-form"></div>
                     <div style="display:flex; gap:10px; margin-top:15px;">
-                        <button class="btn btn-primary" data-i18n-title="Salva permanentemente Token e Chat ID." title="Salva permanentemente Token e Chat ID." onclick="app.saveSettings()"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="Salva Notifiche">Salva Notifiche</span></button>
+                        <button class="btn btn-primary" data-i18n-title="Salva permanentemente Token e Chat ID." title="Salva permanentemente Token e Chat ID." onclick="app.saveAllConfig()"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="Salva Notifiche">Salva Notifiche</span></button>
                         <button class="btn btn-secondary" data-i18n-title="Invia un messaggio di test a Telegram/Email per verificare le credenziali." title="Invia un messaggio di test a Telegram/Email per verificare le credenziali." onclick="app.testNotification()"><i class="fa-solid fa-bell"></i> <span data-i18n="Testa Notifica">Testa Notifica</span></button>
                     </div>
                     <div id="browser-handlers-card" class="card" style="margin-top:24px;"></div>
