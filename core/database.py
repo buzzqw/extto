@@ -546,7 +546,7 @@ class Database:
                                 sort: str = 'found_at', direction: str = 'desc',
                                 per_page: int = 50):
         sort_map = {
-            'found_at': 'latest_found', 'name': 'group_name',
+            'found_at': 'first_found', 'name': 'group_name',
             'year': 'year', 'quality_score': 'best_score', 'count': 'cnt',
         }
         sort_col  = sort_map.get(sort, 'latest_found')
@@ -576,6 +576,7 @@ class Database:
                     COUNT(*)                   AS cnt,
                     MAX(m.quality_score)       AS best_score,
                     MAX(m.found_at)            AS latest_found,
+                    MIN(m.found_at)            AS first_found,
                     (SELECT m2.resolution FROM movie_feed_seen m2
                      WHERE COALESCE(m2.name, m2.title) = COALESCE(m.name, m.title)
                      ORDER BY m2.quality_score DESC LIMIT 1) AS best_resolution

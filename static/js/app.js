@@ -1048,7 +1048,7 @@ const app = {
                 const year  = g.year || '—';
                 const res   = g.best_resolution || 'unknown';
                 const badge = RES_BADGE[res] || RES_BADGE['unknown'];
-                const date  = g.latest_found ? this.formatDate(g.latest_found) : '—';
+                const date  = g.first_found ? this.formatDate(g.first_found) : '—';
                 const cnt   = g.cnt || 1;
                 html += `<div class="table-row" style="cursor:default;">
                     <div class="mfs-col-name"><small><strong>${name}</strong></small></div>
