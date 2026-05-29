@@ -59,6 +59,12 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 
 **14. Shutdown libtorrent** — attende esplicitamente tutti gli alert `save_resume_data_alert` prima di chiudere (max 10s), così il `save_path` aggiornato dopo `move_storage` viene sempre persistito nel `.fastresume`.
 
+**15. `find_movie_match()` — anno obbligatorio per evitare match errati** — il matching usa word-boundary su tutte le parole del nome config contro il titolo RSS completo (non estratto). Senza anno nella config, il primo film con quelle parole nel titolo vince — pericoloso per titoli corti o generici. Regole:
+- **Anno sempre presente** nella config — tolleranza ±1 gestisce release anticipate.
+- **Nome con almeno 2 parole caratterizzanti** — evita falsi positivi su titoli brevi.
+- **Campo `exclude`** (lista separata da virgole) per disambiguare sequel/omonimi: es. `romulus,extended,directors cut`.
+- Il `name` nell'`ep` dict del film è il **titolo RSS completo** (non pulito) — intenzionale, serve per il matching; usare `extract_clean_movie_name()` solo per la visualizzazione.
+
 ---
 
 ## Come lavoriamo insieme

@@ -633,6 +633,37 @@ class TestAdvancedConfig(unittest.TestCase):
         self.assertIsNotNone(self.cfg.find_movie_match("Dune 2022 1080p", 2022))   # Anno +1 -> OK
         self.assertIsNone(self.cfg.find_movie_match("Dune 2019 1080p", 2019))      # Anno -2 -> Scartato
 
+    def test_find_movie_match_no_year_first_match(self):
+        """Senza anno in config, il primo film con quelle parole nel titolo viene restituito."""
+        self.cfg.movies = [{'name': 'Alien', 'year': '', 'qual': '', 'lang': ''}]
+        # Qualsiasi titolo che contiene "alien" come parola intera deve fare match
+        self.assertIsNotNone(self.cfg.find_movie_match("Alien.1979.1080p.BluRay.ITA", 1979))
+        self.assertIsNotNone(self.cfg.find_movie_match("Alien.Romulus.2024.1080p.ITA", 2024))
+
+    def test_find_movie_match_exclude_veta_match(self):
+        """La lista exclude deve impedire il match se una parola è presente nel titolo RSS."""
+        self.cfg.movies = [
+            {'name': 'Alien', 'year': '1979', 'qual': '', 'lang': '', 'exclude': 'romulus,resurrection'}
+        ]
+        # Titolo con "romulus" → deve essere scartato nonostante nome e anno compatibili
+        self.assertIsNone(self.cfg.find_movie_match("Alien.Romulus.2024.1080p.ITA", 2024))
+        # Titolo originale senza parole di esclusione → deve fare match
+        self.assertIsNotNone(self.cfg.find_movie_match("Alien.1979.1080p.BluRay.ITA", 1979))
+
+    def test_find_movie_match_word_boundary(self):
+        """Il matching usa word-boundary: 'alien' non deve matchare 'alienigena' o 'alienation'."""
+        self.cfg.movies = [{'name': 'Alien', 'year': '', 'qual': '', 'lang': ''}]
+        self.assertIsNone(self.cfg.find_movie_match("Alienation.2024.1080p.ITA", 2024))
+        self.assertIsNone(self.cfg.find_movie_match("Alienigena.2024.1080p.ITA", 2024))
+        self.assertIsNotNone(self.cfg.find_movie_match("Alien.2024.1080p.ITA", 2024))
+
+    def test_find_movie_match_short_title_safe_with_year(self):
+        """Un titolo corto (es. 'IT') con anno configurato non deve matchare film diversi."""
+        self.cfg.movies = [{'name': 'IT', 'year': '2017', 'qual': '', 'lang': ''}]
+        self.assertIsNotNone(self.cfg.find_movie_match("IT.2017.1080p.BluRay.ITA", 2017))
+        # 'Italian.Job.2003' contiene 'it' ma non come parola intera (è parte di 'italian') — NO match
+        self.assertIsNone(self.cfg.find_movie_match("Italian.Job.2003.1080p.ITA", 2003))
+
     def test_find_series_alias(self):
         # Deve trovare la serie anche se il torrent usa l'Alias configurato.
         # Passiamo solo il nome pulito, come fa il Parser nella realtà

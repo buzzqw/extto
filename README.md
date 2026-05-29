@@ -162,6 +162,33 @@ Every donation directly funds new features, bug fixes, and keeping the project a
 
 ---
 
+## 🎬 Movie Configuration Tips
+
+Getting the right movie — and not a wrong one with a similar title — depends on how you configure it.
+
+| Field | Recommendation |
+|-------|----------------|
+| **Name** | Use at least 2 distinctive words from the title |
+| **Year** | **Always set it.** Without a year the first title match wins — risky for short or generic names |
+| **Exclude** | Comma-separated words that must NOT appear: e.g. `extended,directors cut,romulus` — use this to separate a sequel from its original |
+
+**How matching works:** EXTTO checks that every word in your configured name appears (word-boundary match) in the full RSS release title. If a year is set, the release year must be within ±1. The `exclude` list vetoes the match if any of those words appear.
+
+**Safe config example:**
+```
+Name:    Gladiator II
+Year:    2024
+Exclude: (empty)
+```
+
+**Risky config (will match any release containing "alien"):**
+```
+Name:    Alien
+Year:    (empty)
+```
+
+---
+
 ## ⚖️ Legal & Fair Use
 
 EXTTO is a **download automation tool**. It does not host, index, or distribute any copyrighted content.
@@ -313,6 +340,33 @@ sudo systemctl start extto.service
 ```
 
 Apri **`http://localhost:5000`** nel browser.
+
+---
+
+## 🎬 Configurazione Film: Come Evitare Match Errati
+
+Ottenere il film giusto — e non uno con un titolo simile — dipende da come lo configuri.
+
+| Campo | Raccomandazione |
+|-------|----------------|
+| **Nome** | Usa almeno 2 parole caratterizzanti del titolo |
+| **Anno** | **Impostalo sempre.** Senza anno vince il primo match per nome — pericoloso per titoli corti o generici |
+| **Escludi** | Parole separate da virgola che NON devono comparire nel titolo: es. `extended,directors cut,romulus` — usalo per separare un sequel dall'originale |
+
+**Come funziona il matching:** EXTTO verifica che ogni parola del nome configurato sia presente (word-boundary) nel titolo RSS completo. Se l'anno è impostato, l'anno della release deve corrispondere ±1. La lista `Escludi` veta il match se una di quelle parole compare.
+
+**Config sicura:**
+```
+Nome:    Il Gladiatore II
+Anno:    2024
+Escludi: (vuoto)
+```
+
+**Config rischiosa (cattura qualsiasi release con "alien"):**
+```
+Nome:    Alien
+Anno:    (vuoto)
+```
 
 ---
 
