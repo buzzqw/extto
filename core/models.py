@@ -605,6 +605,18 @@ class Parser:
         # ROM / emulazione console
         if re.search(r'PlayStation\s+\d|Nintendo\s+(DS|3DS|64|Switch|Wii)|\bN64\b|\bGBA\b|\bNDS\b|\bPSX\b|\bPS[123]\b', title, re.I):
             return None
+        # Release musicali: prefisso genere tipo "(Italo-Disco, Electro) Artista - Titolo"
+        # oppure bootleg/singoli senza alcun marker video
+        _has_video = bool(re.search(
+            r'\b(2160p|1080p|720p|576p|480p|4[Kk]|UHD|BluRay|BDRip|WEB-DL|WEBRip|HDTV|DVDRip|DVDScr)\b',
+            title, re.I))
+        if not _has_video:
+            if re.match(r'\s*\([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s,/&-]{2,}\)\s+\S', title):
+                return None
+            if re.search(r'\bbootleg\b', title, re.I):
+                return None
+            if re.search(r'\b(Single|EP|LP|Album|Discography|Discografia|FLAC|MP3\s*320|320kbps|Lossless)\b', title, re.I):
+                return None
         year = 0
         ym = re.search(r'\b(19|20)\d{2}\b', title)
         if ym:
