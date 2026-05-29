@@ -986,7 +986,7 @@ const app = {
     // -------------------------------------------------------------------------
     _mfsState: { page: 0, q: '', sort: 'found_at', dir: 'desc' },
     _mfsSearchTimer: null,
-    _mfsGroupMap: {},   // idx -> group_name per _mfsToggleGroup
+    _mfsGroupMap: {},   // idx -> group_key per _mfsToggleGroup
 
     discoverySetTab(tab) {
         const tmdb = document.getElementById('discover-panel-tmdb');
@@ -1043,7 +1043,7 @@ const app = {
 
             let html = '';
             data.groups.forEach((g, idx) => {
-                this._mfsGroupMap[idx] = g.group_name;
+                this._mfsGroupMap[idx] = g.group_key;
                 const name  = this.escapeHtml(g.group_name || '');
                 const year  = g.year || '—';
                 const res   = g.best_resolution || 'unknown';
@@ -1108,9 +1108,9 @@ const app = {
         container.style.display = '';
         if (btn) btn.querySelector('i').className = 'fa-solid fa-chevron-up';
 
-        const groupName = this._mfsGroupMap[idx];
+        const groupKey = this._mfsGroupMap[idx];
         try {
-            const res   = await fetch(`${API_BASE}/api/movies/seen/by-name?name=${encodeURIComponent(groupName)}`);
+            const res   = await fetch(`${API_BASE}/api/movies/seen/by-key?key=${encodeURIComponent(groupKey)}`);
             const items = await res.json();
             const RES_BADGE = {
                 '2160p': 'background:#7c3aed;color:#fff',

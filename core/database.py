@@ -27,6 +27,8 @@ class Database:
     def __init__(self):
         self.conn = sqlite3.connect(DB_FILE)
         self.conn.row_factory = sqlite3.Row
+        self.conn.create_function('mfs_key', 1,
+            lambda s: re.sub(r'[^a-z0-9]', '', (s or '').lower()))
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=5000")
         self.conn.execute("PRAGMA synchronous=NORMAL")
@@ -154,6 +156,34 @@ class Database:
         except: pass
         try: c.execute("ALTER TABLE pending_downloads ADD COLUMN downloaded_at TEXT"); self.conn.commit()
         except: pass
+        try: c.execute("ALTER TABLE movie_feed_seen ADD COLUMN first_seen_at TEXT"); self.conn.commit()
+        except: pass
+        try:
+            c.execute("UPDATE movie_feed_seen SET first_seen_at = found_at WHERE first_seen_at IS NULL")
+            self.conn.commit()
+        except: pass
+        try:
+            # Normalizza nomi con punti/underscore come separatori (es: Mortal.Kombat.II → Mortal Kombat II)
+            c.execute("""
+                UPDATE movie_feed_seen
+                SET name = TRIM(REPLACE(REPLACE(name, '.', ' '), '_', ' '))
+                WHERE name LIKE '%.%' OR name LIKE '%[_]%'
+            """)
+            self.conn.commit()
+        except: pass
+        try: c.execute("ALTER TABLE movie_feed_seen ADD COLUMN tmdb_id INTEGER DEFAULT NULL"); self.conn.commit()
+        except: pass
+        try: c.execute("ALTER TABLE movie_feed_seen ADD COLUMN tmdb_name TEXT DEFAULT NULL"); self.conn.commit()
+        except: pass
+        try:
+            # Azzera nomi con tag sorgente o parentesi non chiuse → ricalcolati da migrate_movie_feed_names
+            c.execute("""
+                UPDATE movie_feed_seen SET name = NULL
+                WHERE name LIKE '%[Jackett%' OR name LIKE '%[TGx%' OR name LIKE '%[ExtTo%'
+                   OR (instr(name, '[') > 0 AND instr(name, ']') = 0)
+            """)
+            self.conn.commit()
+        except: pass
 
         c.execute('''
             CREATE TABLE IF NOT EXISTS movie_discards (
@@ -193,17 +223,20 @@ class Database:
 
         c.execute('''
             CREATE TABLE IF NOT EXISTS movie_feed_seen (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                title        TEXT    NOT NULL UNIQUE,
-                name         TEXT,
-                year         INTEGER DEFAULT 0,
-                resolution   TEXT    DEFAULT 'unknown',
-                codec        TEXT    DEFAULT 'unknown',
-                audio        TEXT    DEFAULT 'unknown',
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                title         TEXT    NOT NULL UNIQUE,
+                name          TEXT,
+                year          INTEGER DEFAULT 0,
+                resolution    TEXT    DEFAULT 'unknown',
+                codec         TEXT    DEFAULT 'unknown',
+                audio         TEXT    DEFAULT 'unknown',
                 quality_score INTEGER DEFAULT 0,
-                magnet       TEXT,
-                source       TEXT,
-                found_at     TEXT    NOT NULL
+                magnet        TEXT,
+                source        TEXT,
+                found_at      TEXT    NOT NULL,
+                first_seen_at TEXT,
+                tmdb_id       INTEGER DEFAULT NULL,
+                tmdb_name     TEXT    DEFAULT NULL
             )
         ''')
         try:
@@ -489,8 +522,8 @@ class Database:
             found_at = datetime.now(timezone.utc).isoformat()
             c.execute('''
                 INSERT INTO movie_feed_seen
-                    (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at, first_seen_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(title) DO UPDATE SET
                     found_at=excluded.found_at,
                     magnet=excluded.magnet,
@@ -499,8 +532,9 @@ class Database:
                     quality_score=excluded.quality_score,
                     resolution=excluded.resolution,
                     codec=excluded.codec,
-                    audio=excluded.audio
-            ''', (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at))
+                    audio=excluded.audio,
+                    first_seen_at=COALESCE(movie_feed_seen.first_seen_at, excluded.first_seen_at)
+            ''', (title, name, year, resolution, codec, audio, quality_score, magnet, source, found_at, found_at))
             self.conn.commit()
         except Exception as e:
             logger.debug(f"record_movie_seen: {e}")
@@ -549,8 +583,12 @@ class Database:
             'found_at': 'first_found', 'name': 'group_name',
             'year': 'year', 'quality_score': 'best_score', 'count': 'cnt',
         }
-        sort_col  = sort_map.get(sort, 'latest_found')
+        sort_col  = sort_map.get(sort, 'first_found')
         direction = 'DESC' if direction.lower() == 'desc' else 'ASC'
+        # group key: tmdb_id quando disponibile, altrimenti condensed name (solo alfanumerici)
+        _GK = ("COALESCE("
+               "CASE WHEN m.tmdb_id > 0 THEN 'tmdb:' || CAST(m.tmdb_id AS TEXT) ELSE NULL END,"
+               "mfs_key(COALESCE(m.name, m.title)))")
         try:
             c = self.conn.cursor()
             conditions: list = []
@@ -566,23 +604,27 @@ class Database:
                         conditions.append('(title LIKE ? OR name LIKE ?)')
                     params.extend([kw_like, kw_like])
             where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
-            c.execute(f'SELECT COUNT(DISTINCT COALESCE(name, title)) FROM movie_feed_seen {where}', params)
+            c.execute(f'SELECT COUNT(DISTINCT {_GK}) FROM movie_feed_seen m {where}', params)
             total = c.fetchone()[0]
             offset = page * per_page
             c.execute(f'''
                 SELECT
-                    COALESCE(m.name, m.title)  AS group_name,
-                    MAX(m.year)                AS year,
-                    COUNT(*)                   AS cnt,
-                    MAX(m.quality_score)       AS best_score,
-                    MAX(m.found_at)            AS latest_found,
-                    MIN(m.found_at)            AS first_found,
-                    (SELECT m2.resolution FROM movie_feed_seen m2
-                     WHERE COALESCE(m2.name, m2.title) = COALESCE(m.name, m.title)
-                     ORDER BY m2.quality_score DESC LIMIT 1) AS best_resolution
+                    {_GK}                            AS group_key,
+                    COALESCE(
+                        MAX(CASE WHEN m.tmdb_id > 0 THEN m.tmdb_name END),
+                        MIN(COALESCE(m.name, m.title))
+                    )                                AS group_name,
+                    MAX(m.year)                      AS year,
+                    COUNT(*)                         AS cnt,
+                    MAX(m.quality_score)             AS best_score,
+                    MAX(m.found_at)                  AS latest_found,
+                    MIN(COALESCE(m.first_seen_at, m.found_at)) AS first_found,
+                    COALESCE(MAX(CASE WHEN m.tmdb_id > 0 THEN m.tmdb_id END), NULL) AS tmdb_id,
+                    SUBSTRING(MAX(PRINTF('%010d', m.quality_score) ||
+                              COALESCE(m.resolution, 'unknown')), 11) AS best_resolution
                 FROM movie_feed_seen m
                 {where}
-                GROUP BY COALESCE(m.name, m.title)
+                GROUP BY {_GK}
                 ORDER BY {sort_col} {direction}
                 LIMIT ? OFFSET ?
             ''', params + [per_page, offset])
@@ -592,6 +634,73 @@ class Database:
             logger.warning(f"get_movies_seen_grouped: {e}")
             return {'groups': [], 'total': 0, 'pages': 1}
 
+    def get_movies_seen_by_condensed_key(self, ck: str):
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT id, title, name, year, resolution, codec, audio,
+                       quality_score, magnet, source, found_at
+                FROM movie_feed_seen
+                WHERE mfs_key(COALESCE(name, title)) = ?
+                ORDER BY quality_score DESC, resolution DESC, found_at DESC
+            ''', [ck])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_movies_seen_by_condensed_key: {e}")
+            return []
+
+    def get_movies_seen_by_tmdb_id(self, tmdb_id: int):
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT id, title, name, year, resolution, codec, audio,
+                       quality_score, magnet, source, found_at
+                FROM movie_feed_seen
+                WHERE tmdb_id = ?
+                ORDER BY quality_score DESC, resolution DESC, found_at DESC
+            ''', [tmdb_id])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_movies_seen_by_tmdb_id: {e}")
+            return []
+
+    def get_mfs_unenriched_groups(self, limit: int = 10):
+        """Restituisce gruppi di film (per condensed key) senza tmdb_id, ordinati per impatto."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT
+                    mfs_key(COALESCE(name, title)) AS ck,
+                    MIN(COALESCE(name, title))      AS best_name,
+                    MAX(year)                       AS year,
+                    COUNT(*)                        AS cnt
+                FROM movie_feed_seen
+                WHERE tmdb_id IS NULL
+                GROUP BY ck
+                HAVING LENGTH(ck) > 3
+                ORDER BY cnt DESC, MAX(first_seen_at) DESC
+                LIMIT ?
+            ''', [limit])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_mfs_unenriched_groups: {e}")
+            return []
+
+    def apply_mfs_tmdb(self, condensed_key: str, tmdb_id: int, tmdb_name: str):
+        """Applica tmdb_id/tmdb_name a tutti i record con il dato condensed key."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                UPDATE movie_feed_seen
+                SET tmdb_id = ?, tmdb_name = ?
+                WHERE mfs_key(COALESCE(name, title)) = ?
+            ''', [tmdb_id, tmdb_name or '', condensed_key])
+            self.conn.commit()
+            return c.rowcount
+        except Exception as e:
+            logger.warning(f"apply_mfs_tmdb: {e}")
+            return 0
+
     def get_movies_seen_by_name(self, name: str):
         try:
             c = self.conn.cursor()
@@ -599,8 +708,8 @@ class Database:
                 SELECT id, title, name, year, resolution, codec, audio,
                        quality_score, magnet, source, found_at
                 FROM movie_feed_seen
-                WHERE COALESCE(name, title) = ?
-                ORDER BY quality_score DESC, found_at DESC
+                WHERE LOWER(COALESCE(name, title)) = LOWER(?)
+                ORDER BY quality_score DESC, resolution DESC, found_at DESC
             ''', [name])
             return [dict(r) for r in c.fetchall()]
         except Exception as e:

@@ -659,11 +659,14 @@ _TECH_TOKEN_RE = re.compile(
 
 def extract_clean_movie_name(title: str) -> str:
     """Estrae il nome leggibile del film dal titolo di una release.
-    Es: 'The Veil (2024) 1080p BluRay [Jackett RSS]' → 'The Veil'
+    Es: 'The.Veil.2024.1080p.BluRay [Jackett RSS]' → 'The Veil'
     """
     # Rimuovi tag tra parentesi quadre/graffe (sorgente, uploader, ecc.)
     s = re.sub(r'\[.*?\]', ' ', title)
     s = re.sub(r'\{.*?\}', ' ', s)
+    # Normalizza separatori: punti e underscore → spazio
+    s = re.sub(r'[._]', ' ', s)
+    s = re.sub(r'\s+', ' ', s).strip()
     # Trova il primo anno (1900-2029)
     ym = re.search(r'\b(19\d{2}|20[012]\d)\b', s)
     if ym:
@@ -677,4 +680,4 @@ def extract_clean_movie_name(title: str) -> str:
         name = re.sub(r'[\s(._\-]+$', '', s[:tm.start()]).strip()
         if len(name) > 2:
             return name
-    return title.strip()
+    return s.strip() or title.strip()

@@ -3079,7 +3079,7 @@ def movies_seen_grouped():
 
 @app.route('/api/movies/seen/by-name')
 def movies_seen_by_name():
-    """Tutte le release di un film specifico."""
+    """Tutte le release di un film specifico (legacy: lookup per nome)."""
     try:
         name = request.args.get('name', '').strip()
         if not name:
@@ -3089,6 +3089,28 @@ def movies_seen_by_name():
         return jsonify(items)
     except Exception as e:
         logger.exception(f"❌ movies_seen_by_name: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/movies/seen/by-key')
+def movies_seen_by_key():
+    """Tutte le release di un gruppo film (per group_key restituito da /grouped)."""
+    try:
+        key = request.args.get('key', '').strip()
+        if not key:
+            return jsonify([])
+        from core.database import Database as _CoreDB
+        db = _CoreDB()
+        if key.startswith('tmdb:'):
+            try:
+                tmdb_id = int(key[5:])
+                items = db.get_movies_seen_by_tmdb_id(tmdb_id)
+            except ValueError:
+                items = []
+        else:
+            items = db.get_movies_seen_by_condensed_key(key)
+        return jsonify(items)
+    except Exception as e:
+        logger.exception(f"❌ movies_seen_by_key: {e}")
         return jsonify([]), 500
 
 @app.route('/api/archive')
@@ -9235,6 +9257,66 @@ def aria2_stop():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+def _mfs_enrich_worker():
+    """Thread background: arricchisce movie_feed_seen con dati TMDB a bassa priorità.
+    Cadenza: ~1 query ogni 4s → max 15 req/min, molto sotto il limite TMDB (40/10s).
+    Processa 10 gruppi per ciclo, poi dorme 5 minuti prima del prossimo batch.
+    tmdb_id=0 significa 'cercato, non trovato' → non viene riprovato.
+    """
+    import time as _t
+    _t.sleep(45)  # warm-up: lascia avviare il server
+    while True:
+        try:
+            from core.config import Config as _Cfg
+            from core.database import Database as _DB
+            cfg = _Cfg()
+            api_key = getattr(cfg, 'tmdb_api_key', '').strip()
+            if not api_key:
+                _t.sleep(300)
+                continue
+            tmdb_lang = getattr(cfg, 'tmdb_language', 'it-IT').strip() or 'it-IT'
+            db = _DB()
+            groups = db.get_mfs_unenriched_groups(limit=10)
+            db.close()
+            if not groups:
+                _t.sleep(300)
+                continue
+            for g in groups:
+                ck        = g['ck']
+                raw_name  = g['best_name'] or ''
+                year      = g['year'] or 0
+                # Pulisci eventuali tag sorgente residui nel nome
+                clean_name = re.sub(r'\[.*?\].*$', '', raw_name).strip(' -_.,')
+                if not clean_name or len(clean_name) < 2:
+                    db2 = _DB(); db2.apply_mfs_tmdb(ck, 0, ''); db2.close()
+                    _t.sleep(4)
+                    continue
+                try:
+                    url = (f"https://api.themoviedb.org/3/search/movie"
+                           f"?api_key={api_key}"
+                           f"&query={requests.utils.quote(clean_name)}"
+                           f"&language={tmdb_lang}")
+                    if year:
+                        url += f"&year={year}"
+                    res = requests.get(url, timeout=8).json()
+                    results = res.get('results', [])
+                    db2 = _DB()
+                    if results:
+                        first = results[0]
+                        n = db2.apply_mfs_tmdb(ck, first['id'], first.get('title', clean_name))
+                        logger.info(f"🎬 mfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('title')}' ({n} record aggiornati)")
+                    else:
+                        db2.apply_mfs_tmdb(ck, 0, '')
+                        logger.debug(f"mfs_enrich: '{clean_name}' → nessun risultato TMDB")
+                    db2.close()
+                except Exception as ex:
+                    logger.warning(f"mfs_enrich TMDB error for '{clean_name}': {ex}")
+                _t.sleep(4)   # rate limit conservativo
+        except Exception as ex:
+            logger.warning(f"_mfs_enrich_worker: {ex}")
+        _t.sleep(300)   # 5 minuti tra un batch e il prossimo
+
+
 if __name__ == '__main__':
     from waitress import serve
     import logging
@@ -9247,6 +9329,9 @@ if __name__ == '__main__':
 
     # Auto-sync dei file YAML delle traduzioni -> DB
     _sync_language_files()
+
+    # Thread enrichment TMDB per Film dal Feed (low-priority, rate-limited)
+    threading.Thread(target=_mfs_enrich_worker, daemon=True, name='mfs-enrich').start()
 
     print(f"EXTTO Web Interface starting on http://localhost:{WEB_PORT}")
     serve(app, host='0.0.0.0', port=WEB_PORT, threads=4)
