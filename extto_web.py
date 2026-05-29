@@ -9302,9 +9302,15 @@ def _mfs_enrich_worker():
                     results = res.get('results', [])
                     db2 = _DB()
                     if results:
-                        first = results[0]
-                        n = db2.apply_mfs_tmdb(ck, first['id'], first.get('title', clean_name))
-                        logger.info(f"🎬 mfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('title')}' ({n} record aggiornati)")
+                        # Escludi voci a bassissima popolarità (spot TV, trailer, ecc.)
+                        good = [r for r in results if r.get('popularity', 0) >= 1.0]
+                        first = good[0] if good else None
+                        if first:
+                            n = db2.apply_mfs_tmdb(ck, first['id'], first.get('title', clean_name))
+                            logger.info(f"🎬 mfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('title')}' (pop={first.get('popularity',0):.1f}, {n} record aggiornati)")
+                        else:
+                            db2.apply_mfs_tmdb(ck, 0, '')
+                            logger.debug(f"mfs_enrich: '{clean_name}' → solo risultati a bassa popolarità (scartati)")
                     else:
                         db2.apply_mfs_tmdb(ck, 0, '')
                         logger.debug(f"mfs_enrich: '{clean_name}' → nessun risultato TMDB")
