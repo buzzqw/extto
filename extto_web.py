@@ -6982,7 +6982,13 @@ def tmdb_discover():
             return jsonify({'success': False, 'error': 'API Key TMDB mancante.'})
 
         # --- ROUTING INTELLIGENTE BASATO SULLA CATEGORIA ---
-        if category == 'top_rated':
+        search_query = ''
+        if category == 'search':
+            search_query = request.args.get('q', '').strip()
+            if not search_query:
+                return jsonify({'success': True, 'results': []})
+            url = f"https://api.themoviedb.org/3/search/{media_type}"
+        elif category == 'top_rated':
             url = f"https://api.themoviedb.org/3/{media_type}/top_rated"
         elif category in ('now_playing', 'on_the_air'):
             url = f"https://api.themoviedb.org/3/movie/now_playing" if media_type == 'movie' else f"https://api.themoviedb.org/3/tv/on_the_air"
@@ -6999,6 +7005,8 @@ def tmdb_discover():
         # Facciamo 3 "chiamate" per prendere le pagine 1, 2 e 3 (Totale: 60 risultati)
         for page in range(1, 4):
             params = {'api_key': api_key, 'language': tmdb_lang, 'page': page}
+            if search_query:
+                params['query'] = search_query
             res = requests.get(url, params=params, timeout=10)
 
             if res.status_code == 200:
