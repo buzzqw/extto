@@ -6994,20 +6994,25 @@ def tmdb_discover():
             # Default: Tendenze
             url = f"https://api.themoviedb.org/3/trending/{media_type}/week"
         results = []
-        
+        seen_ids = set()
+
         # Facciamo 3 "chiamate" per prendere le pagine 1, 2 e 3 (Totale: 60 risultati)
         for page in range(1, 4):
             params = {'api_key': api_key, 'language': tmdb_lang, 'page': page}
             res = requests.get(url, params=params, timeout=10)
-            
+
             if res.status_code == 200:
                 data = res.json()
                 for item in data.get('results', []):
+                    item_id = item.get('id', '')
+                    if item_id and item_id in seen_ids:
+                        continue
+                    seen_ids.add(item_id)
                     title = item.get('name') if media_type == 'tv' else item.get('title')
                     date_str = item.get('first_air_date') if media_type == 'tv' else item.get('release_date')
                     year = date_str[:4] if date_str else ''
                     results.append({
-                        'id': item.get('id', ''),
+                        'id': item_id,
                         'title': title,
                         'year': year,
                         'overview': item.get('overview', 'Nessuna trama disponibile.'),
