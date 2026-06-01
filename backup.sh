@@ -16,7 +16,7 @@ else
 fi
 
 TIMESTAMP=$(date +"%Y-%m-%d--%H-%M")
-FILENAME="backup-$TIMESTAMP.tar.gz"
+FILENAME="backup-$TIMESTAMP.7z"
 
 # --- CONFIGURAZIONE RETENTION (Giorni) ---
 RETENTION_DAILY=7
@@ -33,16 +33,20 @@ echo "[$(date)] 📁 Destinazione backup: $BACKUP_ROOT"
 TEMP_BACKUP="$BACKUP_ROOT/daily/$FILENAME"
 
 ## 1. CREAZIONE BACKUP
-tar cfz "$TEMP_BACKUP" \
-    --exclude='./backups' \
-    --exclude='*__pycache__*' \
-    --exclude='*.pyc' \
-    --exclude='*.log' \
-    --exclude='*.log.*' \
-    -C "$BASE_DIR" .
+7z a -t7z -mx=5 "$TEMP_BACKUP" \
+    -xr'!backups' \
+    -xr'!__pycache__' \
+    -xr'!*.pyc' -xr'!*.pyo' \
+    -xr'!.git' -xr'!.venv' -xr'!.claude' \
+    -xr'!extto_torrents_state' \
+    -xr'!*.db-wal' -xr'!*.db-shm' \
+    -xr'!corsaro_cache.json' \
+    -xr'!static/posters' \
+    -xr'!*.log' -xr'!*.log.*' \
+    "$BASE_DIR"
 
 if [ $? -ne 0 ]; then
-    echo "[$(date)] ❌ ERRORE: tar fallito, backup interrotto." >&2
+    echo "[$(date)] ❌ ERRORE: 7z fallito, backup interrotto." >&2
     exit 1
 fi
 
@@ -76,10 +80,10 @@ fi
 
 # 3. PULIZIA AUTOMATICA (Retention)
 # Usiamo N-1 per compensare l'arrotondamento per difetto di -mtime
-find "$BACKUP_ROOT/daily"   -name "backup-*.tar.gz" -mtime +$((RETENTION_DAILY - 1))   -delete
-find "$BACKUP_ROOT/weekly"  -name "backup-*.tar.gz" -mtime +$((RETENTION_WEEKLY - 1))  -delete
-find "$BACKUP_ROOT/monthly" -name "backup-*.tar.gz" -mtime +$((RETENTION_MONTHLY - 1)) -delete
-find "$BACKUP_ROOT/yearly"  -name "backup-*.tar.gz" -mtime +$((RETENTION_YEARLY - 1))  -delete
+find "$BACKUP_ROOT/daily"   -name "backup-*.7z" -mtime +$((RETENTION_DAILY - 1))   -delete
+find "$BACKUP_ROOT/weekly"  -name "backup-*.7z" -mtime +$((RETENTION_WEEKLY - 1))  -delete
+find "$BACKUP_ROOT/monthly" -name "backup-*.7z" -mtime +$((RETENTION_MONTHLY - 1)) -delete
+find "$BACKUP_ROOT/yearly"  -name "backup-*.7z" -mtime +$((RETENTION_YEARLY - 1))  -delete
 
 echo "[$(date)] ✓ Pulizia completata"
 echo "[$(date)] --- Backup completato con successo! ---"

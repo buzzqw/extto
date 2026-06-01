@@ -2090,7 +2090,7 @@ def remove_single_http_download():
 # ──────────────────────────────────────────────────────────────────────────────
 # BACKUP
 # ──────────────────────────────────────────────────────────────────────────────
-import zipfile, glob, fnmatch
+import zipfile, glob, fnmatch, subprocess as _subprocess
 
 def _load_backup_settings() -> dict:
     """Legge impostazioni backup da extto.conf (via parse_series_config).
@@ -2231,7 +2231,7 @@ def run_backup():
         os.makedirs(backup_dir, exist_ok=True)
 
         ts       = datetime.now().strftime('%Y-%m-%d--%H-%M-%S')
-        zip_name = f'extto-backup-{ts}.zip'
+        zip_name = f'extto-backup-{ts}.7z'
         zip_path = os.path.abspath(os.path.join(backup_dir, zip_name))
 
         EXCLUDE_PATTERNS = [
@@ -2256,18 +2256,31 @@ def run_backup():
         file_count = 0
         total_size = 0
 
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-            for root, dirs, files in os.walk(BASE_DIR):
-                # Esclude cartelle in-place
-                dirs[:] = [d for d in dirs if not _should_exclude(os.path.relpath(os.path.join(root, d), BASE_DIR))]
-                for fname in files:
-                    fpath = os.path.join(root, fname)
-                    rel   = os.path.relpath(fpath, BASE_DIR)
-                    if _should_exclude(rel):
-                        continue
-                    zf.write(fpath, arcname=rel)
-                    file_count += 1
-                    total_size += os.path.getsize(fpath)
+        # Conta file e dimensione sorgente prima di comprimere
+        for root, dirs, files in os.walk(BASE_DIR):
+            dirs[:] = [d for d in dirs if not _should_exclude(os.path.relpath(os.path.join(root, d), BASE_DIR))]
+            for fname in files:
+                fpath = os.path.join(root, fname)
+                rel   = os.path.relpath(fpath, BASE_DIR)
+                if _should_exclude(rel):
+                    continue
+                file_count += 1
+                total_size += os.path.getsize(fpath)
+
+        # Costruisce la lista di esclusioni per 7z
+        _7z_excludes = [
+            '-xr!backups', '-xr!__pycache__', '-xr!*.pyc', '-xr!*.pyo',
+            '-xr!.git', '-xr!.venv', '-xr!.claude',
+            '-xr!extto_torrents_state',
+            '-xr!*.db-wal', '-xr!*.db-shm',
+            '-xr!corsaro_cache.json',
+            '-xr!static/posters',
+            '-xr!*.log', '-xr!*.log.*',
+        ]
+        _7z_cmd = ['7z', 'a', '-t7z', '-mx=5', zip_path, '.'] + _7z_excludes
+        _res = _subprocess.run(_7z_cmd, cwd=BASE_DIR, capture_output=True, text=True)
+        if _res.returncode != 0:
+            raise RuntimeError(f'7z fallito: {_res.stderr.strip()}')
 
         zip_size = os.path.getsize(zip_path)
 
@@ -2316,7 +2329,7 @@ def run_backup():
             cloud_info = f" (Errore Cloud: {ce})"
 
         # Retention: tieni solo gli ultimi N backup
-        existing = sorted(glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip')))
+        existing = sorted(glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')))
         while len(existing) > retention:
             old = existing.pop(0)
             try:
@@ -2325,7 +2338,7 @@ def run_backup():
                 logger.debug(f"remove old backup: {e}")
                 pass
 
-        kept = len(glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip')))
+        kept = len(glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')))
         tg_sent = False
         try:
             cfg_full = parse_series_config().get('settings', {})
@@ -2366,7 +2379,7 @@ def list_backups():
     try:
         cfg  = _load_backup_settings()
         bdir = cfg['backup_dir'].strip()
-        files = sorted(glob.glob(os.path.join(bdir, 'extto-backup-*.zip')), reverse=True)
+        files = sorted(glob.glob(os.path.join(bdir, 'extto-backup-*.7z')), reverse=True)
         result = []
         for fp in files:
             stat = os.stat(fp)
@@ -2399,7 +2412,7 @@ def _do_telegram_upload(job_id: str, file_path: str, token: str, chat_id: str):
             r = _req.post(
                 url,
                 data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'Markdown'},
-                files={'document': (fname, doc, 'application/zip')},
+                files={'document': (fname, doc, 'application/x-7z-compressed')},
                 timeout=300,   # 5 minuti: abbondante anche per connessioni lente
                 stream=False,
             )
