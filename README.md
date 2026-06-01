@@ -46,6 +46,10 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 | Tag-based folder routing | **✅ Built-in** | ❌ Manual |
 | Webhook notifications | **✅ Built-in** | ❌ Via plugins only |
 | Smart gap-fill cooldown | **✅ 24 h per episode** | ❌ Retries every cycle |
+| Automatic backup + Telegram | **✅ Built-in** | ❌ Not possible |
+| Quality score editor | **✅ Full Web UI** | ⚠️ Limited |
+| Per-title exclude rules | **✅ Built-in** | ❌ Not possible |
+| Download source tracking | **✅ Per-torrent tag** | ❌ Not available |
 | Web UI | **✅ Modern, flat** | Mixed |
 
 ---
@@ -65,7 +69,8 @@ Engines protected by Cloudflare are bypassed transparently via the optional **Fl
 Assign a tag to any download (automatically or at the moment you add a magnet/torrent) and EXTTO routes the completed file to the matching folder. Series go to `/media/tv`, documentaries to `/media/docs`, comics to `/media/comics` — zero manual sorting.
 
 ### 💾 RAM Disk Downloads
-Protect your SSD. EXTTO downloads small torrents directly to a `tmpfs` RAM disk and moves them to permanent storage only when 100% complete. Zero SSD writes during download.
+Protect your SSD. EXTTO downloads small torrents directly to a `tmpfs` RAM disk and moves them to permanent storage only when 100% complete. Zero SSD writes during download.  
+Capacity is checked atomically — if two torrents are accepted simultaneously, only one gets the RAM slot; the other falls back to disk without races or `tmpfs` overflow.
 
 ### 🫏 eMule / eD2k Resurrection
 Still hunting that obscure 2003 documentary no one seeds anymore? EXTTO integrates with `amuled` and automatically falls back to the eD2k network when torrents fail. No other media manager does this.
@@ -73,8 +78,9 @@ Still hunting that obscure 2003 documentary no one seeds anymore? EXTTO integrat
 ### 📚 Comic Books — First Class
 Weekly packs, single issues, automatic monitoring. Downloads directly from GetComics via Mega.nz or torrent. No plugins, no workarounds.
 
-### 🏆 Smart Quality Upgrades
-EXTTO scores every release (4K, HDR10, Dolby Vision, DTS-X, codec, source...) and automatically replaces your existing file when a better version is found. Set it once, forget it.
+### 🏆 Smart Quality Upgrades — Fully Configurable
+EXTTO scores every release (4K, HDR10, Dolby Vision, DTS-X, codec, source...) and automatically replaces your existing file when a better version is found.  
+Every weight — resolution, source, codec, audio, release group, DV/REAL/PROPER bonuses — is editable directly from the **Web UI** without touching any config file. No YAML, no restart.
 
 ### 🎛️ Modern Web UI — Accordion, Tabs & Live Dirty Tracking
 The settings page is organized in collapsible accordion sections (state saved in localStorage) with a dedicated **Integrations tab** for Trakt and Jellyfin. A red dot appears on any tab with unsaved changes so you never lose edits by accident.
@@ -103,6 +109,15 @@ A configurable `gap_fill_max_per_series` cap prevents a series with many gaps fr
 ### 🏷️ Alias-Aware RSS Matching
 When an Italian RSS feed publishes a release under an alternative title (e.g. *"Agenti di S.H.I.E.L.D."* instead of the configured *"Agents of S.H.I.E.L.D."*), EXTTO now recognises it automatically.  
 Aliases defined in the series config are checked at every stage — RSS parsing, deduplication, feed-match tracking, and gap-fill search queries.
+
+### 💾 Automatic Backup & Telegram Delivery
+EXTTO backs itself up automatically. Archives rotate with a **GFS scheme** (daily / weekly / monthly / yearly), are sent straight to your **Telegram chat**, and can optionally be uploaded to FTP or Dropbox — all configured from the Web UI, zero external scripts needed.
+
+### 🏷️ Per-Title Exclusion Rules
+Beyond the global blacklist, each series or movie can carry its own **exclude word list**. Useful to separate a sequel from its original, block a specific release group only for one title, or skip extended cuts of a single film — without affecting anything else.
+
+### 📊 Download Source Tracking
+Every torrent EXTTO accepts is tagged with its **origin** (Jackett, ThePirateBay, Knaben, RSS Feed, Timeframe, Comics…). Visible in the download list and useful to trace retrospectively where a file came from.
 
 ### 🔒 Privacy First
 VPN killswitch that binds all traffic to `tun0`/`wg0`. Automatic IP blocklist updates. Your downloads stay private.
@@ -165,6 +180,8 @@ Every donation directly funds new features, bug fixes, and keeping the project a
 ## 🎬 Movie Configuration Tips
 
 Getting the right movie — and not a wrong one with a similar title — depends on how you configure it.
+
+> **Tip — per-movie exclude words:** the `Exclude` field accepts comma-separated words that must *not* appear in the release title. Use it to separate sequels (`romulus`), avoid director's cuts, or block a release group that works badly for that single title only.
 
 | Field | Recommendation |
 |-------|----------------|
@@ -244,6 +261,10 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 | Cartelle per tag | **✅ Integrato** | ❌ Manuale |
 | Notifiche webhook | **✅ Integrato** | ❌ Solo tramite plugin |
 | Gap fill con cooldown | **✅ 24 h per episodio** | ❌ Riprova ad ogni ciclo |
+| Backup automatico + invio Telegram | **✅ Integrato** | ❌ Impossibile |
+| Editor pesi qualità | **✅ Web UI completa** | ⚠️ Limitato |
+| Regole esclusione per titolo | **✅ Integrato** | ❌ Impossibile |
+| Tracciamento sorgente download | **✅ Per torrent** | ❌ Non disponibile |
 | Web UI | **✅ Moderna, flat** | Variabile |
 
 ---
@@ -263,7 +284,8 @@ I motori protetti da Cloudflare vengono attraversati in modo trasparente tramite
 Assegna un tag a qualsiasi download (automaticamente o al momento in cui aggiungi un magnet/torrent) e EXTTO instrada il file completato nella cartella corrispondente. Serie in `/media/tv`, documentari in `/media/docs`, fumetti in `/media/comics` — zero ordinamento manuale.
 
 ### 💾 Download in RAM Disk
-Proteggi il tuo SSD. EXTTO scarica i torrent piccoli direttamente su un RAM disk `tmpfs` e li sposta in archivio solo a completamento al 100%. Zero scritture SSD durante il download.
+Proteggi il tuo SSD. EXTTO scarica i torrent piccoli direttamente su un RAM disk `tmpfs` e li sposta in archivio solo a completamento al 100%. Zero scritture SSD durante il download.  
+La capacità viene verificata in modo atomico — se due torrent vengono accettati quasi contemporaneamente, solo uno occupa lo slot RAM; l'altro ricade su disco senza race condition né overflow del `tmpfs`.
 
 ### 🫏 La Rinascita di eMule / eD2k
 Cerchi quel documentario oscuro del 2003 che nessuno seedca più? EXTTO si integra con `amuled` e cade automaticamente sulla rete eD2k quando i torrent falliscono. Nessun altro media manager lo fa.
@@ -271,8 +293,9 @@ Cerchi quel documentario oscuro del 2003 che nessuno seedca più? EXTTO si integ
 ### 📚 Fumetti — Supporto Nativo
 Weekly pack, numeri singoli, monitoraggio automatico. Download direttamente da GetComics via Mega.nz o torrent. Senza plugin, senza workaround.
 
-### 🏆 Upgrade Qualità Intelligente
-EXTTO valuta ogni release (4K, HDR10, Dolby Vision, DTS-X, codec, sorgente...) e sostituisce automaticamente il file esistente quando trova una versione migliore. Configuralo una volta, dimenticatelo.
+### 🏆 Upgrade Qualità Intelligente — Completamente Configurabile
+EXTTO valuta ogni release (4K, HDR10, Dolby Vision, DTS-X, codec, sorgente...) e sostituisce automaticamente il file esistente quando trova una versione migliore.  
+Ogni peso — risoluzione, sorgente, codec, audio, gruppi, bonus DV/REAL/PROPER — è modificabile direttamente dalla **Web UI** senza toccare alcun file di configurazione. Niente YAML, niente riavvio.
 
 ### 🎛️ Web UI Moderna — Accordion, Tab e Dirty Tracking
 La pagina impostazioni è organizzata in sezioni accordion collassabili (stato salvato in localStorage) con un tab dedicato **Integrazioni** per Trakt e Jellyfin. Un pallino rosso compare su ogni tab con modifiche non salvate, così non perdi mai le impostazioni per errore.
@@ -301,6 +324,15 @@ Un parametro `gap_fill_max_per_series` configurabile impedisce a una serie con m
 ### 🏷️ Matching RSS con Alias
 Quando un feed RSS italiano pubblica una release con un titolo alternativo (es. *"Agenti di S.H.I.E.L.D."* invece del nome configurato *"Agents of S.H.I.E.L.D."*), EXTTO ora la riconosce automaticamente.  
 Gli alias definiti nella configurazione della serie vengono controllati in ogni fase — parsing RSS, deduplicazione, tracciamento feed-match e query di gap-fill.
+
+### 💾 Backup Automatico e Invio su Telegram
+EXTTO si fa il backup da solo. Gli archivi ruotano con schema **GFS** (giornaliero / settimanale / mensile / annuale), vengono inviati direttamente nella tua **chat Telegram** e possono essere caricati opzionalmente su FTP o Dropbox — tutto configurabile dalla Web UI, senza script esterni.
+
+### 🏷️ Regole di Esclusione per Singolo Titolo
+Oltre alla blacklist globale, ogni serie o film può avere la propria **lista di parole da escludere**. Utile per separare un sequel dall'originale, bloccare un release group problematico solo per quel titolo, o saltare le versioni extended di un singolo film — senza influenzare il resto.
+
+### 📊 Tracciamento Sorgente dei Download
+Ogni torrent accettato da EXTTO viene etichettato con la **sorgente di provenienza** (Jackett, ThePirateBay, Knaben, Feed RSS, Timeframe, Fumetti…). Visibile nella lista download, utile per risalire retrospettivamente all'origine di un file.
 
 ### 🔒 Privacy Prima di Tutto
 VPN killswitch che vincola il traffico a `tun0`/`wg0`. Aggiornamento automatico delle IP blocklist. I tuoi download restano privati.
@@ -346,6 +378,8 @@ Apri **`http://localhost:5000`** nel browser.
 ## 🎬 Configurazione Film: Come Evitare Match Errati
 
 Ottenere il film giusto — e non uno con un titolo simile — dipende da come lo configuri.
+
+> **Suggerimento — parole di esclusione per film:** il campo `Escludi` accetta parole separate da virgola che NON devono comparire nel titolo della release. Usalo per separare sequel (`romulus`), evitare le versioni director's cut, o bloccare un release group che funziona male solo per quel titolo.
 
 | Campo | Raccomandazione |
 |-------|----------------|
