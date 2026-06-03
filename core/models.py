@@ -599,6 +599,17 @@ class Parser:
         # Stagioni complete di serie TV (senza SxxExx)
         if re.search(r'\bStagion[ei]\b|\bSeason\s+\d|\bComplete\s+S\d+|\bCOMPLETA\b', title, re.I):
             return None
+        # Show wrestling (WWE, AEW, TNA, ecc.) — appaiono senza SxxExx ma non sono film
+        if re.search(r'\bWWE\b|\bAEW\b|\bTNA\b|\bWWF\b|\bROH\b|\bImpact\s+Wrestling\b', title, re.I):
+            return None
+        # Sport TV episodici (MotoGP, F1, ecc.) e formato NxNN (es. 2026x07)
+        if re.search(r'\bMotoGP\b|\bMotoE\b|\bFormula\s*E?\b|\bNASCAR\b|\bSuperBike\b', title, re.I):
+            return None
+        if re.search(r'\b\d{4}x\d{2,3}\b', title):
+            return None
+        # Riviste e magazine
+        if re.search(r'\bMagazine\b|\bRivista\b', title, re.I):
+            return None
         # Videogiochi: build, DLC, versioni, launcher
         if re.search(r'\bDLCs?\b|\bPortable\b|Build\s+\d{5,}|\bv20\d\d[._]\d{2}[._]\d{2}\b|\bGameDrive\b|\bHypervisor\b|\bDenuvO\b', title, re.I):
             return None
