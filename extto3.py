@@ -1219,7 +1219,20 @@ def main():
     TRIGGER_MOVIES      = '/tmp/extto_run_movies'
     TRIGGER_COMICS      = '/tmp/extto_run_comics'
     last_deep_gap_fill  = 0  # <--- Inizializza il timer a 0 così parte subito al primo ciclo
-    last_comics_check   = 0  # <--- Fumetti: 0 = controlla subito al primo ciclo
+    # Carica dal DB così il timer 7-giorni sopravvive ai riavvii del servizio
+    try:
+        import sqlite3 as _sq3
+        _cdb_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'comics.db')
+        if os.path.exists(_cdb_path):
+            with _sq3.connect(_cdb_path, timeout=5) as _cconn:
+                _row = _cconn.execute(
+                    "SELECT value FROM comics_settings WHERE key='last_comics_check_ts'"
+                ).fetchone()
+                last_comics_check = float(_row[0]) if _row else 0.0
+        else:
+            last_comics_check = 0.0
+    except Exception:
+        last_comics_check = 0.0
     last_completion_check = 0  # <--- AGGIUNGI QUESTA
     last_disk_alert     = 0  # <--- Timer Spazio Disco
     last_load_alert     = 0  # <--- Timer Sovraccarico CPU
@@ -2907,6 +2920,17 @@ def main():
         if _comics_due or run_comics_triggered:
             if _comics_due:
                 last_comics_check = time.time()
+                # Persisti nel DB per sopravvivere ai riavvii
+                try:
+                    import sqlite3 as _sq3
+                    _cdb_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'comics.db')
+                    with _sq3.connect(_cdb_path, timeout=5) as _cconn:
+                        _cconn.execute(
+                            "INSERT OR REPLACE INTO comics_settings(key,value) VALUES('last_comics_check_ts',?)",
+                            (str(last_comics_check),)
+                        )
+                except Exception:
+                    pass
             logger.info("📚 Starting comics cycle (getcomics.org)...")
             try:
                 from core.comics import run_comics_cycle, ComicsDB as _ComicsDB
