@@ -26,7 +26,17 @@ class QbtClient:
                 },
                 timeout=5
             )
-            res.raise_for_status()
+            # qBittorrent < 5.2.0: risponde 200 con body "Ok."
+            # qBittorrent ≥ 5.2.0: risponde 204 con body vuoto
+            # (WEBAPI: Send 204 when WebAPI response contains no data)
+            login_ok = (
+                res.status_code == 204
+                or (res.status_code == 200 and res.text.strip() in ('Ok.', 'Ok', ''))
+            )
+            if not login_ok:
+                raise ValueError(
+                    f"qBittorrent login refused (HTTP {res.status_code}, body={res.text!r})"
+                )
         except Exception as e:
             logger.exception(f"❌ qBittorrent login failed: {e}")
             self.enabled = False

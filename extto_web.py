@@ -693,6 +693,23 @@ def save_series_config(config: dict) -> bool:
     return True
 
 
+def _qbt_ok(r) -> bool:
+    """Verifica che una risposta qBittorrent indichi successo.
+
+    Compatibile con tutte le versioni:
+    - qBittorrent < 5.2.0: HTTP 200 con body 'Ok.'
+    - qBittorrent ≥ 5.2.0: HTTP 204 con body vuoto (WEBAPI: Send 204 when WebAPI
+      response contains no data — introdotto in 5.2.0)
+    """
+    if r is None:
+        return False
+    if r.status_code == 204:
+        return True
+    if r.status_code == 200 and r.text.strip() in ('Ok.', 'Ok', ''):
+        return True
+    return False
+
+
 def _atomic_write(path: str, content: str) -> None:
     """Scrive content su path in modo atomico tramite file temporaneo."""
     import tempfile
@@ -5517,7 +5534,7 @@ def set_speed_limits():
                 import requests
                 session = requests.Session()
                 r = session.post(f"{qb_url}/api/v2/auth/login", data={'username': qb_user, 'password': qb_pass}, timeout=5)
-                if r.text == 'Ok.':
+                if _qbt_ok(r):
                     # qBittorrent vuole i limiti in Bytes/s
                     dl_bytes = dl_kbps * 1024
                     ul_bytes = ul_kbps * 1024
@@ -5589,11 +5606,11 @@ def send_magnet():
                 login_url = f"{qb_url}/api/v2/auth/login"
                 session = requests.Session()
                 r = session.post(login_url, data={'username': qb_user, 'password': qb_pass}, timeout=5)
-                if r.text == 'Ok.':
+                if _qbt_ok(r):
                     add_data = {'urls': magnet, 'paused': 'true'}
                     if save_path: add_data['savepath'] = save_path
                     r = session.post(f"{qb_url}/api/v2/torrents/add", data=add_data, timeout=5)
-                    if r.text == 'Ok.':
+                    if _qbt_ok(r):
                         push_notification('download', 'Scarico avviato', 'Torrent inviato a qBittorrent', {'magnet': magnet[:80]})
                         _save_tag_for_magnet(magnet, 'Manuale')
                         return jsonify({'success': True, 'message': 'Inviato a qBittorrent'})
@@ -5706,13 +5723,13 @@ def upload_torrent():
                 login_url = f"{qb_url}/api/v2/auth/login"
                 session = requests.Session()
                 r = session.post(login_url, data={'username': qb_user, 'password': qb_pass}, timeout=5)
-                if r.text == 'Ok.':
+                if _qbt_ok(r):
                     add_url = f"{qb_url}/api/v2/torrents/add"
                     files = {'torrents': (filename, torrent_bytes, 'application/x-bittorrent')}
                     add_data = {'paused': 'true'}
                     if save_path: add_data['savepath'] = save_path
                     r = session.post(add_url, files=files, data=add_data, timeout=5)
-                    if r.text == 'Ok.':
+                    if _qbt_ok(r):
                         return jsonify({'success': True, 'message': 'File .torrent inviato a qBittorrent'})
             except Exception as e:
                 pass
@@ -7945,11 +7962,11 @@ def _comics_send_magnet(magnet: str, save_path: str = '') -> bool:
             qb_pass = settings.get('qbittorrent_password', '')
             sess = requests.Session()
             r = sess.post(f"{qb_url}/api/v2/auth/login", data={'username': qb_user, 'password': qb_pass}, timeout=5)
-            if r.text == 'Ok.':
+            if _qbt_ok(r):
                 data = {'urls': magnet, 'paused': 'true'}
                 if target_path: data['savepath'] = target_path
                 r = sess.post(f"{qb_url}/api/v2/torrents/add", data=data, timeout=5)
-                if r.text == 'Ok.':
+                if _qbt_ok(r):
                     _save_tag_for_magnet(magnet, 'Fumetti')
                     return True
 
