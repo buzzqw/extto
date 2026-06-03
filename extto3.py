@@ -2968,7 +2968,7 @@ def main():
             try:
                 import glob
                 backup_dir = str(getattr(cfg, 'backup_dir', 'backups')).strip()
-                existing_backups = sorted(glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip')), reverse=True)
+                existing_backups = sorted(glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')), reverse=True)
                 last_bkp_time = os.path.getmtime(existing_backups[0]) if existing_backups else 0
             except Exception as e:
                 logger.debug(f"backup last_time: {e}")
