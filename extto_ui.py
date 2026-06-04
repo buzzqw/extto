@@ -1,8 +1,24 @@
 #!/usr/bin/env python3
 """
-EXTTO TUI v3
-Uso: .venv/bin/python extto_ui.py [--host 127.0.0.1] [--port 5000]
+EXTTO TUI v3.2  — versione migliorata di extto_ui.py
+Uso: .venv/bin/python extto_ui2.py [--host 127.0.0.1] [--port 5000]
 Richiede: pip install textual requests
+
+Miglioramenti rispetto a extto_ui.py:
+  - Fix AskModal: usa i parametri title/label/default (non più hardcoded)
+  - Fix SpeedModal: mostra i valori attuali precompilati
+  - Fix _upd_log: usa sempre self._log_auto (no auto_scroll fantasma)
+  - Fix _cb_del_movie: thread-safe con call_from_thread
+  - Fix timer duplicato: rimosso set_interval(3, _load_sys) separato
+  - Fix _open_scores/_cb_scores: usa self.api invece di requests raw
+  - Sostituito toast custom con self.notify() nativo di Textual
+  - Aggiunto shortcut 1-8 per navigare tra i tab
+  - pbar() usa caratteri Unicode (█/░) invece di #/.
+  - Tab Salute: etichette Label prima di ogni DataTable
+  - Tab Serie: input filtro per cercare nella lista
+  - Indicatore stato connessione nella statusbar
+  - Rimossi commenti debug e il doppio commento "── cambio tab ──"
+  - Aggiunto Enter su dt-series/dt-movies per azione primaria
 """
 
 import argparse
@@ -97,9 +113,10 @@ def next_run(last_ts, interval_s):
 
 
 def pbar(pct):
+    """Barra di progresso con caratteri Unicode."""
     pct = max(0, min(100, int(pct if pct > 1 else pct * 100)))
     n = pct // 5
-    return f"[{'#' * n}{'.' * (20 - n)}] {pct:3d}%"
+    return f"[{'█' * n}{'░' * (20 - n)}] {pct:3d}%"
 
 
 # ─── API ─────────────────────────────────────────────────────────────────────
@@ -107,7 +124,7 @@ def pbar(pct):
 class API:
     def __init__(self, host, port):
         self.base = f"http://{host}:{port}"
-        self.url = self.base  # alias per compatibilità
+        self.url = self.base
         self.s = requests.Session()
 
     def get(self, path, timeout=10, **params):
@@ -141,7 +158,6 @@ class API:
     def completeness(self):          return self.get("/api/series/completeness")
     def episodes(self, sid):         return self.get(f"/api/series/{sid}/episodes")
     def del_series(self, sid, name=None):
-        """Elimina serie per ID; fallback per nome se sid è 0 o None."""
         if sid and int(sid) > 0:
             return self.delete(f"/api/series/{sid}")
         elif name:
@@ -156,7 +172,6 @@ class API:
     def movies(self):                return self.get("/api/config").get("movies", [])
     def movies_db(self):             return self.get("/api/movies")
     def del_movie(self, mid_index):
-        """Elimina un film per indice dalla config."""
         cfg = self.get("/api/config")
         lst = cfg.get("movies", [])
         if 0 <= mid_index < len(lst):
@@ -165,7 +180,6 @@ class API:
         return {"success": False}
 
     def del_movie_by_id(self, movie_id):
-        """Elimina un film per ID dal DB operativo."""
         return self.delete(f"/api/movies/{movie_id}")
     def torrents(self):              return self.get("/api/torrents")
     def send_magnet(self, m):        return self.post("/api/send-magnet", {"magnet": m})
@@ -174,7 +188,6 @@ class API:
     def set_log_level(self, lv):     return self.post("/api/log", {"level": lv})
     def config(self):                return self.get("/api/config")
     def save_settings(self, s):
-        # Converte i limiti da KB/s a Bytes/s per coerenza con il salvataggio backend
         if s:
             for k in ['libtorrent_dl_limit', 'libtorrent_ul_limit', 'libtorrent_sched_dl_limit', 'libtorrent_sched_ul_limit']:
                 if k in s and s[k]:
@@ -190,9 +203,10 @@ class API:
     def set_speed_limits(self, dl_kbps, ul_kbps):
         return self.post("/api/set-speed-limits", {"dl_kbps": dl_kbps, "ul_kbps": ul_kbps})
     def network_interfaces(self):    return self.get("/api/network/interfaces")
+    def scores_get(self):            return self.get("/api/scores/settings", timeout=5)
+    def scores_set(self, data):      return self.post("/api/scores/settings", data, timeout=5)
 
     def add_series(self, name, seasons='1+', quality='1080p', language='ita'):
-        """Aggiunge una serie via POST diretto a /api/config/series (append-only)."""
         cfg = self.get("/api/config")
         lst = cfg.get("series", [])
         lst.append({'name': name, 'seasons': seasons, 'quality': quality,
@@ -205,6 +219,7 @@ class API:
         lst = cfg.get("movies", [])
         lst.append({'name': name, 'year': '', 'quality': '1080p', 'language': 'ita', 'enabled': True})
         return self.post("/api/config/movies", {"movies": lst})
+
 
 # ─── CSS ─────────────────────────────────────────────────────────────────────
 
@@ -222,6 +237,8 @@ Footer  { background: #001428; color: #555;    height: 1; }
 }
 #statusbar Label { padding: 0 2; color: #888; }
 #sb-cycle { color: #00ff88; }
+#sb-conn-ok  { color: #00ff88; }
+#sb-conn-err { color: #ff5555; }
 
 TabbedContent { height: 1fr; }
 TabPane       { padding: 0; height: 1fr; }
@@ -246,6 +263,12 @@ TabPane       { padding: 0; height: 1fr; }
 .toolbar Button.warn   { color: #ffaa00; border: solid #4a3a00; }
 .toolbar Button.danger { color: #ff5555; border: solid #4a1515; }
 .toolbar Label         { color: #555; padding: 0 1; }
+.toolbar Input {
+    width: 26;
+    background: #0f0f0f;
+    border: solid #2a2a2a;
+    color: #ccc;
+}
 
 DataTable {
     height: 1fr;
@@ -358,17 +381,17 @@ DataTable > .datatable--odd-row  { background: #0a0a0a; }
 .dash-hdr { color: #00aaff; text-style: bold; margin-top: 1; }
 .dash-val { color: #00ff88; }
 
-/* Toast */
-#toast {
-    dock: bottom;
-    height: 1;
-    background: #001a00;
-    color: #00ff88;
-    padding: 0 2;
-    display: none;
+/* Salute */
+.health-section-label {
+    color: #00aaff;
+    text-style: bold;
+    padding: 1 1 0 1;
+    border-top: solid #1e1e1e;
 }
-#toast.show  { display: block; }
-#toast.error { background: #1a0000; color: #ff5555; }
+#dt-health-disk { height: auto; max-height: 8; }
+#dt-health-idx  { height: auto; max-height: 8; }
+#dt-health-serv { height: auto; max-height: 8; }
+#dt-health-err  { height: auto; max-height: 8; }
 
 /* Modal */
 ModalScreen { align: center middle; }
@@ -415,6 +438,7 @@ ModalScreen { align: center middle; }
 # ─── Modals ───────────────────────────────────────────────────────────────────
 
 class AskModal(ModalScreen):
+    """Dialog generico per input testo. Usa correttamente i parametri title/label/default."""
     BINDINGS = [("escape", "dismiss(None)", "Annulla")]
 
     def __init__(self, title, label, default="", **kw):
@@ -423,9 +447,9 @@ class AskModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(id="mdl"):
-            yield Label("Invia Magnet o URL", classes="mtitle")
-            yield Label("Link (.torrent o magnet):")
-            yield Input(placeholder="magnet:?xt=... oppure http://...", id="mdl-inp")
+            yield Label(self._t, classes="mtitle")
+            yield Label(self._l)
+            yield Input(value=self._d, id="mdl-inp")
             with Horizontal(id="mdl-btns"):
                 yield Button("Conferma", id="mdl-ok",  variant="success")
                 yield Button("Annulla",  id="mdl-can", variant="error")
@@ -523,7 +547,6 @@ class ScoreModal(ModalScreen):
                     yield Label("Bonus Repack:", classes="mlabel")
                     yield Input(str(self.scores.get('bonus_repack', 50)), id="s-bonus-repack", classes="minp")
 
-                # Aggiungiamo le mappe se presenti per rendere tutto modificabile
                 if 'res_map' in self.scores:
                     yield Label("2. Rank Risoluzioni", classes="msection")
                     for k, v in sorted(self.scores['res_map'].items(), key=lambda x: x[1]):
@@ -585,7 +608,6 @@ class ScoreModal(ModalScreen):
             self.scores['bonus_proper']= int(self.query_one("#s-bonus-proper").value)
             self.scores['bonus_repack']= int(self.query_one("#s-bonus-repack").value)
 
-            # Update maps from inputs
             for inp in self.query(Input):
                 if inp.id.startswith("sm-res-"): self.scores['res_map'][inp.id[7:]] = int(inp.value)
                 if inp.id.startswith("sm-src-"): self.scores['source_pref'][inp.id[7:]] = int(inp.value)
@@ -595,7 +617,7 @@ class ScoreModal(ModalScreen):
 
             self.dismiss(self.scores)
         except Exception as e:
-            self.notify_msg(f"Errore: {e}", error=True)
+            self.app.notify(f"Errore: {e}", severity="error")
 
     @on(Button.Pressed, "#mdl-can")
     def do_can(self):
@@ -631,12 +653,14 @@ class MagnetModal(ModalScreen):
         self.do_ok()
 
 
-# ─── App ─────────────────────────────────────────────────────────────────────
-
-
 class SpeedModal(ModalScreen):
-    """Imposta limiti di velocità DL/UL al volo."""
+    """Imposta limiti di velocità DL/UL al volo. Mostra i valori attuali precompilati."""
     BINDINGS = [("escape", "dismiss(None)", "Annulla")]
+
+    def __init__(self, dl_kbps=0, ul_kbps=0, **kw):
+        super().__init__(**kw)
+        self._dl = str(dl_kbps)
+        self._ul = str(ul_kbps)
 
     def compose(self) -> ComposeResult:
         with Container(id="mdl"):
@@ -644,10 +668,10 @@ class SpeedModal(ModalScreen):
             yield Label("0 = nessun limite")
             with Horizontal(classes="toolbar"):
                 yield Label("Download KB/s:")
-                yield Input(placeholder="0", id="spd-dl", classes="minp")
+                yield Input(value=self._dl, id="spd-dl", classes="minp")
             with Horizontal(classes="toolbar"):
                 yield Label("Upload KB/s:")
-                yield Input(placeholder="0", id="spd-ul", classes="minp")
+                yield Input(value=self._ul, id="spd-ul", classes="minp")
             with Horizontal(id="mdl-btns"):
                 yield Button("Applica", id="mdl-ok",  variant="success")
                 yield Button("Annulla", id="mdl-can", variant="error")
@@ -707,29 +731,40 @@ class NetworkInterfaceModal(ModalScreen):
             self.dismiss(bid[6:])
 
 
+# ─── App ─────────────────────────────────────────────────────────────────────
+
 class ExttoTUI(App):
     CSS = CSS
     TITLE = "EXTTO v30"
     BINDINGS = [
-        Binding("q",  "quit",       "Esci",       priority=True),
-        Binding("r",  "run_all",    "Run All"),
-        Binding("s",  "run_series", "Run Serie"),
-        Binding("m",  "run_movies", "Run Film"),
-        Binding("c",  "run_comics", "Run Fumetti"),
-        Binding("f5", "refresh",    "Aggiorna"),
+        Binding("q",  "quit",        "Esci",      priority=True),
+        Binding("r",  "run_all",     "Run All"),
+        Binding("s",  "run_series",  "Run Serie"),
+        Binding("m",  "run_movies",  "Run Film"),
+        Binding("c",  "run_comics",  "Run Fumetti"),
+        Binding("f5", "refresh",     "Aggiorna"),
+        Binding("1",  "go_tab('tab-dash')",     "Dashboard",  show=False),
+        Binding("2",  "go_tab('tab-series')",   "Serie",      show=False),
+        Binding("3",  "go_tab('tab-movies')",   "Film",       show=False),
+        Binding("4",  "go_tab('tab-torrents')", "Torrent",    show=False),
+        Binding("5",  "go_tab('tab-log')",      "Log",        show=False),
+        Binding("6",  "go_tab('tab-archive')",  "Archivio",   show=False),
+        Binding("7",  "go_tab('tab-health')",   "Salute",     show=False),
+        Binding("8",  "go_tab('tab-sources')",  "Sorgenti",   show=False),
     ]
 
     def __init__(self, api: API, **kw):
         super().__init__(**kw)
         self.api = api
-        self._series   = []
-        self._movies   = []
+        self._series    = []
+        self._movies    = []
         self._movies_db = {}
-        self._sel_sid  = None
-        self._sel_name = None   # nome serie selezionata (per fallback delete by-name)
-        self._sel_eid  = None
-        self._sel_mid  = None
-        self._log_auto = True
+        self._sel_sid   = None
+        self._sel_name  = None
+        self._sel_eid   = None
+        self._sel_mid   = None
+        self._log_auto  = True
+        self._backend_ok = True
 
     # ── compose ───────────────────────────────────────────────────────────────
 
@@ -740,11 +775,11 @@ class ExttoTUI(App):
             yield Label("| Prox: —",      id="sb-next")
             yield Label("| CPU:— RAM:—",  id="sb-sys")
             yield Label("| Disco:— Up:—", id="sb-disk")
+            yield Label("| ● Online",     id="sb-conn")
 
-        # TabPane usa id "tab-*", DataTable usa id "dt-*" — nessun conflitto
         with TabbedContent(initial="tab-dash"):
 
-            with TabPane("Dashboard", id="tab-dash"):
+            with TabPane("Dashboard \\[1]", id="tab-dash"):
                 with Horizontal(id="dash-section"):
                     with Vertical(id="dash-left"):
                         yield Label("[ Ciclo ]",    classes="dash-hdr")
@@ -757,15 +792,17 @@ class ExttoTUI(App):
                         yield Label("[ Ultimi Download ]", classes="dash-hdr")
                         yield DataTable(id="dt-dl", show_cursor=False)
 
-            with TabPane("Serie TV", id="tab-series"):
+            with TabPane("Serie TV \\[2]", id="tab-series"):
                 with Vertical(id="series-outer"):
                     with Horizontal(classes="toolbar"):
-                        yield Button("Run Serie",      id="b-run-s",  classes="ok", tooltip="Forza la ricerca nuovi episodi ORA")
-                        yield Button("+ Aggiungi",     id="b-add-s",  classes="ok", tooltip="Aggiungi una nuova serie")
-                        yield Button("Cerca Mancanti", id="b-miss-s", classes="warn", tooltip="Cerca stagioni passate")
-                        yield Button("Rinomina",       id="b-ren-s",  tooltip="Rinomina la serie selezionata")
+                        yield Button("Run Serie",      id="b-run-s",  classes="ok",     tooltip="Forza la ricerca nuovi episodi ORA")
+                        yield Button("+ Aggiungi",     id="b-add-s",  classes="ok",     tooltip="Aggiungi una nuova serie")
+                        yield Button("Cerca Mancanti", id="b-miss-s", classes="warn",   tooltip="Cerca stagioni passate")
+                        yield Button("Rinomina",       id="b-ren-s",                    tooltip="Rinomina la serie selezionata")
                         yield Button("Elimina",        id="b-del-s",  classes="danger", tooltip="Elimina dal database")
-                        yield Button("Aggiorna",       id="b-ref-s",  tooltip="Ricarica la lista")
+                        yield Button("Aggiorna",       id="b-ref-s",                    tooltip="Ricarica la lista")
+                        yield Label("Filtra:")
+                        yield Input(placeholder="cerca serie...", id="series-filter")
                     with Horizontal(id="series-split"):
                         with Vertical(id="series-left"):
                             yield DataTable(id="dt-series", cursor_type="row")
@@ -780,13 +817,13 @@ class ExttoTUI(App):
                     with Container(id="ep-section"):
                         yield DataTable(id="dt-eps", cursor_type="row")
 
-            with TabPane("Film", id="tab-movies"):
+            with TabPane("Film \\[3]", id="tab-movies"):
                 with Vertical():
                     with Horizontal(classes="toolbar"):
-                        yield Button("Run Film",   id="b-run-m",  classes="ok", tooltip="Cerca i film mancanti ORA")
-                        yield Button("+ Aggiungi", id="b-add-m",  classes="ok", tooltip="Aggiungi alla lista desideri")
+                        yield Button("Run Film",   id="b-run-m",  classes="ok",     tooltip="Cerca i film mancanti ORA")
+                        yield Button("+ Aggiungi", id="b-add-m",  classes="ok",     tooltip="Aggiungi alla lista desideri")
                         yield Button("Elimina",    id="b-del-m",  classes="danger", tooltip="Rimuovi il film dalla lista")
-                        yield Button("Aggiorna",   id="b-ref-m",  tooltip="Ricarica la lista")
+                        yield Button("Aggiorna",   id="b-ref-m",                    tooltip="Ricarica la lista")
                     with Horizontal(id="movies-split"):
                         with Vertical(id="movies-left"):
                             yield DataTable(id="dt-movies", cursor_type="row")
@@ -794,19 +831,19 @@ class ExttoTUI(App):
                             yield Label("— nessun film —", id="det-m-title", classes="det-title")
                             yield Static("", id="det-m-body", classes="det-body")
 
-            with TabPane("Torrent", id="tab-torrents"):
+            with TabPane("Torrent \\[4]", id="tab-torrents"):
                 with Vertical():
                     with Horizontal(classes="toolbar"):
                         yield Button("+ Magnet/Torrent",   id="b-add-mag",  classes="ok")
-                        yield Button("Punteggi",           id="b-scores",   classes="info")
+                        yield Button("Punteggi",           id="b-scores")
                         yield Button("Rimuovi Completati", id="b-rm-comp",  classes="warn")
                         yield Button("Azione Pulizia",     id="b-clean-act")
-                        yield Button("Velocità",           id="b-speed",   classes="info")
+                        yield Button("Velocità",           id="b-speed")
                         yield Button("Interfaccia",        id="b-iface")
                         yield Button("Aggiorna",           id="b-ref-t")
                     yield DataTable(id="dt-torr", cursor_type="row")
 
-            with TabPane("Log", id="tab-log"):
+            with TabPane("Log \\[5]", id="tab-log"):
                 with Vertical():
                     with Horizontal(classes="toolbar"):
                         yield Label("Level:")
@@ -819,7 +856,7 @@ class ExttoTUI(App):
                     with ScrollableContainer(id="log-scroll"):
                         yield Static("", id="log-text", markup=False)
 
-            with TabPane("Archivio", id="tab-archive"):
+            with TabPane("Archivio \\[6]", id="tab-archive"):
                 with Vertical():
                     with Horizontal(id="arch-toolbar"):
                         yield Label("Cerca:")
@@ -828,22 +865,25 @@ class ExttoTUI(App):
                         yield Label("", id="arch-count")
                     yield DataTable(id="dt-arch", cursor_type="row")
 
-            with TabPane("Salute", id="tab-health"):
-                with Vertical():
+            with TabPane("Salute \\[7]", id="tab-health"):
+                with ScrollableContainer():
                     yield Static("Caricamento stato sistema...", id="health-txt")
+                    yield Label("💾 Disco", classes="health-section-label")
                     yield DataTable(id="dt-health-disk", cursor_type="row")
+                    yield Label("🔍 Indexer", classes="health-section-label")
                     yield DataTable(id="dt-health-idx", cursor_type="row")
+                    yield Label("⚙ Servizi", classes="health-section-label")
                     yield DataTable(id="dt-health-serv", cursor_type="row")
+                    yield Label("⚠ Errori recenti", classes="health-section-label")
                     yield DataTable(id="dt-health-err", cursor_type="row")
 
-            with TabPane("Sorgenti", id="tab-sources"):
+            with TabPane("Sorgenti \\[8]", id="tab-sources"):
                 with Vertical():
                     with Horizontal(classes="toolbar"):
                         yield Button("Test Sorgenti (fino a 30s)", id="b-test-src")
                         yield Label("", id="src-status")
                     yield DataTable(id="dt-src", show_cursor=False)
 
-        yield Label("", id="toast")
         yield Footer()
 
     # ── on_mount ──────────────────────────────────────────────────────────────
@@ -857,17 +897,25 @@ class ExttoTUI(App):
         self.query_one("#dt-arch",   DataTable).add_columns("ID", "Titolo", "Aggiunto")
         self.query_one("#dt-src",    DataTable).add_columns("Nome", "URL", "Stato", "Ping")
         self.query_one("#dt-health-disk", DataTable).add_columns("Disco", "Spazio", "Stato")
-        self.query_one("#dt-health-idx", DataTable).add_columns("Indice", "Stato")
+        self.query_one("#dt-health-idx",  DataTable).add_columns("Indice", "Stato")
         self.query_one("#dt-health-serv", DataTable).add_columns("Servizio", "Stato")
-        self.query_one("#dt-health-err", DataTable).add_columns("Ultime righe di errore nel log")
+        self.query_one("#dt-health-err",  DataTable).add_columns("Ultime righe di errore nel log")
 
         self._load_dash()
         self._load_series()
         self._load_movies()
         self._load_torrents()
         self._load_archive()
+        # Un unico timer: aggiorna dashboard+torrents+log ogni 5s
         self.set_interval(5, self._auto_refresh)
-        self.set_interval(3, self._load_sys)  # <- Nuovo timer super veloce!
+
+    # ── navigazione shortcut tab ──────────────────────────────────────────────
+
+    def action_go_tab(self, tab_id: str):
+        try:
+            self.query_one(TabbedContent).active = tab_id
+        except NoMatches:
+            pass
 
     # ── refresh ───────────────────────────────────────────────────────────────
 
@@ -875,7 +923,7 @@ class ExttoTUI(App):
         self._load_dash()
         try:
             tab = self.query_one(TabbedContent).active
-            if tab == "tab-torrents" or tab == "tab-dash":
+            if tab in ("tab-torrents", "tab-dash"):
                 self._load_torrents()
             if tab == "tab-log":
                 self._load_log()
@@ -898,20 +946,6 @@ class ExttoTUI(App):
             "tab-sources":  self._load_sources,
         }.get(tab, lambda: None)()
 
-    # ── toast ─────────────────────────────────────────────────────────────────
-
-    def notify_msg(self, msg, duration=3.0, error=False):
-        try:
-            t = self.query_one("#toast", Label)
-            t.update(msg)
-            t.remove_class("error")
-            if error:
-                t.add_class("error")
-            t.add_class("show")
-            self.set_timer(duration, lambda: t.remove_class("show"))
-        except NoMatches:
-            pass
-
     # ── workers: Dashboard ────────────────────────────────────────────────────
 
     @work(thread=True)
@@ -922,8 +956,28 @@ class ExttoTUI(App):
             sys_ = self.api.syscfg()
             rec  = self.api.recent()
             self.call_from_thread(self._upd_dash, st, lc, sys_, rec)
+            if not self._backend_ok:
+                self._backend_ok = True
+                self.call_from_thread(self._upd_conn_status, True)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Dashboard: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Dashboard: {e}", severity="error")
+            if self._backend_ok:
+                self._backend_ok = False
+                self.call_from_thread(self._upd_conn_status, False)
+
+    def _upd_conn_status(self, ok: bool):
+        try:
+            lbl = self.query_one("#sb-conn", Label)
+            if ok:
+                lbl.update("| ● Online")
+                lbl.remove_class("sb-conn-err")
+                lbl.add_class("sb-conn-ok")
+            else:
+                lbl.update("| ● Offline")
+                lbl.remove_class("sb-conn-ok")
+                lbl.add_class("sb-conn-err")
+        except NoMatches:
+            pass
 
     def _upd_dash(self, st, lc, sys_, rec):
         last = lc.get("generated_at", "")
@@ -954,7 +1008,7 @@ class ExttoTUI(App):
             )
             dt = self.query_one("#dt-dl", DataTable)
             dt.clear()
-            w = max(20, self.size.width - 85) # Calcola lo spazio libero
+            w = max(20, self.size.width - 85)
             for item in rec.get("downloads", [])[:20]:
                 dt.add_row(
                     item.get("type", "?").upper(),
@@ -965,42 +1019,7 @@ class ExttoTUI(App):
         except NoMatches:
             pass
 
-    # ── workers: Sistema ──────────────────────────────────────────────────────
-
-    @work(thread=True)
-    def _load_sys(self):
-        try:
-            sys_ = self.api.syscfg()
-            self.call_from_thread(self._upd_sys, sys_)
-        except Exception:
-            pass
-
-    def _upd_sys(self, sys_):
-        cpu  = sys_.get("cpu",    "?") if isinstance(sys_, dict) else "?"
-        ram  = sys_.get("ram_mb", "?") if isinstance(sys_, dict) else "?"
-        disk = sys_.get("disk",   "?") if isinstance(sys_, dict) else "?"
-        up   = sys_.get("uptime", "?") if isinstance(sys_, dict) else "?"
-        try:
-            self.query_one("#sb-sys",   Label).update(f"| CPU:{cpu}% RAM:{ram}MB")
-            self.query_one("#sb-disk",  Label).update(f"| Disco:{disk}% Up:{up}")
-        except NoMatches:
-            pass
-
     # ── workers: Serie ────────────────────────────────────────────────────────
-
-    @work(thread=True)
-    def _load_log(self):
-        try:
-            lines = self.api.logs(100)
-            self.call_from_thread(self._upd_log, lines)
-        except Exception as e:
-            self.notify_msg(f"Log: {e}", error=True)
-
-    def _upd_log(self, lines):
-        txt = self.query_one("#log-text", Static)
-        txt.update("\n".join(lines))
-        if getattr(self, "auto_scroll", False):
-            self.query_one("#log-scroll").scroll_end(animate=False)
 
     @work(thread=True)
     def _load_series(self):
@@ -1010,28 +1029,30 @@ class ExttoTUI(App):
             comp  = self.api.completeness()
             self.call_from_thread(self._upd_series, data, stats, comp)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Serie: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Serie: {e}", severity="error")
 
     def _upd_series(self, data, stats, comp):
         self._series = data
         try:
+            q = ""
+            try:
+                q = self.query_one("#series-filter", Input).value.strip().lower()
+            except NoMatches:
+                pass
+
             t = self.query_one("#dt-series", DataTable)
             t.clear()
             for s in data:
                 try:
                     sid  = s.get("id")
-                    name = (s.get("name") or "?")[:36]
+                    name = s.get("name") or "?"
+                    if q and q not in name.lower():
+                        continue
                     eps  = s.get("episodes_count", 0)
                     q_   = qual(s.get("quality_score"))
-
-                    # Lettura sicura di stagione ed episodio
-                    l_s = s.get("last_season")
-                    l_e = s.get("last_episode")
-                    if l_s is not None and l_e is not None:
-                        lu = f"S{int(l_s):02d}E{int(l_e):02d}"
-                    else:
-                        lu = "—"
-
+                    l_s  = s.get("last_season")
+                    l_e  = s.get("last_episode")
+                    lu   = f"S{int(l_s):02d}E{int(l_e):02d}" if l_s is not None and l_e is not None else "—"
                     st   = stats.get(str(sid), {})
                     if comp.get(s.get("name", "")):
                         stato = "Completa"
@@ -1039,10 +1060,8 @@ class ExttoTUI(App):
                         stato = "Conclusa"
                     else:
                         stato = "Attiva"
-
-                    t.add_row(str(sid), name, str(eps), q_, lu, stato)
+                    t.add_row(str(sid), name[:36], str(eps), q_, lu, stato)
                 except Exception:
-                    # Se una serie va in errore, ignorala ma non bloccare le altre!
                     continue
         except NoMatches:
             pass
@@ -1070,7 +1089,7 @@ class ExttoTUI(App):
             data = self.api.episodes(sid)
             self.call_from_thread(self._upd_episodes, data)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Episodi: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Episodi: {e}", severity="error")
 
     def _upd_episodes(self, data):
         try:
@@ -1098,27 +1117,24 @@ class ExttoTUI(App):
         try:
             cfg_movies = self.api.movies()
             try:
-                db_movies  = self.api.movies_db()
+                db_movies = self.api.movies_db()
             except Exception:
-                db_movies  = []
-            # Mappa nome (lowercase) → record DB per join
+                db_movies = []
             db_map = {m.get("name", "").lower(): m for m in (db_movies or [])}
             self.call_from_thread(self._upd_movies, cfg_movies, db_map)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Film: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Film: {e}", severity="error")
 
     def _upd_movies(self, data, db_map=None):
-        self._movies   = data
+        self._movies    = data
         self._movies_db = db_map or {}
         try:
             t = self.query_one("#dt-movies", DataTable)
             t.clear()
             for i, m in enumerate(data):
-                key        = m.get("name", "").lower()
-                db_rec     = self._movies_db.get(key)
-                scaricato  = "✓" if db_rec else "—"
-                stato_str  = ("In Pausa" if not m.get("enabled", True) else
-                              ("Scaricato" if db_rec else "In Ricerca"))
+                key       = m.get("name", "").lower()
+                db_rec    = self._movies_db.get(key)
+                scaricato = "✓" if db_rec else "—"
                 t.add_row(
                     str(i),
                     m.get("name", "?")[:38],
@@ -1166,87 +1182,61 @@ class ExttoTUI(App):
     def _load_torrents(self):
         try:
             data = self.api.torrents()
-            # Se riceviamo un dizionario con l'errore del backend (503)
             if isinstance(data, dict) and "error" in data:
-                self.call_from_thread(self.notify_msg, f"Backend: {data['error']}", 4, True)
+                self.call_from_thread(self.notify, f"Backend: {data['error']}", severity="error")
                 self.call_from_thread(self._upd_torrents, [])
                 return
-
-            if not data:
-                # Se è una lista vuota o None, non è necessariamente un errore
-                pass
             self.call_from_thread(self._upd_torrents, data)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Connessione: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Connessione: {e}", severity="error")
             self.call_from_thread(self._upd_torrents, [])
 
     def _upd_torrents(self, data):
-        # DEBUG per capire cosa arriva dal server
-        # self.call_from_thread(self.notify_msg, f"RAW DATA: {type(data)} {str(data)[:200]}", 5)
-
         if isinstance(data, dict):
             lst = data.get("torrents", data.get("data", []))
         elif isinstance(data, list):
             lst = data
         else:
             lst = []
-
-        # Se lst è un dizionario (perché extto3 ha mandato {'torrents': { ... }})
         if isinstance(lst, dict):
-            # Proviamo a vedere se è un dizionario di torrent indicizzati per hash o altro
-            # In tal caso prendiamo i valori
             lst = list(lst.values())
-
-        # Altro DEBUG
-        # self.call_from_thread(self.notify_msg, f"LST: {type(lst)} len={len(lst) if isinstance(lst, list) else 'N/A'}", 3)
 
         try:
             t = self.query_one("#dt-torr", DataTable)
             t.clear()
             for tor in lst:
-                try: # <--- SALVAGENTE: Se un torrent è corrotto, non blocca gli altri
+                try:
                     name_raw = tor.get("name") or tor.get("info_hash") or "?"
-                    name = str(name_raw)[:44]
+                    name  = str(name_raw)[:44]
                     raw_s = str(tor.get("state", tor.get("status", "?")))
                     state = TORRENT_STATES.get(raw_s, raw_s)
 
-                    # Se progress manca, lo cerchiamo in percent_done o lo mettiamo a 0
                     prog = tor.get("progress")
                     if prog is None:
                         prog = tor.get("percent_done", 0)
-
                     if prog is None: prog = 0
                     if isinstance(prog, (float, int)) and prog <= 1.0:
                         prog *= 100
 
-                    # --- LA MAGIA ANCHE NEL TERMINALE ---
                     file_on_disk = tor.get("physical_file_found", False)
                     if file_on_disk:
                         prog = 100
-                        # Se il file è sul NAS, lo stato deve essere informativo
-                        # Se non è in uno stato finale del client, mostriamo SALVATO
                         final_states = ("SEED", "FINE", "FINE_T")
                         if state not in final_states:
                             state = "SALVATO"
-                    # ------------------------------------
 
-                    dl_rate = tor.get("download_rate", tor.get("rateDownload", 0)) or 0
-                    ul_rate = tor.get("upload_rate",   tor.get("rateUpload",   0)) or 0
-                    tot_size = tor.get("total_size",   tor.get("totalSize",    0)) or 0
+                    dl_rate  = tor.get("download_rate", tor.get("rateDownload", 0)) or 0
+                    ul_rate  = tor.get("upload_rate",   tor.get("rateUpload",   0)) or 0
+                    tot_size = tor.get("total_size",    tor.get("totalSize",    0)) or 0
+                    dl_s     = spd(dl_rate)
+                    ul_s     = spd(ul_rate)
+                    size     = sz(tot_size)
 
-                    dl_s  = spd(dl_rate)
-                    ul_s  = spd(ul_rate)
-                    size  = sz(tot_size)
-
-                    # Calcolo Ratio a prova di bomba
-                    raw_ratio = tor.get('ratio')
-                    if raw_ratio is None:
-                        raw_ratio = tor.get('uploadRatio')
+                    raw_ratio = tor.get('ratio') or tor.get('uploadRatio')
                     if raw_ratio is None:
                         d_done = tor.get('total_done', 0) or 0
                         u_done = tor.get('total_uploaded', 0) or 0
                         raw_ratio = (u_done / d_done) if d_done > 0 else 0.0
-
                     try:
                         ratio = f"{float(raw_ratio):.2f}"
                     except (ValueError, TypeError):
@@ -1263,7 +1253,7 @@ class ExttoTUI(App):
 
                     t.add_row(name, state, pbar(prog), dl_s, ul_s, size, ratio, eta)
                 except Exception:
-                    continue # Salta silenziosamente la riga problematica
+                    continue
         except NoMatches:
             pass
 
@@ -1275,7 +1265,7 @@ class ExttoTUI(App):
             data = self.api.logs(300)
             self.call_from_thread(self._upd_log, data.get("logs", []))
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Log: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Log: {e}", severity="error")
 
     def _upd_log(self, lines):
         try:
@@ -1296,7 +1286,7 @@ class ExttoTUI(App):
             data = self.api.archive(q=q, limit=100)
             self.call_from_thread(self._upd_archive, data)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Archivio: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Archivio: {e}", severity="error")
 
     def _upd_archive(self, data):
         try:
@@ -1304,7 +1294,7 @@ class ExttoTUI(App):
             t.clear()
             items = data.get("items", [])
             total = data.get("total", len(items))
-            w = max(30, self.size.width - 35) # Calcola lo spazio libero
+            w = max(30, self.size.width - 35)
             for item in items:
                 t.add_row(
                     str(item.get("id", "")),
@@ -1319,12 +1309,12 @@ class ExttoTUI(App):
 
     @work(thread=True)
     def _load_sources(self):
-        self.call_from_thread(self.notify_msg, "Test in corso...", 35)
+        self.call_from_thread(self.notify, "Test sorgenti in corso (max 30s)...", timeout=35)
         try:
             data = self.api.sources()
             self.call_from_thread(self._upd_sources, data.get("sources", []))
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Sorgenti: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Sorgenti: {e}", severity="error")
 
     def _upd_sources(self, sources):
         try:
@@ -1343,7 +1333,7 @@ class ExttoTUI(App):
                     f"{s.get('ping', '?')}ms",
                 )
             self.query_one("#src-status", Label).update(f"  {ok_n}/{len(sources)} online")
-            self.notify_msg(f"Test: {ok_n}/{len(sources)} sorgenti online")
+            self.notify(f"Test completato: {ok_n}/{len(sources)} sorgenti online")
         except NoMatches:
             pass
 
@@ -1351,63 +1341,53 @@ class ExttoTUI(App):
 
     @work(thread=True)
     def _load_health(self):
-        self.call_from_thread(self.notify_msg, "Caricamento stato sistema...", 2)
+        self.call_from_thread(self.notify, "Caricamento stato sistema...")
         try:
             data = self.api.health()
             self.call_from_thread(self._upd_health, data)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, f"Health: {e}", 4, True)
+            self.call_from_thread(self.notify, f"Health: {e}", severity="error")
 
     def _upd_health(self, data):
         try:
-            # 1. Testo Generale (CPU, RAM, Uptime)
             sys_stats = data.get("system", {})
-            ts = data.get("timestamp", "N/D")
-            cpu = sys_stats.get("cpu_percent", "?")
-            ram = sys_stats.get("ram_percent", "?")
+            ts   = data.get("timestamp", "N/D")
+            cpu  = sys_stats.get("cpu_percent", "?")
+            ram  = sys_stats.get("ram_percent", "?")
             host = sys_stats.get("hostname", "?")
-            
-            txt_widget = self.query_one("#health-txt", Static)
-            txt_widget.update(f"Host: {host}  |  CPU: {cpu}%  |  RAM: {ram}%  |  Aggiornato: {ts[:16].replace('T', ' ')}")
 
-            # 2. Tabella Disco
+            self.query_one("#health-txt", Static).update(
+                f"Host: {host}  |  CPU: {cpu}%  |  RAM: {ram}%  |  Aggiornato: {ts[:16].replace('T', ' ')}"
+            )
+
             dt_disk = self.query_one("#dt-health-disk", DataTable)
             dt_disk.clear()
-            dt_disk.display = True
             for d in data.get("disk", []):
-                nome = d.get("label", "?")
+                nome   = d.get("label", "?")
                 spazio = f"{d.get('free_gb', 0)}GB liberi su {d.get('total_gb', 0)}GB ({d.get('percent', 0)}%)"
-                stato = "ATTENZIONE" if d.get("status") == "warning" else "OK"
+                stato  = "ATTENZIONE" if d.get("status") == "warning" else "OK"
                 dt_disk.add_row(nome, spazio, stato)
 
-            # 3. Tabella Indexer (Jackett/Prowlarr)
             dt_idx = self.query_one("#dt-health-idx", DataTable)
             dt_idx.clear()
-            dt_idx.display = True
             for idx in data.get("indexers", []):
                 dt_idx.add_row(idx.get("name", "?"), str(idx.get("status", "?")).upper())
 
-            # 4. Tabella Servizi (Motore, ecc.)
             dt_serv = self.query_one("#dt-health-serv", DataTable)
             dt_serv.clear()
-            dt_serv.display = True
             for srv in data.get("services", []):
                 dt_serv.add_row(srv.get("name", "?"), srv.get("status", "?"))
 
-            # 5. Tabella Errori Log
             dt_err = self.query_one("#dt-health-err", DataTable)
             dt_err.clear()
-            dt_err.display = True
             for err in data.get("logs", []):
                 dt_err.add_row(err)
-
         except Exception as e:
-            self.notify_msg(f"Errore UI Health: {e}", error=True)
+            self.notify(f"Errore UI Health: {e}", severity="error")
 
     # ── azioni ciclo ──────────────────────────────────────────────────────────
 
     def action_quit(self) -> None:
-        """Uscita immediata: cancella tutti i worker prima di chiudere."""
         self.workers.cancel_all()
         self.exit()
 
@@ -1420,9 +1400,9 @@ class ExttoTUI(App):
     def _do_run(self, domain):
         try:
             self.api.run(domain)
-            self.call_from_thread(self.notify_msg, f"Ciclo '{domain}' avviato")
+            self.call_from_thread(self.notify, f"Ciclo '{domain}' avviato")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     # ── navigazione frecce ────────────────────────────────────────────────────
 
@@ -1439,7 +1419,7 @@ class ExttoTUI(App):
                 sid = int(row[0])
                 if sid != self._sel_sid:
                     self._sel_sid  = sid
-                    self._sel_name = row[1] if len(row) > 1 else None  # salva nome per fallback
+                    self._sel_name = row[1] if len(row) > 1 else None
                     self._sel_eid  = None
                     self._show_series_det(sid)
                     self._load_episodes(sid)
@@ -1464,14 +1444,19 @@ class ExttoTUI(App):
             except (ValueError, IndexError):
                 pass
 
-    # ── cambio tab ────────────────────────────────────────────────────────────
+    def on_data_table_row_selected(self, event: DataTable.RowSelected):
+        """Invio su dt-series o dt-movies esegue azione primaria (mostra dettaglio)."""
+        tid = event.data_table.id
+        if tid == "dt-series" and self._sel_sid:
+            self._show_series_det(self._sel_sid)
+        elif tid == "dt-movies" and self._sel_mid is not None:
+            self._show_movie_det(self._sel_mid)
 
     # ── cambio tab ────────────────────────────────────────────────────────────
 
     def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated):
         try:
             tab_attiva = self.query_one(TabbedContent).active
-            # DEBUG: self.notify_msg(f"Tab attivata: {tab_attiva}")
             if tab_attiva == "tab-log":
                 self._load_log()
             elif tab_attiva == "tab-torrents":
@@ -1491,101 +1476,170 @@ class ExttoTUI(App):
         except NoMatches:
             pass
 
+    # ── filtro serie ──────────────────────────────────────────────────────────
+
+    @on(Input.Changed, "#series-filter")
+    def series_filter_changed(self, event: Input.Changed):
+        """Rifiltra la tabella serie in tempo reale mentre si digita."""
+        q = event.value.strip().lower()
+        try:
+            t = self.query_one("#dt-series", DataTable)
+            t.clear()
+            for s in self._series:
+                try:
+                    name = s.get("name") or "?"
+                    if q and q not in name.lower():
+                        continue
+                    sid  = s.get("id")
+                    eps  = s.get("episodes_count", 0)
+                    q_   = qual(s.get("quality_score"))
+                    l_s  = s.get("last_season")
+                    l_e  = s.get("last_episode")
+                    lu   = f"S{int(l_s):02d}E{int(l_e):02d}" if l_s is not None and l_e is not None else "—"
+                    t.add_row(str(sid), name[:36], str(eps), q_, lu, "")
+                except Exception:
+                    continue
+        except NoMatches:
+            pass
+
     # ── bottoni ───────────────────────────────────────────────────────────────
 
-    @on(Button.Pressed)
-    def on_btn(self, event: Button.Pressed):
-        b = event.button.id
+    @on(Button.Pressed, "#b-run-s")
+    def btn_run_series(self):       self._do_run("series")
 
-        if b == "b-run-s":    self._do_run("series")
-        elif b == "b-add-s":
-            self.push_screen(AskModal("Aggiungi Serie", "Nome serie:"), callback=self._cb_add_series)
-        elif b == "b-ref-s":  self._load_series()
-        elif b == "b-ren-s":
-            if self._sel_sid:
-                s = next((x for x in self._series if x.get("id") == self._sel_sid), {})
-                self.push_screen(
-                    AskModal("Rinomina Serie", "Nuovo nome:", default=s.get("name", "")),
-                    callback=self._cb_rename)
-            else:
-                self.notify_msg("Seleziona prima una serie")
-        elif b == "b-del-s":
-            if self._sel_sid:
-                s = next((x for x in self._series if x.get("id") == self._sel_sid), {})
-                nome_serie = s.get("name", f"ID {self._sel_sid}")
-                self.push_screen(
-                    ConfirmModal(f"Eliminare la serie '{nome_serie}' dal DB?"),
-                    callback=self._cb_del_series)
-            else:
-                self.notify_msg("Seleziona prima una serie")
-        elif b == "b-miss-s":
-            if self._sel_sid:
-                self.push_screen(
-                    AskModal("Cerca Mancanti", "Stagione (es: 2):", "1"),
-                    callback=self._cb_search_miss)
-            else:
-                self.notify_msg("Seleziona prima una serie")
+    @on(Button.Pressed, "#b-add-s")
+    def btn_add_series(self):
+        self.push_screen(AskModal("Aggiungi Serie", "Nome serie:"), callback=self._cb_add_series)
 
-        elif b == "b-ep-redl":
-            if self._sel_eid: self._do_ep("redownload", self._sel_eid)
-            else: self.notify_msg("Seleziona prima un episodio")
-        elif b == "b-ep-ign":
-            if self._sel_eid: self._do_ep("ignore", self._sel_eid)
-            else: self.notify_msg("Seleziona prima un episodio")
-        elif b == "b-ep-miss":
-            if self._sel_eid:
-                self.push_screen(
-                    ConfirmModal(f"Forza episodio ID {self._sel_eid} come mancante?"),
-                    callback=self._cb_ep_missing)
-            else:
-                self.notify_msg("Seleziona prima un episodio")
+    @on(Button.Pressed, "#b-ref-s")
+    def btn_ref_series(self):       self._load_series()
 
-        elif b == "b-run-m":   self._do_run("movies")
-        elif b == "b-add-m":
-            self.push_screen(AskModal("Aggiungi Film", "Nome film:"), callback=self._cb_add_movie)
-        elif b == "b-ref-m":   self._load_movies()
-        elif b == "b-del-m":
-            if self._sel_mid is not None:
-                m = self._movies[self._sel_mid] if 0 <= self._sel_mid < len(self._movies) else {}
-                nome_film = m.get("name", m.get("title", f"ID {self._sel_mid}"))
-                self.push_screen(
-                    ConfirmModal(f"Eliminare il film '{nome_film}' dalla lista?"),
-                    callback=self._cb_del_movie)
-            else:
-                self.notify_msg("Seleziona prima un film")
-
-        elif b == "b-add-mag":
-            self.push_screen(MagnetModal(), callback=self._cb_magnet)
-        elif b == "b-rm-comp":
+    @on(Button.Pressed, "#b-ren-s")
+    def btn_rename_series(self):
+        if self._sel_sid:
+            s = next((x for x in self._series if x.get("id") == self._sel_sid), {})
             self.push_screen(
-                ConfirmModal("Rimuovere tutti i torrent completati (senza cancellare i file)?"),
-                callback=self._cb_rm_completed)
-        elif b == "b-clean-act":
-            self.push_screen(CleanupActionModal(), callback=self._cb_cleanup_action)
-        elif b == "b-scores":
-            self._open_scores()
-        elif b == "b-ref-t":   self._load_torrents()
-        elif b == "b-speed":   self._open_speed()
-        elif b == "b-iface":   self._open_iface()
+                AskModal("Rinomina Serie", "Nuovo nome:", default=s.get("name", "")),
+                callback=self._cb_rename)
+        else:
+            self.notify("Seleziona prima una serie", severity="warning")
 
-        elif b == "b-ldebug":  self._do_log_level("debug")
-        elif b == "b-linfo":   self._do_log_level("info")
-        elif b == "b-lwarn":   self._do_log_level("warning")
-        elif b == "b-lerr":    self._do_log_level("error")
-        elif b == "b-ref-log": self._load_log()
-        elif b == "b-ascroll":
-            self._log_auto = not self._log_auto
-            event.button.label = f"AutoScroll {'ON' if self._log_auto else 'OFF'}"
+    @on(Button.Pressed, "#b-del-s")
+    def btn_del_series(self):
+        if self._sel_sid:
+            s = next((x for x in self._series if x.get("id") == self._sel_sid), {})
+            nome = s.get("name", f"ID {self._sel_sid}")
+            self.push_screen(
+                ConfirmModal(f"Eliminare la serie '{nome}' dal DB?"),
+                callback=self._cb_del_series)
+        else:
+            self.notify("Seleziona prima una serie", severity="warning")
 
-        elif b == "b-arch-srch":
-            try:
-                q = self.query_one("#arch-inp", Input).value.strip()
-                self._load_archive(q)
-            except NoMatches:
-                pass
+    @on(Button.Pressed, "#b-miss-s")
+    def btn_miss_series(self):
+        if self._sel_sid:
+            self.push_screen(
+                AskModal("Cerca Mancanti", "Stagione (es: 2):", "1"),
+                callback=self._cb_search_miss)
+        else:
+            self.notify("Seleziona prima una serie", severity="warning")
 
-        elif b == "b-test-src":
-            self._load_sources()
+    @on(Button.Pressed, "#b-ep-redl")
+    def btn_ep_redl(self):
+        if self._sel_eid: self._do_ep("redownload", self._sel_eid)
+        else: self.notify("Seleziona prima un episodio", severity="warning")
+
+    @on(Button.Pressed, "#b-ep-ign")
+    def btn_ep_ign(self):
+        if self._sel_eid: self._do_ep("ignore", self._sel_eid)
+        else: self.notify("Seleziona prima un episodio", severity="warning")
+
+    @on(Button.Pressed, "#b-ep-miss")
+    def btn_ep_miss(self):
+        if self._sel_eid:
+            self.push_screen(
+                ConfirmModal(f"Forza episodio ID {self._sel_eid} come mancante?"),
+                callback=self._cb_ep_missing)
+        else:
+            self.notify("Seleziona prima un episodio", severity="warning")
+
+    @on(Button.Pressed, "#b-run-m")
+    def btn_run_movies(self):       self._do_run("movies")
+
+    @on(Button.Pressed, "#b-add-m")
+    def btn_add_movie(self):
+        self.push_screen(AskModal("Aggiungi Film", "Nome film:"), callback=self._cb_add_movie)
+
+    @on(Button.Pressed, "#b-ref-m")
+    def btn_ref_movies(self):       self._load_movies()
+
+    @on(Button.Pressed, "#b-del-m")
+    def btn_del_movie(self):
+        if self._sel_mid is not None:
+            m = self._movies[self._sel_mid] if 0 <= self._sel_mid < len(self._movies) else {}
+            nome = m.get("name", m.get("title", f"ID {self._sel_mid}"))
+            self.push_screen(
+                ConfirmModal(f"Eliminare il film '{nome}' dalla lista?"),
+                callback=self._cb_del_movie)
+        else:
+            self.notify("Seleziona prima un film", severity="warning")
+
+    @on(Button.Pressed, "#b-add-mag")
+    def btn_add_magnet(self):
+        self.push_screen(MagnetModal(), callback=self._cb_magnet)
+
+    @on(Button.Pressed, "#b-rm-comp")
+    def btn_rm_comp(self):
+        self.push_screen(
+            ConfirmModal("Rimuovere tutti i torrent completati (senza cancellare i file)?"),
+            callback=self._cb_rm_completed)
+
+    @on(Button.Pressed, "#b-clean-act")
+    def btn_clean_act(self):
+        self.push_screen(CleanupActionModal(), callback=self._cb_cleanup_action)
+
+    @on(Button.Pressed, "#b-scores")
+    def btn_scores(self):           self._open_scores()
+
+    @on(Button.Pressed, "#b-ref-t")
+    def btn_ref_torrents(self):     self._load_torrents()
+
+    @on(Button.Pressed, "#b-speed")
+    def btn_speed(self):            self._open_speed()
+
+    @on(Button.Pressed, "#b-iface")
+    def btn_iface(self):            self._open_iface()
+
+    @on(Button.Pressed, "#b-ldebug")
+    def btn_ldebug(self):           self._do_log_level("debug")
+
+    @on(Button.Pressed, "#b-linfo")
+    def btn_linfo(self):            self._do_log_level("info")
+
+    @on(Button.Pressed, "#b-lwarn")
+    def btn_lwarn(self):            self._do_log_level("warning")
+
+    @on(Button.Pressed, "#b-lerr")
+    def btn_lerr(self):             self._do_log_level("error")
+
+    @on(Button.Pressed, "#b-ref-log")
+    def btn_ref_log(self):          self._load_log()
+
+    @on(Button.Pressed, "#b-ascroll")
+    def btn_ascroll(self, event: Button.Pressed):
+        self._log_auto = not self._log_auto
+        event.button.label = f"AutoScroll {'ON' if self._log_auto else 'OFF'}"
+
+    @on(Button.Pressed, "#b-arch-srch")
+    def btn_arch_srch(self):
+        try:
+            q = self.query_one("#arch-inp", Input).value.strip()
+            self._load_archive(q)
+        except NoMatches:
+            pass
+
+    @on(Button.Pressed, "#b-test-src")
+    def btn_test_src(self):         self._load_sources()
 
     @on(Input.Submitted, "#arch-inp")
     def arch_enter(self, e: Input.Submitted):
@@ -1598,10 +1652,10 @@ class ExttoTUI(App):
         if not name or not self._sel_sid: return
         try:
             self.api.rename_series(self._sel_sid, name)
-            self.call_from_thread(self.notify_msg, f"Rinominata: {name}")
+            self.call_from_thread(self.notify, f"Rinominata: {name}")
             self.call_from_thread(self._load_series)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_del_series(self, ok):
@@ -1609,141 +1663,122 @@ class ExttoTUI(App):
         if not self._sel_sid and not self._sel_name: return
         try:
             self.api.del_series(self._sel_sid, name=self._sel_name)
-            self.call_from_thread(self.notify_msg, "Serie eliminata dal DB")
+            self.call_from_thread(self.notify, "Serie eliminata dal DB")
             self._sel_sid  = None
             self._sel_name = None
             self.call_from_thread(self._load_series)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_search_miss(self, s_str):
         if not s_str or not self._sel_sid: return
         try:
             self.api.search_miss(self._sel_sid, int(s_str))
-            self.call_from_thread(self.notify_msg, f"Ricerca mancanti S{int(s_str):02d} avviata")
+            self.call_from_thread(self.notify, f"Ricerca mancanti S{int(s_str):02d} avviata")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _do_ep(self, action, eid):
         try:
             if action == "redownload": self.api.ep_redl(eid)
             elif action == "ignore":   self.api.ep_ignore(eid)
-            self.call_from_thread(self.notify_msg, f"Ep {eid}: {action} OK")
+            self.call_from_thread(self.notify, f"Ep {eid}: {action} OK")
             if self._sel_sid:
                 self.call_from_thread(self._load_episodes, self._sel_sid)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_ep_missing(self, ok):
         if not ok or not self._sel_eid: return
         try:
             self.api.ep_missing(self._sel_eid)
-            self.call_from_thread(self.notify_msg, "Episodio forzato mancante")
+            self.call_from_thread(self.notify, "Episodio forzato mancante")
             if self._sel_sid:
                 self.call_from_thread(self._load_episodes, self._sel_sid)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_del_movie(self, ok):
         if not ok or self._sel_mid is None: return
         try:
             self.api.del_movie(self._sel_mid)
-            self.call_from_thread(self.notify_msg, "Film eliminato")
+            self.call_from_thread(self.notify, "Film eliminato")
             self._sel_mid = None
-            self._load_movies()
+            self.call_from_thread(self._load_movies)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_magnet(self, magnet):
         if not magnet: return
-
         try:
-            # 1. È un URL HTTP/HTTPS?
             if magnet.startswith("http://") or magnet.startswith("https://"):
-                self.call_from_thread(self.notify_msg, "Scaricamento file .torrent...")
+                self.call_from_thread(self.notify, "Scaricamento file .torrent...")
                 res = self.api.fetch_url(magnet)
-
-                # Se il backend lo scarica con successo
                 if res.get("success"):
-                    self.call_from_thread(self.notify_msg, "Invio a libtorrent...")
+                    self.call_from_thread(self.notify, "Invio a libtorrent...")
                     up_res = self.api.upload_torrent(res.get("filename", "downloaded.torrent"), res.get("data", ""))
                     if up_res.get("success"):
-                        self.call_from_thread(self.notify_msg, "Torrent aggiunto da URL!")
+                        self.call_from_thread(self.notify, "Torrent aggiunto da URL!")
                     else:
-                        self.call_from_thread(self.notify_msg, f"Errore: {up_res.get('error', 'Errore upload')}", 4, True)
-
-                # Se in realtà era un Magnet camuffato da redirect HTTP
+                        self.call_from_thread(self.notify, f"Errore: {up_res.get('error', 'Errore upload')}", severity="error")
                 elif res.get("is_magnet"):
-                    self.call_from_thread(self.notify_msg, "Redirect a magnet rilevato, invio...")
+                    self.call_from_thread(self.notify, "Redirect a magnet rilevato, invio...")
                     r = self.api.send_magnet(res.get("magnet"))
                     msg = r.get("message", "OK") if isinstance(r, dict) else "OK"
-                    self.call_from_thread(self.notify_msg, msg)
-
+                    self.call_from_thread(self.notify, msg)
                 else:
-                    self.call_from_thread(self.notify_msg, f"Errore: {res.get('error', 'Sito non raggiungibile')}", 4, True)
-
-            # 2. È un Magnet classico
+                    self.call_from_thread(self.notify, f"Errore: {res.get('error', 'Sito non raggiungibile')}", severity="error")
             else:
-                self.call_from_thread(self.notify_msg, "Invio magnet...")
+                self.call_from_thread(self.notify, "Invio magnet...")
                 r = self.api.send_magnet(magnet)
                 msg = r.get("message", "OK") if isinstance(r, dict) else "OK"
-                self.call_from_thread(self.notify_msg, msg)
-
-            # Ricarichiamo la lista per visualizzarlo subito
+                self.call_from_thread(self.notify, msg)
             self.call_from_thread(self._load_torrents)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_rm_completed(self, ok):
         if not ok: return
         try:
             self.api.rm_completed()
-            self.call_from_thread(self.notify_msg, "Torrent completati rimossi")
+            self.call_from_thread(self.notify, "Torrent completati rimossi")
             self.call_from_thread(self._load_torrents)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _open_scores(self):
         try:
-            # Recupera i punteggi attuali dal backend
-            r = requests.get(f"{self.api.url}/api/scores/settings", timeout=5)
-            if r.status_code == 200:
-                scores = r.json()
-                self.call_from_thread(self.push_screen, ScoreModal(scores), callback=self._cb_scores)
-            else:
-                self.call_from_thread(self.notify_msg, "Errore caricamento punteggi", 4, True)
+            scores = self.api.scores_get()
+            self.call_from_thread(self.push_screen, ScoreModal(scores), callback=self._cb_scores)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_scores(self, new_scores):
         if not new_scores: return
         try:
-            r = requests.post(f"{self.api.url}/api/scores/settings", json=new_scores, timeout=5)
-            if r.status_code == 200:
-                self.call_from_thread(self.notify_msg, "Punteggi salvati correttamente!")
-            else:
-                self.call_from_thread(self.notify_msg, "Errore salvataggio punteggi", 4, True)
+            self.api.scores_set(new_scores)
+            self.call_from_thread(self.notify, "Punteggi salvati correttamente!")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _open_speed(self):
         try:
             cfg = self.api.config()
             s   = cfg.get("settings", {})
-            dl  = str(int(s.get("libtorrent_dl_limit", 0)) // 1024)
-            ul  = str(int(s.get("libtorrent_ul_limit", 0)) // 1024)
+            dl  = int(s.get("libtorrent_dl_limit", 0)) // 1024
+            ul  = int(s.get("libtorrent_ul_limit", 0)) // 1024
         except Exception:
-            dl, ul = "0", "0"
-        self.call_from_thread(self.push_screen, SpeedModal(), callback=self._cb_speed)
+            dl, ul = 0, 0
+        self.call_from_thread(self.push_screen, SpeedModal(dl, ul), callback=self._cb_speed)
 
     @work(thread=True)
     def _cb_speed(self, result):
@@ -1752,9 +1787,9 @@ class ExttoTUI(App):
         try:
             res = self.api.set_speed_limits(dl_kbps, ul_kbps)
             msg = res.get("message", "Limiti applicati")
-            self.call_from_thread(self.notify_msg, msg)
+            self.call_from_thread(self.notify, msg)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _open_iface(self):
@@ -1763,7 +1798,7 @@ class ExttoTUI(App):
             cfg     = self.api.config()
             current = cfg.get("settings", {}).get("libtorrent_interface", "")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
             return
         self.call_from_thread(
             self.push_screen,
@@ -1773,63 +1808,62 @@ class ExttoTUI(App):
 
     @work(thread=True)
     def _cb_iface(self, iface):
-        if iface is None: return  # annullato
+        if iface is None: return
         try:
             cfg = self.api.config()
             s   = cfg.get("settings", {})
             s["libtorrent_interface"] = iface
             self.api.save_settings(s)
             label = iface if iface else "tutte le interfacce"
-            self.call_from_thread(self.notify_msg, f"Interfaccia impostata: {label}")
+            self.call_from_thread(self.notify, f"Interfaccia impostata: {label}")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_cleanup_action(self, action):
         if not action: return
         try:
             cfg = self.api.config()
-            s = cfg.get("settings", {})
+            s   = cfg.get("settings", {})
             s["cleanup_action"] = action
             self.api.save_settings(s)
-            self.call_from_thread(self.notify_msg, f"Azione pulizia impostata su: {action.upper()}")
+            self.call_from_thread(self.notify, f"Azione pulizia impostata su: {action.upper()}")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _do_log_level(self, level):
         try:
             self.api.set_log_level(level)
-            self.call_from_thread(self.notify_msg, f"Log level: {level.upper()}")
+            self.call_from_thread(self.notify, f"Log level: {level.upper()}")
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
-
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_add_series(self, name):
         if not name: return
         try:
             self.api.add_series(name)
-            self.call_from_thread(self.notify_msg, f"Serie '{name}' aggiunta!")
+            self.call_from_thread(self.notify, f"Serie '{name}' aggiunta!")
             self.call_from_thread(self._load_series)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
     @work(thread=True)
     def _cb_add_movie(self, name):
         if not name: return
         try:
             self.api.add_movie(name)
-            self.call_from_thread(self.notify_msg, f"Film '{name}' aggiunto!")
+            self.call_from_thread(self.notify, f"Film '{name}' aggiunto!")
             self.call_from_thread(self._load_movies)
         except Exception as e:
-            self.call_from_thread(self.notify_msg, str(e), 4, True)
+            self.call_from_thread(self.notify, str(e), severity="error")
 
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
-    p = argparse.ArgumentParser(description="EXTTO TUI")
+    p = argparse.ArgumentParser(description="EXTTO TUI v2")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=5000)
     args = p.parse_args()
