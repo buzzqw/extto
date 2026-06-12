@@ -6,7 +6,7 @@ import re
 import os
 import json
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler, WatchedFileHandler
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict
 from urllib.parse import urlparse, parse_qsl, quote
@@ -37,7 +37,7 @@ logger = logging.getLogger('extto')
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
-file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5*1024*1024, backupCount=5)
+file_handler = WatchedFileHandler(LOG_FILE, encoding='utf-8')
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger.addHandler(file_handler)
 logger.propagate = False  # evita duplicazione verso root logger

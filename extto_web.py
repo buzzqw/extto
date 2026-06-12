@@ -153,15 +153,18 @@ if not _root_logger.handlers:
     _sh.setFormatter(_log_formatter)
     _root_logger.addHandler(_sh)
 # File handler aggiunto separatamente (sempre, anche se c'erano già handler)
+# WatchedFileHandler: rileva se il file viene rinominato (es. da logrotate o dall'altro
+# processo) e riapre extto.log, evitando che i log finiscano nel file rinominato.
 _log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'extto.log')
 if not any(isinstance(h, logging.FileHandler) and getattr(h, 'baseFilename', '') == _log_file_path
            for h in _root_logger.handlers):
     try:
-        _fh = logging.FileHandler(_log_file_path, encoding='utf-8')
+        from logging.handlers import WatchedFileHandler as _WFH
+        _fh = _WFH(_log_file_path, encoding='utf-8')
         _fh.setFormatter(_log_formatter)
         _root_logger.addHandler(_fh)
     except Exception as e:
-        print(f"⚠️  RotatingFileHandler setup: {e}")
+        print(f"⚠️  WatchedFileHandler setup: {e}")
         pass
 # Assicura che tutti i logger figli (core.*) propaghino al root
 logging.getLogger('core').setLevel(logging.DEBUG)
