@@ -2348,8 +2348,11 @@ def run_backup():
             _blog.warning(f"⚠️ Errore Cloud Backup: {ce}")
             cloud_info = f" (Errore Cloud: {ce})"
 
-        # Retention: tieni solo gli ultimi N backup
-        existing = sorted(glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')))
+        # Retention: tieni solo gli ultimi N backup (zip e 7z)
+        existing = sorted(
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')) +
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip'))
+        )
         while len(existing) > retention:
             old = existing.pop(0)
             try:
@@ -2358,7 +2361,10 @@ def run_backup():
                 logger.debug(f"remove old backup: {e}")
                 pass
 
-        kept = len(glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')))
+        kept = len(
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')) +
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip'))
+        )
         tg_sent = False
         try:
             cfg_full = parse_series_config().get('settings', {})
