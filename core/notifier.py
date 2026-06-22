@@ -355,24 +355,31 @@ class Notifier:
         self._send_email(f"EXTTO: {self.t('Monitorato')} - {title}", msg)
 
     def notify_backup_complete(self, zip_name: str, zip_mb: float, file_count: int,
-                               kept: int, cloud_info: str = '', zip_path: str = ''):
+                               kept: int, cloud_info: str = '', zip_path: str = '',
+                               volume_paths: list = None):
         """
-        Messaggio unico di completamento backup.
-        Inviato da extto_web.py al termine del backup ZIP.
-        cloud_info: stringa opzionale tipo ' (Caricato su FTP: host)'.
-        zip_path:   percorso assoluto del file ZIP — se presente e valido,
-                    il file viene allegato al messaggio Telegram.
+        Messaggio di completamento backup.
+        volume_paths: lista di volumi 7z (.7z.001, .7z.002, …); se presente
+                      ogni volume viene inviato come documento separato su Telegram.
+        zip_path:     percorso singolo (legacy); usato solo se volume_paths è assente.
         """
         cloud_str = f"\n☁️ <b>Cloud:</b> {cloud_info.strip()}" if cloud_info.strip() else ""
+        n_vols = len(volume_paths) if volume_paths else 0
+        vol_str = f"  🗜️ <b>Volumi:</b> {n_vols}" if n_vols > 1 else ""
         msg = (
             f"🗂️ <b>EXTTO: {self.t('Backup Completato')}</b>\n\n"
             f"📦 <b>{self.t('File')}:</b> <code>{zip_name}</code>\n"
             f"💾 <b>{self.t('Dimensione')}:</b> {zip_mb:.1f} MB  "
             f"📁 <b>{self.t('File inclusi')}:</b> {file_count}  "
             f"🗂️ <b>{self.t('Conservati')}:</b> {kept}"
+            f"{vol_str}"
             f"{cloud_str}"
         )
-        if zip_path and os.path.isfile(zip_path):
+        if volume_paths:
+            self._send_telegram_document(volume_paths[0], caption=msg)
+            for i, vp in enumerate(volume_paths[1:], 2):
+                self._send_telegram_document(vp, caption=f"📦 {zip_name} — parte {i}/{n_vols}")
+        elif zip_path and os.path.isfile(zip_path):
             self._send_telegram_document(zip_path, caption=msg)
         else:
             self._send_telegram(msg)

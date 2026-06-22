@@ -2297,12 +2297,17 @@ def run_backup():
             '-xr!static/posters',
             '-xr!*.log', '-xr!*.log.*',
         ]
-        _7z_cmd = ['7z', 'a', '-t7z', '-mx=5', zip_path, '.'] + _7z_excludes
+        _7z_cmd = ['7z', 'a', '-t7z', '-mx=5', '-v45m', zip_path, '.'] + _7z_excludes
         _res = _subprocess.run(_7z_cmd, cwd=BASE_DIR, capture_output=True, text=True)
         if _res.returncode != 0:
             raise RuntimeError(f'7z fallito: {_res.stderr.strip()}')
 
-        zip_size = os.path.getsize(zip_path)
+        # Con -v45m i volumi si chiamano .7z.001, .7z.002, …
+        vol_paths = sorted(glob.glob(zip_path + '.*'))
+        if not vol_paths and os.path.exists(zip_path):
+            vol_paths = [zip_path]  # fallback: archivio singolo senza split
+        n_vols   = len(vol_paths)
+        zip_size = sum(os.path.getsize(v) for v in vol_paths)
 
         # --- CLOUD BACKUP (FTP) ---
         cloud_info = ""
@@ -2320,11 +2325,11 @@ def run_backup():
                     import ftplib
                     with ftplib.FTP(host) as ftp:
                         ftp.login(user, pw)
-                        # Assicurati che la cartella esista (semplificato)
                         try: ftp.cwd(rem)
                         except: pass
-                        with open(zip_path, 'rb') as f:
-                            ftp.storbinary(f'STOR {zip_name}', f)
+                        for _vp in vol_paths:
+                            with open(_vp, 'rb') as f:
+                                ftp.storbinary(f'STOR {os.path.basename(_vp)}', f)
                     cloud_info = f" (Caricato su FTP: {host})"
                     _blog.info(f"✅ Cloud backup completato!")
             elif ctype == 'dropbox':
@@ -2332,37 +2337,44 @@ def run_backup():
                 path  = s.get('backup_cloud_path', '/')
                 if token:
                     _blog.info("☁️ Caricamento backup su Dropbox...")
-                    with open(zip_path, 'rb') as f:
-                        cloud_path = (path.rstrip('/') + '/' + zip_name).lstrip('/')
-                        if not cloud_path.startswith('/'): cloud_path = '/' + cloud_path
-                        headers = {
+                    for _vp in vol_paths:
+                        _vname = os.path.basename(_vp)
+                        _cp = (path.rstrip('/') + '/' + _vname).lstrip('/')
+                        if not _cp.startswith('/'): _cp = '/' + _cp
+                        _hdrs = {
                             "Authorization": f"Bearer {token}",
-                            "Dropbox-API-Arg": json.dumps({"path": cloud_path, "mode": "overwrite"}),
+                            "Dropbox-API-Arg": json.dumps({"path": _cp, "mode": "overwrite"}),
                             "Content-Type": "application/octet-stream"
                         }
-                        r = requests.post("https://content.dropboxapi.com/2/files/upload", headers=headers, data=f, timeout=600)
-                        r.raise_for_status()
+                        with open(_vp, 'rb') as f:
+                            r = requests.post("https://content.dropboxapi.com/2/files/upload", headers=_hdrs, data=f, timeout=600)
+                            r.raise_for_status()
                     cloud_info = " (Caricato su Dropbox)"
                     _blog.info(f"✅ Cloud backup completato!")
         except Exception as ce:
             _blog.warning(f"⚠️ Errore Cloud Backup: {ce}")
             cloud_info = f" (Errore Cloud: {ce})"
 
-        # Retention: tieni solo gli ultimi N backup (zip e 7z)
-        existing = sorted(
-            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')) +
+        # Retention: tieni solo gli ultimi N backup.
+        # I backup multi-volume sono rappresentati dal primo volume (.7z.001);
+        # i backup legacy a file singolo (.zip) sono trattati direttamente.
+        existing_sets = sorted(
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z.001')) +
             glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip'))
         )
-        while len(existing) > retention:
-            old = existing.pop(0)
-            try:
-                os.remove(old)
-            except Exception as e:
-                logger.debug(f"remove old backup: {e}")
-                pass
+        while len(existing_sets) > retention:
+            old_first = existing_sets.pop(0)
+            if old_first.endswith('.001'):
+                base = old_first[:-4]  # rimuove '.001', ottiene '.7z'
+                for old_vol in glob.glob(base + '.*'):
+                    try: os.remove(old_vol)
+                    except Exception as e: logger.debug(f"remove old backup vol: {e}")
+            else:
+                try: os.remove(old_first)
+                except Exception as e: logger.debug(f"remove old backup: {e}")
 
         kept = len(
-            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')) +
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z.001')) +
             glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip'))
         )
         tg_sent = False
@@ -2373,16 +2385,15 @@ def run_backup():
                 from core.notifier import Notifier as _Notifier
                 _n = _Notifier(cfg_full)
                 if _n.tg_enabled:
-                    # Telegram Bot API limite: 50 MB per sendDocument
-                    _attach = zip_path if zip_size < 49 * 1024 * 1024 else ''
-                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info, _attach)
+                    _n.notify_backup_complete(zip_name, round(zip_size/1024**2, 1), file_count, kept, cloud_info, volume_paths=vol_paths)
                     tg_sent = True
                 else:
                     logger.warning("backup notify: Telegram abilitato nelle impostazioni backup ma token/chat_id mancanti")
         except Exception as _ne:
             logger.warning(f"backup notify: {_ne}")
         tg_str = " 📨 Telegram ✓" if tg_sent else ""
-        _blog.info(f"✅ Backup completato: {zip_name} ({round(zip_size/1024**2,1)} MB, {file_count} file, {kept} backup conservati){tg_str}")
+        vol_str = f", {n_vols} volumi" if n_vols > 1 else ""
+        _blog.info(f"✅ Backup completato: {zip_name} ({round(zip_size/1024**2,1)} MB{vol_str}, {file_count} file, {kept} backup conservati){tg_str}")
         return jsonify({
             'success':    True,
             'filename':   zip_name,
@@ -2390,6 +2401,7 @@ def run_backup():
             'files':      file_count,
             'source_mb':  round(total_size / 1024**2, 1),
             'zip_mb':     round(zip_size / 1024**2, 1),
+            'volumes':    n_vols,
             'kept':       kept,
         })
     except Exception as e:
