@@ -9336,6 +9336,13 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         
         document.getElementById('td-g-pieces').textContent = `${d.pieces} frammenti da ${this._fmtBytes(d.piece_size)}`;
         document.getElementById('td-g-hash').textContent = d.hash;
+        const _typeEl = document.getElementById('td-g-type');
+        if (_typeEl) {
+            const _typeColors = { v1: '#55bb77', hybrid: '#ffaa22', v2: '#4499ff' };
+            const _t = d.torrent_type || (d.hash?.length === 64 ? 'v2' : 'v1');
+            const _c = _typeColors[_t] || '#888888';
+            _typeEl.innerHTML = `<span style="font-size:0.78rem; font-weight:700; padding:2px 9px; border-radius:4px; background:${_c}22; color:${_c}; border:1px solid ${_c}66; letter-spacing:0.04em;">${_t.toUpperCase()}</span>`;
+        }
         document.getElementById('td-g-conn').textContent = `${d.seeds} (${d.total_seeds}) Seeds / ${d.peers} (${d.total_peers}) Peers`;
         document.getElementById('td-g-time').textContent = `${this._fmtEta(d.active_time)} / ${this._fmtEta(d.seeding_time)}`;
 

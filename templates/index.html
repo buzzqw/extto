@@ -3271,9 +3271,15 @@ sudo mount /mnt/ramdisk</div>
                             <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:2px;" data-i18n="Frammenti (Pieces)">PIECES</div>
                             <div id="td-g-pieces" style="font-family:var(--font-mono); font-size:0.82rem; white-space:nowrap;">-</div>
                         </div>
-                        <div style="grid-column:1/-1;">
-                            <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:2px;">HASH</div>
-                            <div id="td-g-hash" style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all; color:var(--text-secondary);"></div>
+                        <div style="grid-column:1/-1; display:flex; align-items:flex-start; gap:12px;">
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:2px;">HASH</div>
+                                <div id="td-g-hash" style="font-family:var(--font-mono); font-size:0.82rem; word-break:break-all; color:var(--text-secondary);"></div>
+                            </div>
+                            <div style="flex-shrink:0; text-align:right;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">TIPO</div>
+                                <div id="td-g-type"></div>
+                            </div>
                         </div>
                     </div>
 

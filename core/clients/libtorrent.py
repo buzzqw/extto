@@ -1930,9 +1930,23 @@ class LibtorrentClient:
             state_str = str(s.state).split('.')[-1] if '.' in str(s.state) else str(s.state)
             _slimits  = cls._get_seed_limits_db().get(info_hash.lower(), {})
 
+            # Detect torrent type: v1 / v2 / hybrid
+            torrent_type = 'v1'
+            try:
+                ihs = h.info_hashes()
+                _has_v1 = ihs.has_v1() if hasattr(ihs, 'has_v1') else True
+                _has_v2 = ihs.has_v2() if hasattr(ihs, 'has_v2') else False
+                if _has_v1 and _has_v2:
+                    torrent_type = 'hybrid'
+                elif _has_v2:
+                    torrent_type = 'v2'
+            except Exception:
+                torrent_type = 'v2' if len(info_hash) == 64 else 'v1'
+
             return {
                 'success': True,
                 'hash': info_hash,
+                'torrent_type': torrent_type,
                 'name': getattr(s, 'name', info_hash) or info_hash,
                 'save_path': getattr(s, 'save_path', ''),
                 'state': state_str,
