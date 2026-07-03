@@ -9437,6 +9437,17 @@ def _rqbit_is_running() -> bool:
 
 def _rqbit_do_start(overrides: dict = None) -> dict:
     try:
+        # Evita di lanciare un secondo processo se uno risponde già sullo
+        # stesso indirizzo (es. doppio click su "Avvia"): il nuovo processo
+        # fallirebbe il bind della porta e lascerebbe un pidfile "orfano"
+        # puntato su un PID morto, perdendo il tracking di quello reale.
+        addr = (overrides or {}).get('rqbit_http_addr') or _cdb.get_setting('rqbit_http_addr', '127.0.0.1:3030')
+        try:
+            if requests.get(f"http://{addr}/", timeout=1.5).status_code == 200:
+                return {'success': True, 'already_running': True}
+        except Exception:
+            pass
+
         proc = subprocess.Popen(_rqbit_build_cmd(overrides), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         with open(_rqbit_pidfile(), 'w') as f:
             f.write(str(proc.pid))
@@ -9635,6 +9646,16 @@ def rqbit_start():
         'rqbit_dir':       body.get('dir')       or body.get('rqbit_dir'),
         'rqbit_socks_url': body.get('socks_url') or body.get('rqbit_socks_url'),
     }
+    # Persiste subito i valori usati per l'avvio: altrimenti il badge di stato,
+    # il supervisore e i prossimi avvii leggerebbero l'indirizzo/percorso salvato
+    # in precedenza (diverso da quello realmente in ascolto), rischiando di far
+    # partire un secondo processo rqbit "orfano" su un indirizzo differente.
+    to_save = {k: v for k, v in overrides.items() if v not in (None, '')}
+    if to_save:
+        try:
+            _cdb.set_settings_bulk(to_save)
+        except Exception as e:
+            logger.debug(f"rqbit_start: salvataggio override fallito: {e}")
     return jsonify(_rqbit_do_start(overrides))
 
 @app.route('/api/rqbit/stop', methods=['POST'])
@@ -9705,6 +9726,15 @@ def rqbit_update():
         if was_running:
             _rqbit_do_stop()
             time.sleep(1)
+            # Verifica che si sia davvero fermato (es. se non era tracciato dal
+            # pidfile di EXTTO, _rqbit_do_stop() fallisce silenziosamente):
+            # altrimenti sostituiremmo il binario sotto un processo ancora vivo
+            # e poi lo "start" finale troverebbe l'indirizzo già occupato,
+            # segnalando falsamente 'restarted' con la versione vecchia ancora
+            # in esecuzione.
+            if _rqbit_is_running():
+                return jsonify({'success': False,
+                                 'error': 'rqbit risulta ancora in esecuzione (non tracciato da EXTTO?) — fermalo manualmente prima di aggiornare.'})
 
         download_url = f"https://github.com/ikatson/rqbit/releases/download/v{latest}/{_RQ_ASSET_NAME}"
         tmp_path = bin_path + '.update_tmp'

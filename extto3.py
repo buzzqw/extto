@@ -713,8 +713,8 @@ def web_task():
                         cfg_rq = _CfgRqC()
                         if str(cfg_rq.qbt.get('rqbit_enabled', 'no')).lower() in ('yes', 'true', '1'):
                             rq = RqbitClient(cfg_rq.qbt)
-                            _rq_ratio = float(cfg_rq.qbt.get('rqbit_seed_ratio', 0) or 0)
-                            _rq_mins  = float(cfg_rq.qbt.get('rqbit_seed_time', 0) or 0)
+                            _rq_global_ratio = float(cfg_rq.qbt.get('rqbit_seed_ratio', 0) or 0)
+                            _rq_global_mins  = float(cfg_rq.qbt.get('rqbit_seed_time', 0) or 0)
                             _now = time.time()
                             for t in rq.list_torrents():
                                 _rq_state = str(t.get('state', '')).lower()
@@ -724,13 +724,21 @@ def web_task():
                                     continue
                                 if 'seeding' not in _rq_state:
                                     continue
-                                # Rispetta i seed limits configurati (stessa logica di check_seeding_limits):
-                                # se un obiettivo è impostato ma non ancora raggiunto, non rimuovere.
-                                if _rq_ratio > 0 or _rq_mins > 0:
+                                # Rispetta i limiti di seeding, override per-torrent incluso
+                                # (stessa logica del blocco libtorrent qui sotto — un torrent
+                                # marcato "seed infinito" non va mai rimosso da Pulisci).
+                                _override = RqbitClient._seed_limit_entry(t['hash'])
+                                _o_ratio  = _override.get('ratio', -1)
+                                _o_days   = _override.get('days', -1)
+                                if _o_ratio == 0 or _o_days == 0:
+                                    continue
+                                _target_ratio = _o_ratio if _o_ratio >= 0 else _rq_global_ratio
+                                _target_time  = (_o_days * 86400) if _o_days >= 0 else (_rq_global_mins * 60)
+                                if _target_ratio > 0 or _target_time > 0:
                                     _started = RqbitClient._finish_time.get(t['hash'], _now)
                                     _seeding_secs = _now - _started
-                                    _ratio_ok = _rq_ratio > 0 and t.get('ratio', 0) >= _rq_ratio
-                                    _time_ok  = _rq_mins > 0 and _seeding_secs >= _rq_mins * 60
+                                    _ratio_ok = _target_ratio > 0 and t.get('ratio', 0) >= _target_ratio
+                                    _time_ok  = _target_time > 0 and _seeding_secs >= _target_time
                                     if not (_ratio_ok or _time_ok):
                                         continue
                                 rq.remove_torrent(t['hash'])

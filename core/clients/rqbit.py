@@ -571,7 +571,8 @@ class RqbitClient:
                     RqbitClient._pending.add(new_hash)
                 RqbitClient._persist_pending()
                 with RqbitClient._magnets_lock:
-                    RqbitClient._magnets[new_hash] = {**entry, 'output_folder': j.get('output_folder', '')}
+                    RqbitClient._magnets[new_hash] = {**entry, 'output_folder': j.get('output_folder', ''),
+                                                       'added_at': time.time()}
                 RqbitClient._persist_magnets()
                 logger.info(f"rqbit restart: torrent {new_hash[:12]} riavviato da zero")
                 return True
@@ -736,9 +737,24 @@ class RqbitClient:
                 total_bytes = int(st.get('total_bytes', 0))
             except Exception:
                 total_bytes = 0
+
+            # Tempo di download reale: da quando e' stato aggiunto (added_at) a ora.
+            # NB: _finish_time non e' ancora popolato a questo punto (lo alimenta solo
+            # _check_seeding_limits per i torrent gia' in stato "seeding"), quindi non
+            # va usato qui per calcolare l'elapsed — altrimenti risulterebbe sempre
+            # ~0s (bug: velocita' media falsata nella notifica).
+            added_at = self._added_at(info_hash)
+            now = time.time()
+            elapsed = max(1, int(now - added_at)) if added_at else 1
+
+            # Marca esplicitamente l'inizio del seeding ora, cosi' check_seeding_limits
+            # (e i campi seeding_time mostrati in UI) partono dal momento esatto di
+            # completamento invece che da quando il prossimo poll se ne accorge.
             with RqbitClient._hashes_lock:
-                started = RqbitClient._finish_time.get(info_hash, time.time())
-            elapsed = max(1, int(time.time() - started)) if started else 1
+                is_new_seed = info_hash not in RqbitClient._finish_time
+                RqbitClient._finish_time.setdefault(info_hash, now)
+            if is_new_seed:
+                RqbitClient._persist_seed_start()
 
             if is_pack and nas_path:
                 # Season pack: copia+rename+cleanup+notifica gestiti internamente,

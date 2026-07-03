@@ -22,7 +22,7 @@
                             <a href="#man-quality" onclick="manualGoTo('man-quality')">2. Qualità e Risoluzione</a>
                             <a href="#man-seasons" onclick="manualGoTo('man-seasons')">3. Stagioni — Sintassi</a>
                             <a href="#man-libtorrent" onclick="manualGoTo('man-libtorrent')">4. libtorrent (client embedded)</a>
-                            <a href="#man-clients" onclick="manualGoTo('man-clients')">5. Client esterni (qBit, Transmission, aria2)</a>
+                            <a href="#man-clients" onclick="manualGoTo('man-clients')">5. Client esterni (qBit, Transmission, aria2, rqbit)</a>
                             <a href="#man-notifications" onclick="manualGoTo('man-notifications')">6. Notifiche (Telegram, Email, Webhook)</a>
                             <a href="#man-engine" onclick="manualGoTo('man-engine')">7. Motore — Sorgenti, Jackett/Prowlarr e Fast RSS</a>
                             <a href="#man-gapfilling" onclick="manualGoTo('man-gapfilling')">8. Gap Filling (Deep Search)</a>
@@ -474,13 +474,13 @@
                         <div class="man-section" id="man-clients">
                             <div class="man-section-header">
                                 <span class="man-section-num">05</span>
-                                <h2>Client esterni — qBittorrent, Transmission, aria2</h2>
+                                <h2>Client esterni — qBittorrent, Transmission, aria2, rqbit</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
                                 <div class="man-callout man-callout-warn">
                                     <i class="fa-solid fa-triangle-exclamation"></i>
-                                    <div>Solo un client può essere attivo contemporaneamente. Priorità: <strong>libtorrent → qBittorrent → Transmission → aria2</strong>. Se libtorrent è abilitato, gli altri vengono ignorati.</div>
+                                    <div>Solo un client può essere attivo contemporaneamente (selezionabile dal riquadro client in Configurazione). Priorità nel motore: <strong>aria2 → rqbit → libtorrent → qBittorrent → Transmission</strong>.</div>
                                 </div>
 
                                 <div class="man-subsection">qBittorrent</div>
@@ -504,6 +504,29 @@
                                 <div class="man-params">
                                     <div class="man-param"><div class="man-param-name">aria2_enabled</div><div class="man-param-desc"><code>yes</code> / <code>no</code>. Abilita aria2 come client (via JSON-RPC).</div></div>
                                     <div class="man-param"><div class="man-param-name">aria2_url / aria2_token</div><div class="man-param-desc">URL e token RPC di aria2. Esempio URL: <code>http://localhost:6800/jsonrpc</code>.</div></div>
+                                </div>
+
+                                <div class="man-subsection">rqbit</div>
+                                <p><a href="https://github.com/ikatson/rqbit" target="_blank" rel="noopener">rqbit</a> è un client BitTorrent leggero scritto in Rust, pilotato via HTTP API. A differenza di qBittorrent/Transmission/aria2 (aggiunta soltanto, "add-only"), rqbit ha un <strong>Watchdog interno</strong> che richiama la stessa pipeline di post-processing di libtorrent: rinomina TMDB, gestione season pack, spostamento su NAS, notifiche, pulizia doppioni e limiti di seeding (ratio/tempo) — anche se rqbit non li supporta nativamente.</p>
+                                <div class="man-callout man-callout-info">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <div>EXTTO lancia rqbit come processo esterno (il binario va scaricato da <a href="https://github.com/ikatson/rqbit/releases" target="_blank" rel="noopener">github.com/ikatson/rqbit/releases</a>, asset <code>rqbit-linux-amd64</code>, e indicato in <code>rqbit_bin_path</code>). Un <strong>supervisore</strong> in background controlla ogni 20s che il processo risponda: se crasha, lo riavvia automaticamente e invia una notifica Telegram/email; dopo 5 tentativi falliti consecutivi smette di ritentare (niente restart-loop) e avvisa che serve intervento manuale.</div>
+                                </div>
+                                <div class="man-params">
+                                    <div class="man-param"><div class="man-param-name">rqbit_enabled</div><div class="man-param-desc"><code>yes</code> / <code>no</code>. Abilita rqbit come client.</div></div>
+                                    <div class="man-param"><div class="man-param-name">rqbit_bin_path</div><div class="man-param-desc">Percorso dell'eseguibile rqbit sul server. Esempio: <code>./rqbit-linux-amd64</code>. Usato per avviare/fermare/aggiornare il processo.</div></div>
+                                    <div class="man-param"><div class="man-param-name">rqbit_http_addr</div><div class="man-param-desc">Indirizzo <code>host:porta</code> su cui rqbit espone l'API HTTP. Default: <code>127.0.0.1:3030</code>.</div></div>
+                                    <div class="man-param"><div class="man-param-name">rqbit_dir</div><div class="man-param-desc">Cartella dove rqbit scrive i download (equivalente a <code>libtorrent_dir</code>).</div></div>
+                                    <div class="man-param"><div class="man-param-name">rqbit_dl_limit / ul_limit</div><div class="man-param-desc">Limiti banda globali in KB/s (0 = illimitato). Nota: rqbit non supporta limiti di banda per singolo torrent via API — solo globali.</div></div>
+                                    <div class="man-param"><div class="man-param-name">rqbit_seed_ratio / seed_time</div><div class="man-param-desc">Ratio massimo e minuti di seeding globali, applicati dal Watchdog EXTTO (rqbit non li gestisce nativamente). Come per libtorrent, ogni torrent può avere un override specifico (ratio/giorni) impostabile dai Dettagli nel Torrent Manager — <code>0</code> forza il seeding infinito per quel torrent.</div></div>
+                                    <div class="man-param"><div class="man-param-name">rqbit_socks_url</div><div class="man-param-desc">Proxy SOCKS5 opzionale per tutte le connessioni in uscita. Formato: <code>socks5://user:pass@host:porta</code>.</div></div>
+                                </div>
+                                <div class="man-subsection">Servizio e verifica configurazione</div>
+                                <p>Il pannello <strong>rqbit Service</strong> in Manutenzione avvia/ferma il processo e ne mostra lo stato (con badge speciale se il supervisore ha rinunciato ai riavvii automatici) e la versione installata, con avviso se su GitHub è disponibile una versione più recente (bottone <strong>Aggiorna ora</strong>: scarica il nuovo binario, lo sostituisce e riavvia il servizio se era attivo).</p>
+                                <p>In Configurazione, il bottone <strong>Verifica configurazione</strong> controlla — usando i valori del form anche non ancora salvati — che il binario sia presente ed eseguibile, che la cartella download sia scrivibile, che l'indirizzo HTTP API sia libero o già raggiunto da rqbit, e offre di <strong>avviarlo subito</strong> con quei valori se risulta spento.</p>
+                                <div class="man-callout man-callout-warn">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <div>Il <strong>Recheck</strong> su un torrent rqbit funziona diversamente da libtorrent: rqbit non ha un endpoint di verifica dedicato, quindi EXTTO rimuove il torrent (senza cancellare i file) e lo riaggiunge sulla stessa cartella — rqbit riverifica automaticamente i pezzi già presenti su disco prima di riprendere. Nella vista <strong>Peers</strong>, per limiti dell'API di rqbit sono mostrati solo IP e tipo di connessione (TCP/uTP), non client o velocità istantanea per singolo peer.</div>
                                 </div>
                             </div>
                         </div>
