@@ -1243,6 +1243,9 @@ def main():
             logger.info("✅ LibtorrentClient pre-initialized at startup")
             _apply_saved_limits()
             
+            # --- Controllo aggiornamento libtorrent all'avvio (in background) ---
+            threading.Thread(target=_get_lt_update_info, daemon=True, name='lt-pypi-check').start()
+
             # --- Caricamento Blocklist all'avvio (in background) ---
             ipfilter_url = _early_cfg.qbt.get('libtorrent_ipfilter_url', '').strip()
             if ipfilter_url:

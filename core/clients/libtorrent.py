@@ -38,6 +38,11 @@ class LibtorrentClient:
     _cfg_snapshot: dict = {}
     _restored_seeding: set = set()  # info_hash dei torrent già in seeding al momento del restore
     STATE_DIR      = STATE_DIR
+    _pp_executor: object = None       # ThreadPoolExecutor per heavy post-processing
+    _handle_cache: dict = {}          # info_hash → handle per O(1) _find()
+    _seed_limits_cache: object = None # cache in-memory per seed_limits.json
+    _ui_state_prev: dict = {}         # snapshot UI precedente per change-detection
+    _metadata_wait_start: dict = {}   # ih → time() quando downloading_metadata è iniziato
 
     _ENC_MAP = {
         '0': 0, '1': 1, '2': 2,
@@ -435,7 +440,8 @@ class LibtorrentClient:
                     }
                 except Exception:
                     pass
-            if snapshot:
+            if snapshot and snapshot != cls._ui_state_prev:
+                cls._ui_state_prev = snapshot
                 cls._save_ui_state_to_db(snapshot)
         except Exception as e:
             logger.debug(f"_save_ui_state: {e}")
@@ -531,6 +537,9 @@ class LibtorrentClient:
                     target=cls._process_alerts, daemon=True, name='lt-alerts'
                 )
                 cls._alert_thread.start()
+                if cls._pp_executor is None:
+                    from concurrent.futures import ThreadPoolExecutor
+                    cls._pp_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='lt-pp')
                 logger.info('✅ libtorrent session started (state restored)')
             except ImportError:
                 logger.error('❌ python-libtorrent not installed.')
@@ -752,11 +761,13 @@ class LibtorrentClient:
     @classmethod
     def _trigger_renamer(cls, h, save_path):
         """Innesca la rinomina ufficiale solo se il flag globale è attivo.
+        h può essere un torrent handle oppure una stringa (nome torrent).
         Ritorna il nuovo path del file rinominato, o None se la rinomina non avviene."""
+        torrent_name = h.name() if hasattr(h, 'name') else str(h or '')
         full_cfg = cls._load_full_cfg()
 
         if str(full_cfg.get('rename_episodes', 'no')).lower() not in ('yes', 'true', '1'):
-            logger.debug(f"rename_episodes non attivo — skip rename per '{h.name()}'")
+            logger.debug(f"rename_episodes non attivo — skip rename per '{torrent_name}'")
             return None
 
         _db = None
@@ -769,7 +780,7 @@ class LibtorrentClient:
                 pass
 
             new_path = rename_completed_torrent(
-                torrent_name = h.name() or '',
+                torrent_name = torrent_name,
                 save_path    = save_path,
                 cfg          = full_cfg,
                 db           = _db
@@ -777,7 +788,7 @@ class LibtorrentClient:
 
             if not new_path:
                 new_path = rename_completed_movie(
-                    torrent_name = h.name() or '',
+                    torrent_name = torrent_name,
                     save_path    = save_path,
                     cfg          = full_cfg
                 )
@@ -795,11 +806,13 @@ class LibtorrentClient:
             
     @classmethod
     def _trigger_folder_scan(cls, h):
-        """Innesca la scansione della cartella su NAS tramite API in background."""
+        """Innesca la scansione della cartella su NAS tramite API in background.
+        h può essere un torrent handle oppure una stringa (nome torrent)."""
         try:
             full_cfg = cls._load_full_cfg()
             from ..models import Parser
-            ep_info = Parser.parse_series_episode(h.name() or '')
+            _tname = h.name() if hasattr(h, 'name') else str(h or '')
+            ep_info = Parser.parse_series_episode(_tname)
             if not ep_info: return
             
             series_name = ep_info['name']
@@ -913,7 +926,8 @@ class LibtorrentClient:
     _VIDEO_EXTS = {'.mkv', '.mp4', '.avi', '.m4v', '.ts', '.mov', '.wmv', '.webm'}
 
     @classmethod
-    def _handle_season_pack(cls, h, curr_save: str, nas_path: str, full_cfg: dict) -> int:
+    def _handle_season_pack(cls, h, curr_save: str, nas_path: str, full_cfg: dict,
+                            _torrent_name: str = '', _size_bytes: int = 0, _active_time_secs: int = 0) -> int:
         """
         Post-processing completo per un season pack libtorrent.
 
@@ -934,7 +948,8 @@ class LibtorrentClient:
             logger.warning(f"\u26a0\ufe0f  Season pack: invalid archive_path or NAS not mounted: '{nas_path}'")
             return 0
 
-        pack_root = os.path.join(curr_save, h.name() or '')
+        _tname = _torrent_name or (h.name() if hasattr(h, 'name') else '')
+        pack_root = os.path.join(curr_save, _tname or '')
         if os.path.isdir(pack_root):
             pack_dir = pack_root
         else:
@@ -1108,11 +1123,12 @@ class LibtorrentClient:
             _pp_cfg = _cdb_n.get_all_settings()
             _notif  = _Notif(_pp_cfg)
 
-            s        = h.status()
-            size_gb  = s.total_wanted_done / (1024**3)
-            time_sec = s.active_time or 1
+            _sbytes  = _size_bytes if _size_bytes > 0 else (h.status().total_wanted_done if hasattr(h, 'status') else 0)
+            _atime   = _active_time_secs if _active_time_secs > 0 else (h.status().active_time if hasattr(h, 'status') else 0)
+            size_gb  = _sbytes / (1024**3)
+            time_sec = _atime or 1
             m, sec   = divmod(int(time_sec), 60)
-            speed    = (s.total_wanted_done / time_sec) / (1024**2)
+            speed    = (_sbytes / time_sec) / (1024**2)
 
             n_new      = sum(1 for e in ep_log if e['status'] == 'new')
             n_upgrade  = sum(1 for e in ep_log if e['status'] == 'upgrade')
@@ -1131,7 +1147,7 @@ class LibtorrentClient:
                 ep_lines.append(f"<i>... {_notif.t('e altri')} {len(ep_log) - 5}</i>")
 
             # Header serie: ricava dal nome del primo episodio o dal nome torrent
-            series_label = h.name() or 'Series Pack'
+            series_label = _tname or 'Series Pack'
             for e in ep_log:
                 if e['ep_label'] and e['ep_label'].startswith('S') and len(e['ep_label']) >= 3:
                     series_label = f"{series_label} S{e['ep_label'][1:3]}"
@@ -1159,13 +1175,46 @@ class LibtorrentClient:
         return copied
 
     @classmethod
+    def _check_metadata_stuck(cls, timeout_secs: int = 600):
+        """Riavvia i torrent bloccati in downloading_metadata oltre timeout_secs.
+        Tipicamente causati da tracker non raggiungibili o DHT degradato."""
+        if not cls.session_available():
+            return
+        now = time.time()
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                raw = str(s.state).split('.')[-1] if '.' in str(s.state) else str(s.state)
+                ih = cls._ih(h).lower()
+                if raw == 'downloading_metadata':
+                    first_seen = cls._metadata_wait_start.get(ih)
+                    if first_seen is None:
+                        cls._metadata_wait_start[ih] = now
+                    elif (now - first_seen) > timeout_secs:
+                        logger.warning(
+                            f"⚠️ Metadata stuck >10min for '{h.name() or ih[:12]}' — reannouncing"
+                        )
+                        try:
+                            h.force_reannounce()
+                        except Exception:
+                            pass
+                        # Reset timer so we try again after another timeout_secs
+                        cls._metadata_wait_start[ih] = now
+                else:
+                    cls._metadata_wait_start.pop(ih, None)
+            except Exception:
+                pass
+
+    @classmethod
     def _process_alerts(cls):
         SAVE_INTERVAL    = 30
         SCHED_INTERVAL   = 60
         FILTER_INTERVAL  = 3600   # controlla ogni ora se aggiornare
+        META_INTERVAL    = 600    # controlla torrent bloccati in metadata ogni 10min
         last_auto_save   = time.time()
         last_sched_check = time.time()
         last_filter_chk  = time.time()
+        last_meta_chk    = time.time()
 
         while cls._running:
             try:
@@ -1180,6 +1229,9 @@ class LibtorrentClient:
                 if now - last_filter_chk > FILTER_INTERVAL:
                     cls._maybe_autoupdate_ipfilter()
                     last_filter_chk = now
+                if now - last_meta_chk > META_INTERVAL:
+                    cls._check_metadata_stuck()
+                    last_meta_chk = now
 
                 if cls._session:
                     cls._session.post_torrent_updates()
@@ -1287,36 +1339,45 @@ class LibtorrentClient:
                             # Carica config completa dal DB (include tmdb_api_key, rename_episodes, ecc.)
                             full_cfg = cls._load_full_cfg()
 
-                            # --- Notifica completamento ---
+                            # Cattura stato handle prima di passare al thread pool
+                            _s_snap = h.status()
+                            _h_name = h.name() or 'Sconosciuto'
+                            _h_done = int(getattr(_s_snap, 'total_wanted_done', 0))
+                            _h_time = int(getattr(_s_snap, 'active_time', 0))
+
+                            # --- Notifica completamento (offload a thread) ---
                             _is_series = False
                             try:
-                                s = h.status()
-                                from ..notifier import Notifier
-                                notif = Notifier(full_cfg)
-                                # Determina se è una serie TV per sopprimere il messaggio intermedio
-                                # (notify_post_processing invierà il messaggio finale completo)
                                 from ..models import Parser as _Parser
-                                _is_series = bool(_Parser.parse_series_episode(h.name() or ''))
-                                notif.notify_torrent_complete(
-                                    torrent_name     = h.name() or 'Sconosciuto',
-                                    total_bytes      = s.total_wanted_done,
-                                    active_time_secs = s.active_time,
-                                    is_series        = _is_series,
-                                )
-                                # Per torrent non-serie (film, fumetti, manuali) la notifica
-                                # è già stata inviata qui: marca pp_notified per evitare
-                                # la notifica duplicata dal loop post-processing di extto3.
-                                if not _is_series:
-                                    import sqlite3 as _sq3
-                                    with _sq3.connect(DB_FILE, timeout=5) as _mn:
-                                        _mn.execute("""
-                                            INSERT INTO torrent_meta (hash, pp_notified, updated_at)
-                                            VALUES (?, 1, strftime('%s','now'))
-                                            ON CONFLICT(hash) DO UPDATE SET
-                                                pp_notified=1, updated_at=excluded.updated_at
-                                        """, (_ih_key,))
+                                _is_series = bool(_Parser.parse_series_episode(_h_name))
+                                _ih_notif  = _ih_key
+                                _is_ser_cp = _is_series
+                                _fc_notif  = dict(full_cfg)
+                                def _do_notify(_name=_h_name, _done=_h_done, _atime=_h_time,
+                                               _ser=_is_ser_cp, _ih=_ih_notif, _cfg=_fc_notif):
+                                    try:
+                                        from ..notifier import Notifier as _N
+                                        _N(_cfg).notify_torrent_complete(
+                                            torrent_name=_name, total_bytes=_done,
+                                            active_time_secs=_atime, is_series=_ser,
+                                        )
+                                        if not _ser:
+                                            import sqlite3 as _sq3
+                                            with _sq3.connect(DB_FILE, timeout=5) as _mn:
+                                                _mn.execute("""
+                                                    INSERT INTO torrent_meta (hash, pp_notified, updated_at)
+                                                    VALUES (?, 1, strftime('%s','now'))
+                                                    ON CONFLICT(hash) DO UPDATE SET
+                                                        pp_notified=1, updated_at=excluded.updated_at
+                                                """, (_ih,))
+                                    except Exception as _ne:
+                                        logger.warning(f"⚠️ Completion notification error: {_ne}")
+                                if cls._pp_executor:
+                                    cls._pp_executor.submit(_do_notify)
+                                else:
+                                    _do_notify()
                             except Exception as e:
-                                logger.warning(f"⚠️ Completion notification error: {e}")
+                                logger.warning(f"⚠️ Completion notification setup error: {e}")
 
                             cfg          = full_cfg
                             global_dir   = cfg.get('libtorrent_dir', '/downloads').strip()
@@ -1349,11 +1410,11 @@ class LibtorrentClient:
                             except Exception as e:
                                 logger.warning(f"⚠️ NAS folder lookup error: {e}")
 
-                            logger.info(f"🏁 Torrent complete: '{h.name()}'")
+                            logger.info(f"🏁 Torrent complete: '{_h_name}'")
 
                             # --- 2. Post-processing: pack vs singolo episodio ---
                             try:
-                                curr_save   = os.path.normpath(os.path.abspath(h.status().save_path))
+                                curr_save   = os.path.normpath(os.path.abspath(_s_snap.save_path))
                                 target_norm = os.path.normpath(os.path.abspath(target_dir))
 
                                 if move_enabled and nas_path and is_pack:
@@ -1361,10 +1422,23 @@ class LibtorrentClient:
                                     # Copia episodi sul NAS, applica cleaner + rename per ognuno.
                                     # Il pack originale rimane in libtorrent_dir per il seeding.
                                     logger.info(f"📦 Season pack: starting post-processing → '{nas_path}'")
-                                    cls._handle_season_pack(h, curr_save, nas_path, full_cfg)
-                                    # Scan archivio aggiornato (thread background)
-                                    cls._trigger_folder_scan(h)
-                                    cls._trigger_mediaserver_refresh(h.name() or '', nas_path)
+                                    _sp_args = (h, curr_save, nas_path, full_cfg)
+                                    _sp_kw   = dict(_torrent_name=_h_name, _size_bytes=_h_done,
+                                                    _active_time_secs=_h_time)
+                                    _sp_name_cp = _h_name
+                                    _sp_nas_cp  = nas_path
+                                    def _do_season_pack(_a=_sp_args, _k=_sp_kw,
+                                                        _sn=_sp_name_cp, _np=_sp_nas_cp):
+                                        try:
+                                            cls._handle_season_pack(*_a, **_k)
+                                            cls._trigger_folder_scan(_sn)
+                                            cls._trigger_mediaserver_refresh(_sn, _np)
+                                        except Exception as _se:
+                                            logger.error(f"❌ Season pack post-processing error: {_se}")
+                                    if cls._pp_executor:
+                                        cls._pp_executor.submit(_do_season_pack)
+                                    else:
+                                        _do_season_pack()
 
                                 elif move_enabled and curr_save != target_norm:
                                     # ── EPISODIO SINGOLO con NAS diverso ─────────────────
@@ -1387,27 +1461,32 @@ class LibtorrentClient:
                                     # Passa il path diretto al file se possibile, così
                                     # rename_completed_torrent non fa listdir sull'intera
                                     # cartella e get_media_tags riceve il path esatto.
-                                    _torrent_file = os.path.join(curr_save, h.name()) if h.name() else curr_save
+                                    _torrent_file = os.path.join(curr_save, _h_name) if _h_name else curr_save
                                     _rename_path  = _torrent_file if os.path.isfile(_torrent_file) else curr_save
-                                    _new_path     = cls._trigger_renamer(h, _rename_path)
-                                    cls._trigger_folder_scan(h)
-                                    _ms_path  = _new_path or _rename_path
-                                    _ms_label = os.path.basename(_ms_path) if _new_path else (h.name() or '')
-                                    cls._trigger_mediaserver_refresh(_ms_label, _ms_path)
-                                    
-                                    # --- AUTO-REMOVE POST-RENAME (no-move) ---
-                                    try:
-                                        _ar_cfg2 = cls._cfg_snapshot or {}
-                                        _do_ar2 = str(_ar_cfg2.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
-                                        if _do_ar2:
-                                            _ih_ar2 = cls._ih(h)
-                                            cls.remove_torrent(_ih_ar2, delete_files=False)
-                                            logger.info(f"🗑️ Auto-removed (post-rename, no-move): '{h.name() or _ih_ar2}'")
-                                    except Exception as _are2:
-                                        logger.debug(f"auto_remove post-rename no-move: {_are2}")
+                                    _ih_nomove    = cls._ih(h)
+                                    _cfg_nomove   = dict(full_cfg)
+                                    def _do_nomove_pp(_name=_h_name, _rpath=_rename_path,
+                                                      _ih=_ih_nomove, _cfg=_cfg_nomove):
+                                        try:
+                                            _new_path = cls._trigger_renamer(_name, _rpath)
+                                            cls._trigger_folder_scan(_name)
+                                            _ms_path  = _new_path or _rpath
+                                            _ms_label = os.path.basename(_ms_path) if _new_path else _name
+                                            cls._trigger_mediaserver_refresh(_ms_label, _ms_path)
+                                            # AUTO-REMOVE POST-RENAME (no-move)
+                                            _do_ar2 = str(_cfg.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
+                                            if _do_ar2:
+                                                cls.remove_torrent(_ih, delete_files=False)
+                                                logger.info(f"🗑️ Auto-removed (post-rename, no-move): '{_name or _ih}'")
+                                        except Exception as _nme:
+                                            logger.debug(f"auto_remove post-rename no-move: {_nme}")
+                                    if cls._pp_executor:
+                                        cls._pp_executor.submit(_do_nomove_pp)
+                                    else:
+                                        _do_nomove_pp()
 
                             except Exception as e:
-                                logger.error(f"❌ Post-processing error '{h.name()}': {e}")
+                                logger.error(f"❌ Post-processing error '{_h_name}': {e}")
 
                         elif 'storage_moved_alert' in a_type:
                             h = a.handle
@@ -1456,30 +1535,30 @@ class LibtorrentClient:
                                     # il torrent non è ancora completato, skip post-processing.
                                     continue
 
-                                # --- 3. RINOMINA DOPO LO SPOSTAMENTO ---
-                                # Se il torrent è un singolo file, passa il path diretto al file
-                                # così rename_completed_torrent non fa listdir sull'intera cartella NAS
-                                torrent_file     = os.path.join(new_path, h.name()) if h.name() else new_path
-                                rename_save_path = torrent_file if os.path.isfile(torrent_file) else new_path
-                                _new_path        = cls._trigger_renamer(h, rename_save_path)
-                                cls._trigger_folder_scan(h)
-                                _ms_path  = _new_path or rename_save_path
-                                _ms_label = os.path.basename(_ms_path) if _new_path else (h.name() or '')
-                                cls._trigger_mediaserver_refresh(_ms_label, _ms_path)
-                                
-                                # --- 5. AUTO-REMOVE POST-RENAME ---
-                                # Se auto_remove_completed=yes, rimuove il torrent dalla sessione
-                                # (senza cancellare i file) così al prossimo avvio non fa recheck
-                                # inutile su file rinominati/spostati.
-                                try:
-                                    _ar_cfg = cls._cfg_snapshot or {}
-                                    _do_ar = str(_ar_cfg.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
-                                    if _do_ar:
-                                        _ih_ar = cls._ih(h)
-                                        cls.remove_torrent(_ih_ar, delete_files=False)
-                                        logger.info(f"🗑️ Auto-removed (post-rename, NAS move): '{h.name() or _ih_ar}'")
-                                except Exception as _are:
-                                    logger.debug(f"auto_remove post-rename: {_are}")
+                                # --- 3. RINOMINA DOPO LO SPOSTAMENTO (offload a thread) ---
+                                _sm_name = h.name() or ''
+                                _sm_ih   = ih_str
+                                _sm_np   = new_path
+                                def _do_move_pp(_name=_sm_name, _ih=_sm_ih, _np=_sm_np):
+                                    try:
+                                        torrent_file     = os.path.join(_np, _name) if _name else _np
+                                        rename_save_path = torrent_file if os.path.isfile(torrent_file) else _np
+                                        _new_path        = cls._trigger_renamer(_name, rename_save_path)
+                                        cls._trigger_folder_scan(_name)
+                                        _ms_path  = _new_path or rename_save_path
+                                        _ms_label = os.path.basename(_ms_path) if _new_path else _name
+                                        cls._trigger_mediaserver_refresh(_ms_label, _ms_path)
+                                        # AUTO-REMOVE POST-RENAME
+                                        _ar_cfg = cls._load_full_cfg()
+                                        if str(_ar_cfg.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1'):
+                                            cls.remove_torrent(_ih, delete_files=False)
+                                            logger.info(f"🗑️ Auto-removed (post-rename, NAS move): '{_name or _ih}'")
+                                    except Exception as _are:
+                                        logger.debug(f"auto_remove post-rename: {_are}")
+                                if cls._pp_executor:
+                                    cls._pp_executor.submit(_do_move_pp)
+                                else:
+                                    _do_move_pp()
                             except Exception as e:
                                 logger.error(f"❌ Post-move error: {e}")
 
@@ -1552,6 +1631,12 @@ class LibtorrentClient:
                 cls._session.pause()
             except Exception as e:
                 logger.warning(f"⚠️ Shutdown error: {e}")
+        if cls._pp_executor is not None:
+            try:
+                cls._pp_executor.shutdown(wait=False)
+            except Exception:
+                pass
+            cls._pp_executor = None
 
     @classmethod
     def session_available(cls) -> bool:
@@ -2047,6 +2132,8 @@ class LibtorrentClient:
                 getattr(cls, '_nas_move_pending',    set()).discard(ih)
                 getattr(cls, '_recheck_pause_queue', set()).discard(ih)
                 cls._ui_state_cache = None
+                cls._handle_cache.pop(ih_lower, None)
+                cls._seed_limits_cache = None
             except Exception as e:
                 logger.warning(f"⚠️ Unable to remove .fastresume file: {e}")
             return True
@@ -2067,7 +2154,8 @@ class LibtorrentClient:
         # Fallback: ricostruisce un magnet minimo dall'info_hash + trackers
         try:
             ih_str = cls._ih(h)
-            magnet = f'magnet:?xt=urn:btih:{ih_str}'
+            # SHA-256 (v2-only) ha 64 caratteri hex → urn:btmh: ; SHA-1 (v1) ha 40 → urn:btih:
+            magnet = f'magnet:?xt=urn:btmh:{ih_str}' if len(ih_str) == 64 else f'magnet:?xt=urn:btih:{ih_str}'
             from urllib.parse import quote
             for tr in h.trackers():
                 url = tr.get('url', '') if isinstance(tr, dict) else getattr(tr, 'url', '')
@@ -2130,6 +2218,8 @@ class LibtorrentClient:
         
     @classmethod
     def _get_seed_limits_db(cls):
+        if cls._seed_limits_cache is not None:
+            return cls._seed_limits_cache
         p = os.path.join(cls.STATE_DIR, 'seed_limits.json')
         try:
             import json
@@ -2137,9 +2227,11 @@ class LibtorrentClient:
                 with open(p, 'r') as f:
                     raw = json.load(f)
                 # Normalizza sempre le chiavi a lowercase per evitare mismatch uppercase/lowercase
-                return {k.lower(): v for k, v in raw.items()} if isinstance(raw, dict) else {}
+                cls._seed_limits_cache = {k.lower(): v for k, v in raw.items()} if isinstance(raw, dict) else {}
+                return cls._seed_limits_cache
         except Exception: pass
-        return {}
+        cls._seed_limits_cache = {}
+        return cls._seed_limits_cache
 
     @classmethod
     def _save_seed_limits_db(cls, db_dict):
@@ -2147,7 +2239,8 @@ class LibtorrentClient:
         try:
             import json
             with open(p, 'w') as f: json.dump(db_dict, f)
-        except Exception: pass    
+            cls._seed_limits_cache = {k.lower(): v for k, v in db_dict.items()} if isinstance(db_dict, dict) else {}
+        except Exception: pass
 
     @classmethod
     def set_torrent_limits(cls, info_hash: str, dl_limit: int, ul_limit: int, seed_ratio: float = -1.0, seed_days: float = -1.0) -> bool:
@@ -2360,10 +2453,16 @@ class LibtorrentClient:
         if not cls.session_available():
             return None
         ih = info_hash.lower()
+        # Fast path: handle cache
+        cached = cls._handle_cache.get(ih)
+        if cached is not None and cached.is_valid():
+            return cached
+        # Cache miss — rebuild from session
+        new_cache = {}
         for h in cls._session.get_torrents():
-            if cls._ih(h).lower() == ih:
-                return h
-        return None
+            new_cache[cls._ih(h).lower()] = h
+        cls._handle_cache = new_cache
+        return cls._handle_cache.get(ih)
 
     # ------------------------------------------------------------------
     # SPEED SCHEDULE & SEEDING WATCHDOG
@@ -2371,7 +2470,7 @@ class LibtorrentClient:
 
     @classmethod
     def check_speed_schedule(cls):
-        cfg = cls._cfg_snapshot
+        cfg = cls._load_full_cfg()
         if not cls.session_available() or not cfg:
             return
         if str(cfg.get('libtorrent_sched_enabled', 'no')).lower() not in ('yes', 'true', '1'):
@@ -2438,7 +2537,7 @@ class LibtorrentClient:
 
     @classmethod
     def check_seeding_limits(cls):
-        cfg = cls._cfg_snapshot
+        cfg = cls._load_full_cfg()
         if not cls.session_available() or not cfg:
             return
 
