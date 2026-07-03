@@ -202,6 +202,62 @@ class LibtorrentClient:
         except Exception as e:
             logger.debug(f"_set_preallocate({enabled}): {e}")
 
+    @classmethod
+    def _ih(cls, h) -> str:
+        """Canonical info hash for a torrent handle.
+        Prefers SHA-1 (v1) for backward compatibility with existing fastresume files.
+        Falls back to SHA-256 (v2) for pure BitTorrent v2 torrents.
+        Handles libtorrent 1.x (info_hash only) and 2.0+ (info_hashes with v1/v2).
+        """
+        try:
+            ihs = h.info_hashes()
+            try:
+                if ihs.has_v1():
+                    v1 = str(ihs.v1)
+                    if v1 and set(v1) != {'0'}:
+                        return v1
+            except AttributeError:
+                pass
+            try:
+                if ihs.has_v2():
+                    v2 = str(ihs.v2)
+                    if v2 and set(v2) != {'0'}:
+                        return v2
+            except AttributeError:
+                pass
+        except AttributeError:
+            pass
+        return cls._ih(h)
+
+    @classmethod
+    def _ih_params(cls, params) -> str:
+        """Canonical info hash from add_torrent_params (save_resume_data_alert, shutdown).
+        Mirrors _ih() logic but for params objects which expose info_hashes differently.
+        """
+        try:
+            ihs = params.info_hashes
+            try:
+                if ihs.has_v1():
+                    v1 = str(ihs.v1)
+                    if v1 and set(v1) != {'0'}:
+                        return v1
+            except AttributeError:
+                pass
+            try:
+                if ihs.has_v2():
+                    v2 = str(ihs.v2)
+                    if v2 and set(v2) != {'0'}:
+                        return v2
+            except AttributeError:
+                pass
+        except AttributeError:
+            pass
+        try:
+            return str(params.info_hash)
+        except AttributeError:
+            pass
+        return ''
+
     # ------------------------------------------------------------------
     # SESSION LIFECYCLE
     # ------------------------------------------------------------------
@@ -333,7 +389,7 @@ class LibtorrentClient:
             for h in cls._session.get_torrents():
                 try:
                     s = h.status()
-                    ih = str(h.info_hash())
+                    ih = cls._ih(h)
                     prog = float(getattr(s, 'progress', 0))
                     is_paused = getattr(s, 'paused', False)
                     raw_state = str(s.state).split('.')[-1] if '.' in str(s.state) else str(s.state)
@@ -1144,7 +1200,7 @@ class LibtorrentClient:
                                     data = cls._lt.write_resume_data(params)
                                     if isinstance(data, dict):
                                         data = cls._lt.bencode(data)
-                                    ih          = str(params.info_hash) if hasattr(params, 'info_hash') else str(a.handle.info_hash())
+                                    ih          = cls._ih_params(params) or cls._ih(a.handle)
                                     final_path  = os.path.join(cls.STATE_DIR, f"{ih}.fastresume")
                                     temp_path   = final_path + ".tmp"
                                     with open(temp_path, 'wb') as f:
@@ -1165,7 +1221,7 @@ class LibtorrentClient:
                                 _mh = a.handle
                                 _ti = _mh.torrent_file() if hasattr(_mh, 'torrent_file') else None
                                 if _ti:
-                                    _ih = str(_mh.info_hash())
+                                    _ih = cls._ih(_mh)
                                     _tp = os.path.join(cls.STATE_DIR, f"{_ih}.torrent")
                                     _ce = cls._lt.create_torrent(_ti)
                                     _td = cls._lt.bencode(_ce.generate())
@@ -1222,7 +1278,7 @@ class LibtorrentClient:
                             h.save_resume_data()
 
                             # Salta notifica e post-processing per torrent già in seeding al restore
-                            _ih_key = str(h.info_hash()).lower()
+                            _ih_key = cls._ih(h).lower()
                             if _ih_key in cls._restored_seeding:
                                 cls._restored_seeding.discard(_ih_key)
                                 logger.debug(f"↩️  torrent_finished_alert ignorato (già in seeding al restore): {h.name()}")
@@ -1320,7 +1376,7 @@ class LibtorrentClient:
                                     # il secondo move verso libtorrent_dir evitando duplicazioni.
                                     if not hasattr(cls, '_nas_move_pending'):
                                         cls._nas_move_pending = set()
-                                    cls._nas_move_pending.add(str(h.info_hash()))
+                                    cls._nas_move_pending.add(cls._ih(h))
                                     h.move_storage(target_dir)
 
                                 else:
@@ -1344,7 +1400,7 @@ class LibtorrentClient:
                                         _ar_cfg2 = cls._cfg_snapshot or {}
                                         _do_ar2 = str(_ar_cfg2.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
                                         if _do_ar2:
-                                            _ih_ar2 = str(h.info_hash())
+                                            _ih_ar2 = cls._ih(h)
                                             cls.remove_torrent(_ih_ar2, delete_files=False)
                                             logger.info(f"🗑️ Auto-removed (post-rename, no-move): '{h.name() or _ih_ar2}'")
                                     except Exception as _are2:
@@ -1371,7 +1427,7 @@ class LibtorrentClient:
                                 # Aggiorna subito save_path nel fastresume su disco — guard anti-recheck
                                 # al riavvio se EXTTO si spegne prima che save_resume_data_alert arrivi.
                                 try:
-                                    ih_str = str(h.info_hash())
+                                    ih_str = cls._ih(h)
                                     fr_path = os.path.join(cls.STATE_DIR, f"{ih_str}.fastresume")
                                     if os.path.exists(fr_path):
                                         with open(fr_path, 'rb') as _ff:
@@ -1391,7 +1447,7 @@ class LibtorrentClient:
                                     logger.debug(f"fastresume patch save_path: {_fr_e}")
 
                                 try:
-                                    getattr(cls, '_nas_move_pending', set()).discard(str(h.info_hash()))
+                                    getattr(cls, '_nas_move_pending', set()).discard(cls._ih(h))
                                 except Exception:
                                     pass
 
@@ -1419,7 +1475,7 @@ class LibtorrentClient:
                                     _ar_cfg = cls._cfg_snapshot or {}
                                     _do_ar = str(_ar_cfg.get('auto_remove_completed', 'no')).lower() in ('yes', 'true', '1')
                                     if _do_ar:
-                                        _ih_ar = str(h.info_hash())
+                                        _ih_ar = cls._ih(h)
                                         cls.remove_torrent(_ih_ar, delete_files=False)
                                         logger.info(f"🗑️ Auto-removed (post-rename, NAS move): '{h.name() or _ih_ar}'")
                                 except Exception as _are:
@@ -1434,7 +1490,7 @@ class LibtorrentClient:
                                 pct = round(s.progress * 100, 1)
                                 logger.info(f"🖥️ Integrity check complete for '{h.name()}': {pct}%")
                                 
-                                ih = str(h.info_hash())
+                                ih = cls._ih(h)
                                 queue = getattr(cls, '_recheck_pause_queue', set())
                                 if ih in queue:
                                     queue.remove(ih)
@@ -1478,7 +1534,7 @@ class LibtorrentClient:
                                     data = cls._lt.write_resume_data(params)
                                     if isinstance(data, dict):
                                         data = cls._lt.bencode(data)
-                                    ih = str(params.info_hash) if hasattr(params, 'info_hash') else str(a.handle.info_hash())
+                                    ih = cls._ih_params(params) or cls._ih(a.handle)
                                     fp = os.path.join(cls.STATE_DIR, f"{ih}.fastresume")
                                     tmp = fp + ".tmp"
                                     with open(tmp, 'wb') as f:
@@ -1671,7 +1727,7 @@ class LibtorrentClient:
                         if not _cache_valid:
                             cls._ui_state_cache = cls._load_ui_state()
                             _saved = cls._ui_state_cache
-                        _ih = str(h.info_hash())
+                        _ih = cls._ih(h)
                         if _ih in _saved:
                             _snap = _saved[_ih]
                             _fallback_state = _snap.get('state', '')
@@ -1690,13 +1746,13 @@ class LibtorrentClient:
                         physical_file = os.path.exists(os.path.join(save_p, n))
                     
                     # 2. Estrazione a prova di crash dei limiti di questo specifico torrent
-                    my_lim = s_db.get(str(h.info_hash()).lower())
+                    my_lim = s_db.get(cls._ih(h).lower())
                     if not isinstance(my_lim, dict): 
                         my_lim = {}
                     infinito = (my_lim.get('ratio', -1) == 0) or (my_lim.get('days', -1) == 0)
                     
                     result.append({
-                        'hash':           str(h.info_hash()),
+                        'hash':           cls._ih(h),
                         'name':           str(n) if n else '(metadata...)',
                         'state':          ui_state,
                         'progress':       float(getattr(s, 'progress', 0)),
@@ -1933,7 +1989,7 @@ class LibtorrentClient:
                 
                 if was_paused:
                     # Si appunta l'hash per rimetterlo in pausa alla fine
-                    cls._recheck_pause_queue.add(str(h.info_hash()))
+                    cls._recheck_pause_queue.add(cls._ih(h))
                     try:
                         h.unset_flags(cls._lt.torrent_flags.auto_managed)
                     except AttributeError:
@@ -1950,7 +2006,7 @@ class LibtorrentClient:
     def remove_torrent(cls, info_hash: str, delete_files: bool = False) -> bool:
         h = cls._find(info_hash)
         if h:
-            ih = str(h.info_hash())
+            ih = cls._ih(h)
             # Salva il nome prima della rimozione (l'handle potrebbe non essere valido dopo)
             torrent_name = h.name() or ih
             try:
@@ -2010,7 +2066,7 @@ class LibtorrentClient:
             pass
         # Fallback: ricostruisce un magnet minimo dall'info_hash + trackers
         try:
-            ih_str = str(h.info_hash())
+            ih_str = cls._ih(h)
             magnet = f'magnet:?xt=urn:btih:{ih_str}'
             from urllib.parse import quote
             for tr in h.trackers():
@@ -2305,7 +2361,7 @@ class LibtorrentClient:
             return None
         ih = info_hash.lower()
         for h in cls._session.get_torrents():
-            if str(h.info_hash()).lower() == ih:
+            if cls._ih(h).lower() == ih:
                 return h
         return None
 
@@ -2406,7 +2462,7 @@ class LibtorrentClient:
                     continue
                 
                 # --- CALCOLO REGOLE PER IL SINGOLO TORRENT ---
-                my_limits = s_db.get(str(h.info_hash()).lower(), {})
+                my_limits = s_db.get(cls._ih(h).lower(), {})
                 my_ratio = my_limits.get('ratio', -1)
                 my_days = my_limits.get('days', -1)
                 
@@ -2447,7 +2503,7 @@ class LibtorrentClient:
                         global_final = cfg.get('libtorrent_dir',         '').strip()
 
                         # Leggi tag del torrent dal DB torrent_meta e cerca regola tag_dir_rules
-                        ih_str    = str(h.info_hash())
+                        ih_str    = cls._ih(h)
                         tag_final = None
                         try:
                             import sqlite3 as _sq3
