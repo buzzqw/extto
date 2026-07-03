@@ -3385,13 +3385,28 @@ const app = {
                 if (isInstalled) {
                     const ver = stats.libtorrent_version || stats.lt_version || stats.version;
                     const verText = ver ? ` v${ver}` : '';
-                    
                     badge.className = 'badge badge-success';
                     badge.innerHTML = `<i class="fa-solid fa-check"></i> ${t('Installato')}${verText}`;
                 } else {
                     badge.className = 'badge badge-warning';
                     badge.textContent = t('Non installato (Richiede: pip install libtorrent)');
                 }
+            }
+            // Badge + pulsante aggiornamento
+            const updateBadge = document.getElementById('lt-update-badge');
+            const updateBtn   = document.getElementById('lt-update-btn');
+            if (stats && stats.lt_update_available && stats.lt_latest_version) {
+                const latestVer = stats.lt_latest_version;
+                const badgeText = document.getElementById('lt-update-badge-text');
+                if (badgeText) badgeText.textContent = `v${latestVer} ${t('disponibile')}`;
+                if (updateBadge) updateBadge.style.display = 'inline';
+                if (updateBtn) {
+                    updateBtn.style.display = 'inline-flex';
+                    updateBtn.dataset.ltVersion = latestVer;
+                }
+            } else {
+                if (updateBadge) updateBadge.style.display = 'none';
+                if (updateBtn)   updateBtn.style.display   = 'none';
             }
         });
         this._setToggle('lt-sequential', get('sequential', 'no'));
@@ -3785,6 +3800,35 @@ const app = {
             this.showToast(t('Settings reapplied to session'), 'success');
         } catch(e) {
             this.showToast(t('Error reapplying settings') + ': ' + e.message, 'error');
+        }
+    },
+
+    async ltUpdate() {
+        const btn = document.getElementById('lt-update-btn');
+        const version = btn ? btn.dataset.ltVersion : '';
+        if (!version) { this.showToast(t('Versione non disponibile'), 'error'); return; }
+        if (!confirm(`Aggiornare libtorrent a v${version}?\nIl servizio EXTTO dovrà essere riavviato per applicare la nuova versione.`)) return;
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aggiornamento...'; }
+        try {
+            const res = await fetch(`${API_BASE}/api/libtorrent/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({version})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                this.showToast(`✅ libtorrent v${version} installato — riavvia il servizio per applicarlo`, 'success');
+                // Nascondi badge e pulsante: l'update è fatto
+                const updateBadge = document.getElementById('lt-update-badge');
+                if (updateBadge) updateBadge.style.display = 'none';
+                if (btn) btn.style.display = 'none';
+            } else {
+                this.showToast(`❌ Aggiornamento fallito: ${data.error || data.output || 'errore sconosciuto'}`, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-arrow-up-from-bracket"></i> Aggiorna`; }
+            }
+        } catch(e) {
+            this.showToast(`❌ Errore: ${e.message}`, 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-arrow-up-from-bracket"></i> Aggiorna`; }
         }
     },
     

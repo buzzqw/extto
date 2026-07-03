@@ -57,6 +57,38 @@ from core.utils import safe_load_json, safe_save_json
 LIMITS_FILE = 'torrent_limits.json'
 TAGS_FILE = 'torrent_tags.json'
 
+_LT_UPDATE_CACHE: dict = {'latest': '', 'current': '', 'update_available': False, 'checked_at': 0.0}
+
+def _get_lt_update_info() -> dict:
+    """Controlla PyPI per la versione più recente di libtorrent. Risultato cached 24h."""
+    global _LT_UPDATE_CACHE
+    now = time.time()
+    if now - _LT_UPDATE_CACHE['checked_at'] < 86400:
+        return _LT_UPDATE_CACHE
+    # Aggiorna il timestamp subito così richieste parallele non scatenano check multipli
+    _LT_UPDATE_CACHE['checked_at'] = now
+    try:
+        import urllib.request, json as _json
+        with urllib.request.urlopen('https://pypi.org/pypi/libtorrent/json', timeout=5) as r:
+            _info = _json.loads(r.read())
+        latest = _info['info']['version']
+        try:
+            import libtorrent as _lt_mod
+            current = _lt_mod.version
+        except ImportError:
+            current = ''
+        _LT_UPDATE_CACHE = {
+            'latest': latest,
+            'current': current,
+            'update_available': bool(latest and current and latest != current),
+            'checked_at': now,
+        }
+        if _LT_UPDATE_CACHE['update_available']:
+            logger.info(f"🔔 libtorrent: versione {latest} disponibile su PyPI (installata: {current})")
+    except Exception as _e:
+        logger.debug(f"_get_lt_update_info: {_e}")
+    return _LT_UPDATE_CACHE
+
 def _load_limits() -> dict:
     return safe_load_json(LIMITS_FILE)
 
@@ -212,6 +244,14 @@ def web_task():
                         data['lt_version'] = lt.version
                     except ImportError:
                         data['lt_version'] = 'Sconosciuta'
+                    # Check aggiornamento disponibile (non-blocking, cached 24h)
+                    try:
+                        _upd = _get_lt_update_info()
+                        data['lt_latest_version']  = _upd.get('latest', '')
+                        data['lt_update_available'] = _upd.get('update_available', False)
+                    except Exception:
+                        data['lt_latest_version']  = ''
+                        data['lt_update_available'] = False
 
                     # Se libtorrent non è in ascolto ma aria2 è attivo e risponde,
                     # segna is_listening=True per evitare il badge "offline" in UI.

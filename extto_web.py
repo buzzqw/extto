@@ -6775,6 +6775,51 @@ def debug_torrent_match():
     return jsonify(result)
 
 
+@app.route('/api/libtorrent/update', methods=['POST'])
+def api_libtorrent_update():
+    """Aggiorna libtorrent nel venv corrente a una versione specifica via uv/pip.
+    Body JSON: {'version': '2.0.13'}  — versione obbligatoria.
+    L'aggiornamento ha effetto al prossimo riavvio del servizio.
+    """
+    from flask import jsonify, request as _req
+    import sys, subprocess, shutil
+    data = _req.get_json(silent=True) or {}
+    version = str(data.get('version', '')).strip()
+    if not version or not version.replace('.', '').isdigit():
+        return jsonify({'ok': False, 'error': 'Versione non valida'}), 400
+
+    pkg = f'libtorrent=={version}'
+    python_bin = sys.executable
+
+    # Prova uv (più veloce, usato da setup.sh); fallback a pip
+    uv = shutil.which('uv')
+    if not uv:
+        for _p in (os.path.expanduser('~/.local/bin/uv'), os.path.expanduser('~/.cargo/bin/uv')):
+            if os.path.isfile(_p):
+                uv = _p
+                break
+
+    if uv:
+        cmd = [uv, 'pip', 'install', '--python', python_bin, pkg]
+    else:
+        cmd = [python_bin, '-m', 'pip', 'install', pkg, '--quiet']
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        ok = result.returncode == 0
+        output = (result.stdout + result.stderr).strip()
+        if ok:
+            logger.info(f"✅ libtorrent aggiornato a {version} (riavvio necessario)")
+        else:
+            logger.warning(f"⚠️ libtorrent update fallito: {output[:200]}")
+        return jsonify({'ok': ok, 'version': version, 'output': output})
+    except subprocess.TimeoutExpired:
+        return jsonify({'ok': False, 'error': 'Timeout (180s) durante aggiornamento'}), 500
+    except Exception as e:
+        logger.error(f"api_libtorrent_update: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/torrents', methods=['GET'])
 def proxy_torrents_base():
     """Proxy Torrents: Logica Diretta su Cartella (Bypassa il limite del DB per i Manuali)."""
