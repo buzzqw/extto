@@ -77,10 +77,16 @@ def _get_lt_update_info() -> dict:
             current = _lt_mod.version
         except ImportError:
             current = ''
+        def _norm(v):
+            # '2.0.13.0' → '2.0.13'  (rimuove i .0 finali oltre la terza parte)
+            parts = v.strip().split('.')
+            while len(parts) > 3 and parts[-1] == '0':
+                parts.pop()
+            return '.'.join(parts)
         _LT_UPDATE_CACHE = {
             'latest': latest,
             'current': current,
-            'update_available': bool(latest and current and latest != current),
+            'update_available': bool(latest and current and _norm(latest) != _norm(current)),
             'checked_at': now,
         }
         if _LT_UPDATE_CACHE['update_available']:
