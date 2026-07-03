@@ -34,7 +34,7 @@ from core import (
     Config, Notifier,
     Database, Engine,
     Parser, stats,
-    QbtClient, TransmissionClient, Aria2Client, LibtorrentClient,
+    QbtClient, TransmissionClient, Aria2Client, LibtorrentClient, RqbitClient,
     rescore_archive,
 )
 from core.clients.amule import AmuleClient
@@ -297,6 +297,22 @@ def web_task():
                         except Exception:
                             pass
 
+                    # Stesso meccanismo per rqbit: evita il badge "offline" quando è l'unico client attivo.
+                    if not data.get('is_listening'):
+                        try:
+                            from core.config import Config as _CfgRqS
+                            _cfg_rq = _CfgRqS()
+                            if str(_cfg_rq.qbt.get('rqbit_enabled', 'no')).lower() in ('yes', 'true', '1'):
+                                _rq = RqbitClient(_cfg_rq.qbt)
+                                _gs = _rq._get('/stats', timeout=2)
+                                data['is_listening'] = True
+                                data['available']    = True
+                                data['lt_version']   = 'rqbit'
+                                data['dl_rate'] = int(_gs.get('download_speed', {}).get('mbps', 0) * 1024 * 1024)
+                                data['ul_rate'] = int(_gs.get('upload_speed', {}).get('mbps', 0) * 1024 * 1024)
+                        except Exception:
+                            pass
+
                     self._json_response(data)
                     return
 
@@ -433,6 +449,16 @@ def web_task():
                             torrents.extend(Aria2Client(cfg_a2.qbt).list_torrents())
                     except Exception as e:
                         logger.debug(f"list_torrents Aria2: {e}")
+                        pass
+                    # ---------------------------------------
+                    # --- INIEZIONE RQBIT TRASPARENTE ---
+                    try:
+                        from core.config import Config as _CfgRq
+                        cfg_rq = _CfgRq()
+                        if str(cfg_rq.qbt.get('rqbit_enabled', 'no')).lower() in ('yes', 'true', '1'):
+                            torrents.extend(RqbitClient(cfg_rq.qbt).list_torrents())
+                    except Exception as e:
+                        logger.debug(f"list_torrents rqbit: {e}")
                         pass
                     # ---------------------------------------
                     # --- INIEZIONE AMULE TRASPARENTE ★ v45 ---
@@ -610,11 +636,14 @@ def web_task():
                 if self.path == '/api/torrents/pause':
                     payload = self._read_json_body()
                     hash_val = payload.get('hash', '').strip()
-                    # --- ROUTING ARIA2 ---
+                    # --- ROUTING ARIA2 / RQBIT ---
                     if len(hash_val) == 16:
                         from core.config import Config
                         from core.clients.aria2 import Aria2Client
                         ok = Aria2Client(Config().qbt).pause_torrent(hash_val)
+                    elif RqbitClient.is_known(hash_val):
+                        from core.config import Config
+                        ok = RqbitClient(Config().qbt).pause_torrent(hash_val)
                     else:
                         ok = LibtorrentClient.pause_torrent(hash_val)
                     self._json_response({'ok': ok})
@@ -623,11 +652,14 @@ def web_task():
                 if self.path == '/api/torrents/resume':
                     payload = self._read_json_body()
                     hash_val = payload.get('hash', '').strip()
-                    # --- ROUTING ARIA2 ---
+                    # --- ROUTING ARIA2 / RQBIT ---
                     if len(hash_val) == 16:
                         from core.config import Config
                         from core.clients.aria2 import Aria2Client
                         ok = Aria2Client(Config().qbt).resume_torrent(hash_val)
+                    elif RqbitClient.is_known(hash_val):
+                        from core.config import Config
+                        ok = RqbitClient(Config().qbt).resume_torrent(hash_val)
                     else:
                         ok = LibtorrentClient.resume_torrent(hash_val)
                     self._json_response({'ok': ok})
@@ -635,7 +667,12 @@ def web_task():
 
                 if self.path == '/api/torrents/recheck':
                     payload = self._read_json_body()
-                    ok = LibtorrentClient.recheck_torrent(payload.get('hash', '').strip())
+                    hash_val = payload.get('hash', '').strip()
+                    if RqbitClient.is_known(hash_val):
+                        from core.config import Config
+                        ok = RqbitClient(Config().qbt).recheck_torrent(hash_val)
+                    else:
+                        ok = LibtorrentClient.recheck_torrent(hash_val)
                     self._json_response({'ok': ok})
                     return
 
@@ -667,6 +704,37 @@ def web_task():
                                 if t.get('progress', 0) >= 1.0 or t.get('state') in ('finished', 'rimosso', 'error'):
                                     a2.remove_torrent(t['hash'])
                                     removed.append(t['name'])
+                    except Exception: pass
+                    # ---------------------------------
+
+                    # --- PULIZIA RQBIT TRASPARENTE ---
+                    try:
+                        from core.config import Config as _CfgRqC
+                        cfg_rq = _CfgRqC()
+                        if str(cfg_rq.qbt.get('rqbit_enabled', 'no')).lower() in ('yes', 'true', '1'):
+                            rq = RqbitClient(cfg_rq.qbt)
+                            _rq_ratio = float(cfg_rq.qbt.get('rqbit_seed_ratio', 0) or 0)
+                            _rq_mins  = float(cfg_rq.qbt.get('rqbit_seed_time', 0) or 0)
+                            _now = time.time()
+                            for t in rq.list_torrents():
+                                _rq_state = str(t.get('state', '')).lower()
+                                if 'errore' in _rq_state:
+                                    rq.remove_torrent(t['hash'])
+                                    removed.append(t['name'])
+                                    continue
+                                if 'seeding' not in _rq_state:
+                                    continue
+                                # Rispetta i seed limits configurati (stessa logica di check_seeding_limits):
+                                # se un obiettivo è impostato ma non ancora raggiunto, non rimuovere.
+                                if _rq_ratio > 0 or _rq_mins > 0:
+                                    _started = RqbitClient._finish_time.get(t['hash'], _now)
+                                    _seeding_secs = _now - _started
+                                    _ratio_ok = _rq_ratio > 0 and t.get('ratio', 0) >= _rq_ratio
+                                    _time_ok  = _rq_mins > 0 and _seeding_secs >= _rq_mins * 60
+                                    if not (_ratio_ok or _time_ok):
+                                        continue
+                                rq.remove_torrent(t['hash'])
+                                removed.append(t['name'])
                     except Exception: pass
                     # ---------------------------------
 
@@ -783,6 +851,16 @@ def web_task():
                         except Exception: pass
                     # ---------------------------------------
 
+                    # --- ROUTING RQBIT RIMOZIONE SINGOLA ---
+                    elif RqbitClient.is_known(hash_val):
+                        try:
+                            from core.config import Config
+                            ok = RqbitClient(Config().qbt).remove_torrent(hash_val, bool(payload.get('delete_files', False)))
+                            self._json_response({'ok': ok})
+                            return
+                        except Exception: pass
+                    # ---------------------------------------
+
                     # ---> SALVA DIMENSIONE PRIMA DI RIMUOVERE SINGOLARMENTE <---
                     try:
                         t_details = LibtorrentClient.get_torrent_details(hash_val)
@@ -808,6 +886,11 @@ def web_task():
                     hash_val = payload.get('hash', '').strip()
                     if not hash_val:
                         self._json_response({'ok': False, 'error': 'hash mancante'}, 400)
+                        return
+                    if RqbitClient.is_known(hash_val):
+                        from core.config import Config
+                        ok = RqbitClient(Config().qbt).restart_torrent(hash_val)
+                        self._json_response({'ok': ok, 'error': '' if ok else 'restart rqbit fallito (vedi log)'})
                         return
                     try:
                         if not LibtorrentClient.session_available():
@@ -864,6 +947,12 @@ def web_task():
                     # --- DETTAGLI FITTIZI PER ARIA2 ---
                     if len(info_hash) == 16:
                         self._json_response({'hash': info_hash, 'name': 'Download Aria2', 'state': 'Aria2', 'progress': 0, 'total_size': 0})
+                        return
+                    # --- DETTAGLI RQBIT ---
+                    if RqbitClient.is_known(info_hash):
+                        from core.config import Config
+                        data = RqbitClient(Config().qbt).get_torrent_details(info_hash)
+                        self._json_response(data)
                         return
                     # --- DETTAGLI HTTP/MEGA (ACTIVE_HTTP_DOWNLOADS) ---
                     if info_hash.startswith(('http_', 'mega_')):
@@ -936,10 +1025,18 @@ def web_task():
                     ul_kbps = int(payload.get('ul_kbps', 0))
                     seed_ratio = float(payload.get('seed_ratio', -1))
                     seed_days  = float(payload.get('seed_days', -1))
-                    
+
+                    if RqbitClient.is_known(info_hash):
+                        # rqbit non supporta limiti di banda per-torrent via API:
+                        # persiste solo l'override di seed ratio/tempo (stesso file
+                        # seed_limits.json condiviso con libtorrent).
+                        ok = RqbitClient.set_seed_limits(info_hash, seed_ratio, seed_days)
+                        self._json_response({'ok': ok})
+                        return
+
                     dl_bytes = dl_kbps * 1024 if dl_kbps > 0 else -1
                     ul_bytes = ul_kbps * 1024 if ul_kbps > 0 else -1
-                    
+
                     ok = LibtorrentClient.set_torrent_limits(info_hash, dl_bytes, ul_bytes, seed_ratio, seed_days)
                     self._json_response({'ok': ok})
                     return
@@ -947,7 +1044,11 @@ def web_task():
                 if self.path == '/api/torrents/peers':
                     payload   = self._read_json_body()
                     info_hash = payload.get('hash', '').strip()
-                    data = LibtorrentClient.get_peers(info_hash)
+                    if RqbitClient.is_known(info_hash):
+                        from core.config import Config
+                        data = RqbitClient(Config().qbt).get_peers(info_hash)
+                    else:
+                        data = LibtorrentClient.get_peers(info_hash)
                     self._json_response(data)
                     return
 
@@ -1407,6 +1508,7 @@ def main():
         qbt          = QbtClient(cfg.qbt)
         transmission = TransmissionClient(cfg.qbt)
         aria2        = Aria2Client(cfg.qbt)
+        rqbit        = RqbitClient(cfg.qbt)
 
         # Tagger — funziona solo con qBittorrent; no-op su altri client
         tagger = Tagger(qbt)
@@ -1438,6 +1540,9 @@ def main():
         if aria2_enabled_flag and aria2.enabled:
             client, client_name = aria2, "aria2c"
             logger.info("✅ Using aria2c (top priority)")
+        elif rqbit.enabled:
+            client, client_name = rqbit, "rqbit"
+            logger.info("✅ Using rqbit")
         elif libt and libt.enabled:
             client, client_name = libt, "libtorrent"
             logger.info("✅ Using libtorrent (embedded)")
@@ -1448,7 +1553,7 @@ def main():
             client, client_name = transmission, "Transmission"
             logger.info("✅ Using Transmission")
         else:
-            logger.error("❌ No torrent client enabled! (libtorrent/qBittorrent/Transmission/aria2)")
+            logger.error("❌ No torrent client enabled! (libtorrent/qBittorrent/Transmission/aria2/rqbit)")
             time.sleep(60)
             continue
 
@@ -1476,7 +1581,7 @@ def main():
                     logger.warning(f"⚠️  aMule send error: {_e}")
                     return False, ''
             # --- ROUTING NORMALE (magnet/torrent) ---
-            # Inietta meta (notifier, db, cfg_dict) per il post-processing di Aria2Client
+            # Inietta meta (notifier, db, cfg_dict) per il post-processing di Aria2Client/RqbitClient
             _meta = None
             if meta is not None:
                 _meta = dict(meta)
@@ -1485,10 +1590,12 @@ def main():
                 _meta.setdefault('cfg_dict', {k: getattr(cfg, k, '') for k in
                     ['rename_episodes', 'rename_format', 'rename_template',
                      'tmdb_api_key', 'tmdb_language', 'tmdb_cache_days',
-                     'move_episodes', 'cleanup_upgrades', 'trash_path', 'cleanup_action']})
+                     'move_episodes', 'cleanup_upgrades', 'trash_path', 'cleanup_action',
+                     'auto_remove_completed']})
+            _meta_capable = isinstance(client, (Aria2Client, RqbitClient))
             try:
-                _add_meta = _meta if isinstance(client, Aria2Client) else None
-                if client.add(uri, cfg.qbt, _add_meta) if isinstance(client, Aria2Client) else client.add(uri, cfg.qbt):
+                _add_meta = _meta if _meta_capable else None
+                if client.add(uri, cfg.qbt, _add_meta) if _meta_capable else client.add(uri, cfg.qbt):
                     return True, client_name
                 else:
                     logger.warning(f"⚠️  {client_name} add() failed, trying aria2c fallback")

@@ -15,7 +15,7 @@ from .notifier import Notifier
 from .database import Database, ArchiveDB, SmartCache
 from .engine   import Engine, rescore_archive
 from .cleaner  import cleanup_old_episode, cleanup_old_movie
-from .clients  import QbtClient, TransmissionClient, Aria2Client, LibtorrentClient
+from .clients  import QbtClient, TransmissionClient, Aria2Client, LibtorrentClient, RqbitClient
 
 __all__ = [
     'PORT', 'XML_FILE', 'FEED_BUFFER_FILE', 'CONFIG_FILE', 'MOVIES_FILE',
@@ -28,5 +28,5 @@ __all__ = [
     'Database', 'ArchiveDB', 'SmartCache',
     'Engine', 'rescore_archive',
     'cleanup_old_episode', 'cleanup_old_movie',
-    'QbtClient', 'TransmissionClient', 'Aria2Client', 'LibtorrentClient',
+    'QbtClient', 'TransmissionClient', 'Aria2Client', 'LibtorrentClient', 'RqbitClient',
 ]

@@ -195,7 +195,7 @@ class Config:
         # ── Client torrent (qbt dict) ─────────────────────────────────────────
         self.qbt = {}
         for k, v in raw.items():
-            if k.startswith(('qbittorrent_', 'transmission_', 'aria2_', 'libtorrent_', 'amule_')):
+            if k.startswith(('qbittorrent_', 'transmission_', 'aria2_', 'libtorrent_', 'amule_', 'rqbit_')):
                 self.qbt[k] = str(v)
 
         # ── Notifiche ─────────────────────────────────────────────────────────

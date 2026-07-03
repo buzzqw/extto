@@ -10,6 +10,7 @@ import sqlite3
 import os
 import json
 import re
+import shutil
 import time
 import requests
 import psutil
@@ -747,8 +748,8 @@ def _save_extto_conf(config: dict) -> bool:
 
         groups = [
             ("CLIENT TORRENT: LIBTORRENT (EMBEDDED)", ["libtorrent_"]),
-            ("CLIENT ESTERNI: QBITTORRENT, TRANSMISSION, ARIA2",
-             ["qbittorrent_", "transmission_", "aria2_"]),
+            ("CLIENT ESTERNI: QBITTORRENT, TRANSMISSION, ARIA2, RQBIT",
+             ["qbittorrent_", "transmission_", "aria2_", "rqbit_"]),
             ("NOTIFICHE: TELEGRAM & EMAIL", ["notify_", "telegram_", "email_"]),
             ("NOTIFICHE: JELLYFIN, PLEX & EMBY", ["jellyfin_", "plex_", "emby_"]),
             ("MOTORE: JACKETT, RICERCA E AVANZATE",
@@ -5709,8 +5710,20 @@ def send_magnet():
             except Exception as e:
                 logger.warning(f'send-magnet aria2 error: {e}')
 
+        # Prova rqbit via HTTP API
+        if settings.get('rqbit_enabled') == 'yes':
+            try:
+                from core.clients.rqbit import RqbitClient
+                rq = RqbitClient(settings)
+                if rq.enabled and rq.add(magnet, settings):
+                    push_notification('download', 'Scarico avviato', 'Torrent inviato a rqbit', {'magnet': magnet[:80]})
+                    _save_tag_for_magnet(magnet, 'Manuale')
+                    return jsonify({'success': True, 'message': 'Inviato a rqbit'})
+            except Exception as e:
+                logger.warning(f'send-magnet rqbit error: {e}')
+
         return jsonify({'success': False, 'error': 'Nessun client torrent configurato o disponibile'}), 500
-    
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -5820,8 +5833,20 @@ def upload_torrent():
             except Exception as e:
                 logger.warning(f'upload-torrent aria2 error: {e}')
 
+        # Prova rqbit via HTTP API
+        if settings.get('rqbit_enabled') == 'yes':
+            try:
+                from core.clients.rqbit import RqbitClient
+                rq = RqbitClient(settings)
+                if rq.enabled and rq.add_torrent_bytes(torrent_bytes, filename):
+                    push_notification('download', 'Scarico avviato', f'File .torrent inviato a rqbit ({filename})', {})
+                    _save_tag_for_magnet(filename, 'Manuale')
+                    return jsonify({'success': True, 'message': 'File .torrent inviato a rqbit'})
+            except Exception as e:
+                logger.warning(f'upload-torrent rqbit error: {e}')
+
         return jsonify({'success': False, 'error': 'Nessun client torrent configurato o disponibile'}), 500
-    
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -9366,6 +9391,343 @@ def aria2_stop():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+
+def _rqbit_pidfile() -> str:
+    from core.constants import STATE_DIR as _SD
+    return os.path.join(_SD, 'rqbit.pid')
+
+
+def _rqbit_build_cmd(overrides: dict = None) -> list:
+    """overrides (opzionale): {'rqbit_bin_path','rqbit_http_addr','rqbit_dir','rqbit_socks_url'}
+    — permette di avviare rqbit con valori non ancora salvati (usato da 'Verifica
+    configurazione' → 'Avvia ora'). Le chiavi assenti/vuote ricadono sul valore salvato."""
+    overrides = overrides or {}
+
+    def _val(key, default=''):
+        v = overrides.get(key)
+        return str(v).strip() if v not in (None, '') else str(_cdb.get_setting(key, default)).strip()
+
+    bin_path  = _val('rqbit_bin_path', './rqbit-linux-amd64')
+    addr      = _val('rqbit_http_addr', '127.0.0.1:3030')
+    out_dir   = _val('rqbit_dir', '/downloads')
+    socks_url = _val('rqbit_socks_url', '')
+    dl_limit  = int(_cdb.get_setting('rqbit_dl_limit', '0') or 0)
+    ul_limit  = int(_cdb.get_setting('rqbit_ul_limit', '0') or 0)
+
+    os.makedirs(out_dir, exist_ok=True)
+    cmd = [bin_path, '--http-api-listen-addr', addr]
+    if dl_limit > 0:
+        cmd += ['--ratelimit-download', str(dl_limit * 1024)]
+    if ul_limit > 0:
+        cmd += ['--ratelimit-upload', str(ul_limit * 1024)]
+    if socks_url:
+        cmd += ['--socks-url', socks_url]
+    cmd += ['server', 'start', out_dir]
+    return cmd
+
+
+def _rqbit_is_running() -> bool:
+    try:
+        addr = _cdb.get_setting('rqbit_http_addr', '127.0.0.1:3030')
+        r = requests.get(f"http://{addr}/", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def _rqbit_do_start(overrides: dict = None) -> dict:
+    try:
+        proc = subprocess.Popen(_rqbit_build_cmd(overrides), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(_rqbit_pidfile(), 'w') as f:
+            f.write(str(proc.pid))
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _rqbit_do_stop() -> dict:
+    try:
+        pidfile = _rqbit_pidfile()
+        if not os.path.exists(pidfile):
+            return {'success': False, 'error': 'rqbit non risulta avviato da EXTTO'}
+        with open(pidfile) as f:
+            pid = int(f.read().strip())
+        os.kill(pid, 15)  # SIGTERM
+        os.remove(pidfile)
+        return {'success': True}
+    except ProcessLookupError:
+        try:
+            os.remove(_rqbit_pidfile())
+        except Exception:
+            pass
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+@app.route('/api/rqbit/test-config', methods=['POST'])
+def rqbit_test_config():
+    """Verifica la configurazione rqbit (usa i valori del form, anche non
+    ancora salvati) senza modificare nulla: binario, cartella download,
+    indirizzo HTTP API (e se già in ascolto, un vero round-trip sull'API)."""
+    data = request.get_json(silent=True) or {}
+    bin_path = (data.get('bin_path') or _cdb.get_setting('rqbit_bin_path', './rqbit-linux-amd64')).strip()
+    out_dir  = (data.get('dir') or _cdb.get_setting('rqbit_dir', '/downloads')).strip()
+    addr     = (data.get('http_addr') or _cdb.get_setting('rqbit_http_addr', '127.0.0.1:3030')).strip()
+    socks_url = (data.get('socks_url') or '').strip()
+
+    checks = []
+    overall_ok = True
+    rqbit_running = False
+
+    def _add(label, ok, message):
+        nonlocal overall_ok
+        checks.append({'label': label, 'ok': ok, 'message': message})
+        if not ok:
+            overall_ok = False
+
+    # 1. Binario
+    try:
+        resolved = bin_path if (os.sep in bin_path or bin_path.startswith('.')) else (shutil.which(bin_path) or bin_path)
+        if not os.path.isfile(resolved):
+            _add('Binario', False, f"'{bin_path}' non trovato")
+        elif not os.access(resolved, os.X_OK):
+            _add('Binario', False, f"'{bin_path}' trovato ma non eseguibile (permessi?)")
+        else:
+            out = subprocess.run([resolved, '--version'], capture_output=True, text=True, timeout=5).stdout
+            m = re.search(r'(\d+\.\d+\.\d+(?:-\w+(?:\.\d+)?)?)', out)
+            ver = m.group(1) if m else out.strip() or '?'
+            _add('Binario', True, f"OK — versione {ver}")
+    except Exception as e:
+        _add('Binario', False, f"Errore eseguendo il binario: {e}")
+
+    # 2. Cartella download
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+        test_file = os.path.join(out_dir, '.extto_rqbit_write_test')
+        with open(test_file, 'w') as f:
+            f.write('ok')
+        os.remove(test_file)
+        _add('Cartella download', True, f"'{out_dir}' scrivibile")
+    except Exception as e:
+        _add('Cartella download', False, f"'{out_dir}' non scrivibile: {e}")
+
+    # 3. Indirizzo HTTP API
+    try:
+        if ':' not in addr:
+            _add('Indirizzo HTTP API', False, f"'{addr}' non è nel formato host:porta")
+        else:
+            try:
+                r = requests.get(f"http://{addr}/", timeout=2)
+                info = r.json() if r.status_code == 200 else {}
+                if info.get('server') == 'rqbit':
+                    rqbit_running = True
+                    _add('Indirizzo HTTP API', True,
+                         f"rqbit già in ascolto su {addr} (v{info.get('version', '?')})")
+                    # 4. Round-trip reale sull'API, dato che è già raggiungibile
+                    try:
+                        requests.get(f"http://{addr}/stats", timeout=3).raise_for_status()
+                        _add('Round-trip API', True, 'GET /stats risposto correttamente')
+                    except Exception as e:
+                        _add('Round-trip API', False, f"/stats non risponde: {e}")
+                else:
+                    _add('Indirizzo HTTP API', False,
+                         f"qualcos'altro risponde già su {addr} (non è rqbit) — cambia porta")
+            except requests.exceptions.ConnectionError:
+                _add('Indirizzo HTTP API', True, f"{addr} libero, pronto per l'avvio")
+    except Exception as e:
+        _add('Indirizzo HTTP API', False, f"Errore verifica indirizzo: {e}")
+
+    # 5. SOCKS proxy (solo verifica formato, non testiamo la connessione reale)
+    if socks_url:
+        if socks_url.startswith('socks5://'):
+            _add('Proxy SOCKS5', True, 'formato valido (connessione non testata)')
+        else:
+            _add('Proxy SOCKS5', False, "deve iniziare con 'socks5://'")
+
+    return jsonify({'success': overall_ok, 'checks': checks, 'rqbit_running': rqbit_running})
+
+
+def _rqbit_notify(subject: str, message: str) -> None:
+    try:
+        from core.notifier import Notifier
+        notifier = Notifier(_cdb.get_all_settings())
+        notifier._send_telegram(message)
+        notifier._send_email(subject, message)
+    except Exception as e:
+        logger.debug(f"_rqbit_notify: {e}")
+
+
+_RQ_SUPERVISOR_STATE = {'consecutive_failures': 0, 'given_up': False}
+_RQ_SUPERVISOR_MAX_FAILURES = 5
+
+
+def _rqbit_supervisor_loop():
+    """Sorveglia il processo rqbit avviato da EXTTO (analogo al supervisore
+    implicito che libtorrent ha gratis essendo in-process): se risulta 'atteso
+    attivo' (pidfile presente, rqbit_enabled=yes) ma l'API HTTP non risponde,
+    lo considera crashato, notifica e prova a riavviarlo automaticamente.
+    Dopo troppi fallimenti consecutivi smette di ritentare (niente restart-loop)
+    e manda una notifica che richiede intervento manuale."""
+    import time as _t
+    _t.sleep(30)  # attesa iniziale: lascia partire il resto del processo Flask
+    while True:
+        try:
+            enabled = str(_cdb.get_setting('rqbit_enabled', 'no')).lower() in ('yes', 'true', '1')
+            expected_running = enabled and os.path.exists(_rqbit_pidfile())
+
+            if not expected_running:
+                _RQ_SUPERVISOR_STATE['given_up'] = False
+            elif _rqbit_is_running():
+                _RQ_SUPERVISOR_STATE['consecutive_failures'] = 0
+                _RQ_SUPERVISOR_STATE['given_up'] = False
+            elif not _RQ_SUPERVISOR_STATE['given_up']:
+                logger.warning("🔴 rqbit non risponde: tentativo di riavvio automatico...")
+                _rqbit_notify(
+                    "⚠️ EXTTO: rqbit non risponde",
+                    "🔴 <b>rqbit</b> non risponde più (crash o processo terminato).\n"
+                    "Tentativo di riavvio automatico in corso..."
+                )
+                result = _rqbit_do_start()
+                _t.sleep(3)
+                if result.get('success') and _rqbit_is_running():
+                    logger.info("🟢 rqbit riavviato con successo dal supervisore.")
+                    _rqbit_notify(
+                        "✅ EXTTO: rqbit riavviato",
+                        "✅ <b>rqbit</b> è stato riavviato automaticamente con successo."
+                    )
+                    _RQ_SUPERVISOR_STATE['consecutive_failures'] = 0
+                else:
+                    _RQ_SUPERVISOR_STATE['consecutive_failures'] += 1
+                    n = _RQ_SUPERVISOR_STATE['consecutive_failures']
+                    logger.error(f"❌ rqbit: riavvio automatico fallito ({n}/{_RQ_SUPERVISOR_MAX_FAILURES}).")
+                    if n >= _RQ_SUPERVISOR_MAX_FAILURES:
+                        _RQ_SUPERVISOR_STATE['given_up'] = True
+                        _rqbit_notify(
+                            "🆘 EXTTO: rqbit non riparte",
+                            f"🆘 <b>rqbit</b> non riparte dopo {n} tentativi automatici.\n"
+                            "Serve un intervento manuale (verifica binario/percorso configurati in "
+                            "Configurazione → Client, poi riavvia dal pannello Manutenzione)."
+                        )
+        except Exception as e:
+            logger.debug(f"_rqbit_supervisor_loop: {e}")
+
+        _t.sleep(20)
+
+
+@app.route('/api/rqbit/status-service', methods=['GET'])
+def rqbit_status_service():
+    return jsonify({
+        'active': _rqbit_is_running(),
+        'supervisor_given_up': _RQ_SUPERVISOR_STATE['given_up'],
+        'consecutive_failures': _RQ_SUPERVISOR_STATE['consecutive_failures'],
+    })
+
+@app.route('/api/rqbit/start', methods=['POST'])
+def rqbit_start():
+    # Accetta opzionalmente valori non ancora salvati (usato da "Verifica
+    # configurazione" → "Avvia ora"), sia in forma corta (bin_path/http_addr/
+    # dir/socks_url) sia con le chiavi rqbit_* complete.
+    body = request.get_json(silent=True) or {}
+    overrides = {
+        'rqbit_bin_path':  body.get('bin_path')  or body.get('rqbit_bin_path'),
+        'rqbit_http_addr': body.get('http_addr') or body.get('rqbit_http_addr'),
+        'rqbit_dir':       body.get('dir')       or body.get('rqbit_dir'),
+        'rqbit_socks_url': body.get('socks_url') or body.get('rqbit_socks_url'),
+    }
+    return jsonify(_rqbit_do_start(overrides))
+
+@app.route('/api/rqbit/stop', methods=['POST'])
+def rqbit_stop():
+    return jsonify(_rqbit_do_stop())
+
+
+# --- Controllo/aggiornamento versione rqbit (release GitHub del CLI/server, non la desktop app) ---
+_RQ_UPDATE_CACHE: dict = {'latest': '', 'current': '', 'update_available': False, 'checked_at': 0.0}
+_RQ_GITHUB_RELEASE_API = 'https://api.github.com/repos/ikatson/rqbit/releases/latest'
+_RQ_ASSET_NAME = 'rqbit-linux-amd64'
+
+
+def _rqbit_current_version(bin_path: str) -> str:
+    try:
+        out = subprocess.run([bin_path, '--version'], capture_output=True, text=True, timeout=5).stdout
+        m = re.search(r'(\d+\.\d+\.\d+(?:-\w+(?:\.\d+)?)?)', out)
+        return m.group(1) if m else ''
+    except Exception:
+        return ''
+
+
+def _get_rqbit_update_info(force: bool = False) -> dict:
+    """Controlla la release GitHub più recente di rqbit (CLI/server). Risultato cached 24h."""
+    global _RQ_UPDATE_CACHE
+    now = time.time()
+    if not force and now - _RQ_UPDATE_CACHE['checked_at'] < 86400:
+        return _RQ_UPDATE_CACHE
+    _RQ_UPDATE_CACHE['checked_at'] = now
+    try:
+        bin_path = _cdb.get_setting('rqbit_bin_path', './rqbit-linux-amd64')
+        current = _rqbit_current_version(bin_path)
+        r = requests.get(_RQ_GITHUB_RELEASE_API, timeout=8,
+                          headers={'Accept': 'application/vnd.github+json'})
+        r.raise_for_status()
+        tag = (r.json().get('tag_name') or '').lstrip('v')
+        _RQ_UPDATE_CACHE = {
+            'latest': tag,
+            'current': current,
+            'update_available': bool(tag and current and tag != current),
+            'checked_at': now,
+        }
+        if _RQ_UPDATE_CACHE['update_available']:
+            logger.info(f"🔔 rqbit: versione {tag} disponibile su GitHub (installata: {current})")
+    except Exception as _e:
+        logger.debug(f"_get_rqbit_update_info: {_e}")
+    return _RQ_UPDATE_CACHE
+
+
+@app.route('/api/rqbit/update-check', methods=['GET'])
+def rqbit_update_check():
+    force = request.args.get('force', '').lower() in ('1', 'true', 'yes')
+    return jsonify(_get_rqbit_update_info(force=force))
+
+
+@app.route('/api/rqbit/update', methods=['POST'])
+def rqbit_update():
+    """Scarica l'ultima release rqbit-linux-amd64 da GitHub, sostituisce il binario
+    configurato e riavvia il servizio se era in esecuzione."""
+    try:
+        bin_path = _cdb.get_setting('rqbit_bin_path', './rqbit-linux-amd64')
+        info = _get_rqbit_update_info(force=True)
+        latest = info.get('latest', '')
+        if not latest:
+            return jsonify({'success': False, 'error': 'Impossibile determinare la versione più recente'})
+
+        was_running = _rqbit_is_running()
+        if was_running:
+            _rqbit_do_stop()
+            time.sleep(1)
+
+        download_url = f"https://github.com/ikatson/rqbit/releases/download/v{latest}/{_RQ_ASSET_NAME}"
+        tmp_path = bin_path + '.update_tmp'
+        with requests.get(download_url, stream=True, timeout=60) as r:
+            r.raise_for_status()
+            with open(tmp_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024 * 256):
+                    f.write(chunk)
+        os.chmod(tmp_path, 0o755)
+        os.replace(tmp_path, bin_path)
+
+        _RQ_UPDATE_CACHE['current'] = latest
+        _RQ_UPDATE_CACHE['update_available'] = False
+
+        restarted = False
+        if was_running:
+            restarted = _rqbit_do_start().get('success', False)
+
+        return jsonify({'success': True, 'version': latest, 'restarted': restarted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 def _mfs_enrich_worker():
     """Thread background: arricchisce movie_feed_seen con dati TMDB a bassa priorità.
     Cadenza: ~1 query ogni 4s → max 15 req/min, molto sotto il limite TMDB (40/10s).
@@ -9447,6 +9809,9 @@ if __name__ == '__main__':
 
     # Thread enrichment TMDB per Film dal Feed (low-priority, rate-limited)
     threading.Thread(target=_mfs_enrich_worker, daemon=True, name='mfs-enrich').start()
+
+    # Supervisore rqbit: rileva crash del processo esterno e lo riavvia automaticamente
+    threading.Thread(target=_rqbit_supervisor_loop, daemon=True, name='rqbit-supervisor').start()
 
     print(f"EXTTO Web Interface starting on http://localhost:{WEB_PORT}")
     serve(app, host='0.0.0.0', port=WEB_PORT, threads=4)

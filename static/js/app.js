@@ -1901,7 +1901,7 @@ const app = {
         const v = id => document.getElementById(id)?.value ?? '';
         const cb = id => document.getElementById(id)?.checked ?? false;
 
-        const clients = ['libtorrent', 'qbittorrent', 'transmission', 'aria2'];
+        const clients = ['libtorrent', 'qbittorrent', 'transmission', 'aria2', 'rqbit'];
         clients.forEach(c => s[`${c}_enabled`] = 'no');
         const activeBtn = document.querySelector('.client-btn.active');
         const activeClient = activeBtn ? activeBtn.getAttribute('onclick').match(/'([^']+)'/)[1] : 'libtorrent';
@@ -1971,7 +1971,10 @@ const app = {
             qbittorrent_url: v('qbt-url'), qbittorrent_username: v('qbt-user'), qbittorrent_password: v('qbt-pass'), qbittorrent_category: v('qbt-category'), qbittorrent_paused: tg('qbt-paused'),
             transmission_url: v('tr-url'), transmission_username: v('tr-user'), transmission_password: v('tr-pass'), transmission_paused: tg('tr-paused'),
             aria2_rpc_url: v('ar-rpc-url'), aria2_rpc_secret: v('ar-secret'), aria2_dir: v('ar-dir'), aria2c_path: v('ar-path'),
-            aria2_max_connection: v('ar-max-conn'), aria2_split: v('ar-split'), aria2_dl_limit: v('ar-dl-limit'), aria2_ul_limit: v('ar-ul-limit')
+            aria2_max_connection: v('ar-max-conn'), aria2_split: v('ar-split'), aria2_dl_limit: v('ar-dl-limit'), aria2_ul_limit: v('ar-ul-limit'),
+            rqbit_http_addr: v('rq-http-addr'), rqbit_dir: v('rq-dir'), rqbit_bin_path: v('rq-bin-path'),
+            rqbit_dl_limit: v('rq-dl-limit'), rqbit_ul_limit: v('rq-ul-limit'),
+            rqbit_seed_ratio: v('rq-seed-ratio'), rqbit_seed_time: v('rq-seed-time'), rqbit_socks_url: v('rq-socks-url')
         });
 
         document.querySelectorAll('[id^="setting-"]').forEach(i => {
@@ -3337,6 +3340,7 @@ const app = {
             { id: 'qbittorrent',  label: 'qBittorrent',           icon: 'fa-network-wired', key: 'qbittorrent_enabled'  },
             { id: 'transmission', label: 'Transmission',          icon: 'fa-network-wired', key: 'transmission_enabled' },
             { id: 'aria2',        label: 'aria2',                 icon: 'fa-terminal',      key: 'aria2_enabled'        },
+            { id: 'rqbit',        label: 'rqbit',                 icon: 'fa-bolt',          key: 'rqbit_enabled'        },
         ];
         const container = document.getElementById('client-selector');
         if (!container) return;
@@ -3356,10 +3360,10 @@ const app = {
         if (!this._configData) return;
         if (clientId === 'libtorrent') this._updateLtBadge();
         const s = this._configData.settings || {};
-        ['libtorrent_enabled','qbittorrent_enabled','transmission_enabled','aria2_enabled']
+        ['libtorrent_enabled','qbittorrent_enabled','transmission_enabled','aria2_enabled','rqbit_enabled']
             .forEach(k => s[k] = 'no');
         const keyMap = {libtorrent:'libtorrent_enabled', qbittorrent:'qbittorrent_enabled',
-                        transmission:'transmission_enabled', aria2:'aria2_enabled'};
+                        transmission:'transmission_enabled', aria2:'aria2_enabled', rqbit:'rqbit_enabled'};
         if (keyMap[clientId]) s[keyMap[clientId]] = 'yes';
         this._configData.settings = s;
         this._populateClientSelector(s);
@@ -3497,6 +3501,16 @@ const app = {
         set('ar-split',     s.aria2_split || '16');
         set('ar-dl-limit',  s.aria2_dl_limit || '0');
         set('ar-ul-limit',  s.aria2_ul_limit || '0');
+
+    // --- RQBIT ---
+        set('rq-http-addr',  s.rqbit_http_addr || '127.0.0.1:3030');
+        set('rq-dir',        s.rqbit_dir       || '');
+        set('rq-bin-path',   s.rqbit_bin_path  || './rqbit-linux-amd64');
+        set('rq-dl-limit',   s.rqbit_dl_limit  || '0');
+        set('rq-ul-limit',   s.rqbit_ul_limit  || '0');
+        set('rq-seed-ratio', s.rqbit_seed_ratio || '0');
+        set('rq-seed-time',  s.rqbit_seed_time  || '0');
+        set('rq-socks-url',  s.rqbit_socks_url  || '');
     },
 
     toggleScheduler() {
@@ -9364,20 +9378,22 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         this._drawSpeedChart(d.dl_rate || 0, d.ul_rate || 0);
 
        // --- 2. Aggiorna Tab Tracker ---
+        const dTrackers = Array.isArray(d.trackers) ? d.trackers : [];
         let trHtml = `<div class="table-row table-header" style="display:grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); padding: 10px; width: 100%;"><div>URL Server Tracker</div><div>Stato / Messaggio</div></div>`;
-        d.trackers.forEach(tr => {
+        dTrackers.forEach(tr => {
             let statusColor = tr.msg && tr.msg.toLowerCase().includes('fail') ? 'var(--danger)' : 'var(--success)';
             trHtml += `<div class="table-row" style="display:grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap:15px; font-size:0.85rem; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05); width: 100%;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-primary);" title="${this.escapeHtml(tr.url)}">${this.escapeHtml(tr.url)}</div>
                 <div style="color:${statusColor}; font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${this.escapeHtml(tr.msg || 'In funzione')}">${this.escapeHtml(tr.msg || 'In funzione')}</div>
             </div>`;
         });
-        if (d.trackers.length === 0) trHtml += `<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><i class="fa-solid fa-satellite-dish fa-2x" style="opacity:0.3; margin-bottom:15px;"></i><br>${t('Nessun tracker inserito.')}<br>${t('Il torrent usa la rete DHT decentralizzata.')}</div>`;
+        if (dTrackers.length === 0) trHtml += `<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><i class="fa-solid fa-satellite-dish fa-2x" style="opacity:0.3; margin-bottom:15px;"></i><br>${t('Nessun tracker inserito.')}<br>${t('Il torrent usa la rete DHT decentralizzata.')}</div>`;
         document.getElementById('td-trackers-list').innerHTML = trHtml;
 
         // --- 3. Aggiorna Tab Files ---
+        const dFiles = Array.isArray(d.files) ? d.files : [];
         let fHtml = `<div class="table-row table-header" style="display:grid; grid-template-columns: minmax(0, 5fr) 100px 80px; padding: 10px; width: 100%;"><div>${t('Nome File nel Torrent')}</div><div style="text-align:right;">Dimensione</div><div style="text-align:right;">Stato</div></div>`;
-        d.files.forEach(f => {
+        dFiles.forEach(f => {
             const fileName = f.path.split(/[\/\\]/).pop();
             fHtml += `<div class="table-row" style="display:grid; grid-template-columns: minmax(0, 5fr) 100px 80px; gap:15px; font-size:0.85rem; padding:10px; align-items:center; border-bottom:1px solid rgba(255,255,255,0.05); width: 100%;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${this.escapeHtml(f.path)}"><i class="fa-solid fa-file" style="color:var(--text-muted); margin-right:8px;"></i>${this.escapeHtml(fileName)}</div>
@@ -9386,9 +9402,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             </div>`;
         });
         
-        if (d.files.length === 0) {
+        if (dFiles.length === 0) {
             // Selezioniamo il messaggio giusto in base allo stato del torrent
-            if (d.state.includes('metadata') || d.total_size === 0) {
+            if ((d.state || '').includes('metadata') || d.total_size === 0) {
                 fHtml += `<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><i class="fa-solid fa-satellite-dish fa-2x" style="opacity:0.3; margin-bottom:15px;"></i><br>${t('In Attesa')}<br><small>${t('Caricamento...')}</small></div>`;
             } else {
                 fHtml += `<div style="padding:40px 20px; text-align:center; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin fa-2x" style="opacity:0.3; margin-bottom:15px;"></i><br>${t('Caricamento...')}</div>`;
@@ -11509,6 +11525,208 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             setTimeout(() => this.aria2CheckServiceStatus(), 800);
         } catch(e) {
             this._aria2Log(`Errore di rete: ${e.message}`, 'error');
+            this.showToast("Errore di rete", "error");
+        }
+    },
+
+    // --- GESTIONE SERVIZIO RQBIT ---
+
+    _rqbitLog(msg, type = 'info') {
+        const log = document.getElementById('rqbit-maint-log');
+        if (!log) return;
+        log.style.display = 'block';
+        const colors = { info: 'var(--text-secondary)', success: 'var(--success)', error: 'var(--danger)', warn: 'var(--warning)' };
+        const icons  = { info: 'ℹ', success: '✔', error: '✖', warn: '⚠' };
+        const ts = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const line = document.createElement('div');
+        line.style.color = colors[type] || colors.info;
+        line.textContent = `[${ts}] ${icons[type] || 'ℹ'} ${msg}`;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+    },
+
+    async rqbitCheckServiceStatus() {
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/status-service`);
+            const d = await r.json();
+            const badge = document.getElementById('rqbit-service-badge');
+            if (badge) {
+                if (d.active) {
+                    badge.style.background = 'rgba(16,185,129,0.18)';
+                    badge.style.color = 'var(--success)';
+                    badge.innerHTML = `<i class="fa-solid fa-circle" style="font-size:0.55rem;"></i> Attivo`;
+                    this._rqbitLog('rqbit è in esecuzione.', 'success');
+                } else if (d.supervisor_given_up) {
+                    badge.style.background = 'rgba(239,68,68,0.28)';
+                    badge.style.color = 'var(--danger)';
+                    badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="font-size:0.55rem;"></i> Crash ripetuto — serve intervento`;
+                    this._rqbitLog(`rqbit non riparte dopo ${d.consecutive_failures} tentativi automatici: serve intervento manuale.`, 'error');
+                } else {
+                    badge.style.background = 'rgba(239,68,68,0.18)';
+                    badge.style.color = 'var(--danger)';
+                    badge.innerHTML = `<i class="fa-solid fa-circle-stop" style="font-size:0.55rem;"></i> Fermo`;
+                    this._rqbitLog('rqbit non è in esecuzione.', 'warn');
+                }
+            }
+        } catch(e) {
+            this._rqbitLog(`Errore verifica stato: ${e.message}`, 'error');
+            console.error("Errore stato rqbit:", e);
+        }
+        this.rqbitCheckUpdate();
+    },
+
+    async rqbitCheckUpdate(force = false) {
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/update-check${force ? '?force=1' : ''}`);
+            const d = await r.json();
+            const cur = document.getElementById('rqbit-version-current');
+            if (cur) cur.textContent = d.current || '?';
+            const box  = document.getElementById('rqbit-update-box');
+            const text = document.getElementById('rqbit-update-text');
+            if (box) {
+                if (d.update_available) {
+                    box.style.display = 'flex';
+                    if (text) text.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i> Nuova versione <b>${d.latest}</b> disponibile (installata: ${d.current || '?'})`;
+                    this._rqbitLog(`Nuova versione rqbit disponibile: ${d.latest} (installata: ${d.current || '?'})`, 'warn');
+                } else {
+                    box.style.display = 'none';
+                }
+            }
+        } catch(e) {
+            console.error("Errore controllo versione rqbit:", e);
+        }
+    },
+
+    async rqbitTestConfig() {
+        const box = document.getElementById('rq-test-result');
+        if (box) {
+            box.style.display = 'block';
+            box.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Verifica in corso...`;
+        }
+        const v = id => document.getElementById(id)?.value ?? '';
+        const payload = {
+            bin_path:  v('rq-bin-path'),
+            dir:       v('rq-dir'),
+            http_addr: v('rq-http-addr'),
+            socks_url: v('rq-socks-url'),
+        };
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/test-config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const d = await r.json();
+            if (box) {
+                let lines = (d.checks || []).map(c => {
+                    const icon = c.ok
+                        ? `<i class="fa-solid fa-circle-check" style="color:var(--success);"></i>`
+                        : `<i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>`;
+                    return `<div>${icon} <b>${c.label}:</b> ${c.message}</div>`;
+                }).join('');
+                // Binario e cartella OK ma rqbit non ancora in esecuzione su quell'indirizzo:
+                // offri di avviarlo subito con questi stessi valori (anche se non salvati).
+                const binDirOk = (d.checks || []).slice(0, 2).every(c => c.ok);
+                if (!d.rqbit_running && binDirOk) {
+                    lines += `<div style="margin-top:0.6rem;">
+                        <button type="button" class="btn btn-success btn-small" onclick="app.rqbitStartFromTest()">
+                            <i class="fa-solid fa-play"></i> Avvia rqbit ora con questi valori
+                        </button>
+                    </div>`;
+                }
+                box.innerHTML = lines || 'Nessun controllo eseguito.';
+            }
+            this.showToast(d.success ? "Configurazione rqbit OK" : "Trovati problemi nella configurazione rqbit", d.success ? "success" : "error");
+        } catch(e) {
+            if (box) box.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i> Errore di rete: ${e.message}`;
+            this.showToast("Errore di rete", "error");
+        }
+    },
+
+    async rqbitStartFromTest() {
+        const v = id => document.getElementById(id)?.value ?? '';
+        const payload = {
+            bin_path:  v('rq-bin-path'),
+            dir:       v('rq-dir'),
+            http_addr: v('rq-http-addr'),
+            socks_url: v('rq-socks-url'),
+        };
+        this.showToast("Avvio rqbit...", "info");
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/start`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const d = await r.json();
+            if (d.success) {
+                this.showToast("rqbit avviato, ri-verifico...", "success");
+                setTimeout(() => this.rqbitTestConfig(), 1200);
+            } else {
+                this.showToast("Avvio fallito: " + (d.error || 'errore sconosciuto'), "error");
+            }
+        } catch(e) {
+            this.showToast("Errore di rete: " + e.message, "error");
+        }
+    },
+
+    async rqbitUpdateNow() {
+        if (!confirm("Aggiornare rqbit all'ultima versione?\nSe il servizio è in esecuzione verrà fermato, aggiornato e riavviato automaticamente.")) return;
+        this._rqbitLog('Aggiornamento rqbit in corso...', 'info');
+        this.showToast("Aggiornamento rqbit...", "info");
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/update`, { method: 'POST' });
+            const d = await r.json();
+            if (d.success) {
+                this._rqbitLog(`rqbit aggiornato alla versione ${d.version}.${d.restarted ? ' Servizio riavviato.' : ''}`, 'success');
+                this.showToast(`rqbit aggiornato a ${d.version}!`, "success");
+            } else {
+                this._rqbitLog(`Aggiornamento fallito: ${d.error || 'errore sconosciuto'}`, 'error');
+                this.showToast("Errore: " + (d.error || 'errore sconosciuto'), "error");
+            }
+        } catch(e) {
+            this._rqbitLog(`Errore di rete: ${e.message}`, 'error');
+            this.showToast("Errore di rete", "error");
+        }
+        setTimeout(() => this.rqbitCheckServiceStatus(), 1000);
+    },
+
+    async rqbitStartService() {
+        this._rqbitLog('Avvio rqbit in corso...', 'info');
+        this.showToast("Avvio rqbit...", "info");
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/start`, { method: 'POST' });
+            const d = await r.json();
+            if (d.success) {
+                this._rqbitLog('rqbit avviato con successo. API HTTP in ascolto.', 'success');
+                this.showToast("rqbit avviato!", "success");
+                setTimeout(() => this.rqbitCheckServiceStatus(), 1200);
+            } else {
+                const errMsg = d.error || 'errore sconosciuto';
+                this._rqbitLog(`Avvio fallito: ${errMsg}`, 'error');
+                this.showToast("Errore: " + errMsg, "error");
+            }
+        } catch(e) {
+            this._rqbitLog(`Errore di rete: ${e.message}`, 'error');
+            this.showToast("Errore di rete", "error");
+        }
+    },
+
+    async rqbitStopService() {
+        if (!confirm("Vuoi davvero fermare rqbit?\nI download in corso verranno interrotti (riprenderanno al prossimo avvio, se fastresume è attivo).")) return;
+        this._rqbitLog('Invio segnale di stop a rqbit...', 'warn');
+        try {
+            const r = await fetch(`${API_BASE}/api/rqbit/stop`, { method: 'POST' });
+            const d = await r.json();
+            if (d.success !== false) {
+                this._rqbitLog('rqbit fermato.', 'warn');
+                this.showToast("rqbit fermato", "info");
+            } else {
+                this._rqbitLog(`Stop fallito: ${d.error || 'errore sconosciuto'}`, 'error');
+            }
+            setTimeout(() => this.rqbitCheckServiceStatus(), 800);
+        } catch(e) {
+            this._rqbitLog(`Errore di rete: ${e.message}`, 'error');
             this.showToast("Errore di rete", "error");
         }
     },
