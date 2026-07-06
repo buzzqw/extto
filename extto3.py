@@ -2062,8 +2062,9 @@ def main():
         if not comics_only_cycle and not series_only_cycle and not movies_only_cycle:
             # 3. Scansione archivio locale (solo se run-now completo)
             if run_now_triggered:
-                _arch_series_scanned    = 0
-                _arch_episodes_upserted = 0
+                _arch_series_scanned     = 0
+                _arch_episodes_new       = 0
+                _arch_episodes_refreshed = 0
                 try:
                     logger.info("🔎 ARCHIVE SCAN (Recheck All): start")
                     for s in cfg.series:
@@ -2094,22 +2095,30 @@ def main():
                                       (series_id, season, epnum))
                             row_ep = c.fetchone()
                             if row_ep:
-                                if (row_ep['quality_score'] or 0) < int(best):
-                                    c.execute("UPDATE episodes SET quality_score=?, downloaded_at=? WHERE id=?",
-                                              (int(best), now_iso, row_ep['id']))
+                                old_score = row_ep['quality_score'] or 0
+                                if old_score < int(best):
+                                    # Refresh del punteggio di un episodio già noto: NON è un
+                                    # nuovo download, quindi non tocca downloaded_at (altrimenti
+                                    # risale in cima all'attività recente come se fosse stato
+                                    # scaricato ora, mentre in Scarico non c'è nulla di nuovo).
+                                    c.execute("UPDATE episodes SET quality_score=? WHERE id=?",
+                                              (int(best), row_ep['id']))
+                                    logger.debug(f"archive scan refresh: {s['name']} S{season:02d}E{epnum:02d} score {old_score}→{best}")
+                                    _arch_episodes_refreshed += 1
                             else:
                                 c.execute("INSERT INTO episodes (series_id, season, episode, title, quality_score, is_repack, downloaded_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
                                           (series_id, season, epnum,
                                            f"{s['name']} S{season:02d}E{epnum:02d}", int(best), now_iso))
+                                logger.debug(f"archive scan new: {s['name']} S{season:02d}E{epnum:02d} score {best}")
+                                _arch_episodes_new += 1
                             c.execute("INSERT INTO episode_archive_presence (series_id, season, episode, best_quality_score, at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(series_id,season,episode) DO UPDATE SET best_quality_score=excluded.best_quality_score, at=excluded.at",
                                       (series_id, season, epnum, int(best), now_iso))
-                            _arch_episodes_upserted += 1
                         _arch_series_scanned += 1
                     db.conn.commit()
                 except Exception as e:
                     logger.warning(f"⚠️ Archive scan error: {e}")
                 finally:
-                    logger.info(f"✅ ARCHIVE SCAN completed: series={_arch_series_scanned}, episodes={_arch_episodes_upserted}")
+                    logger.info(f"✅ ARCHIVE SCAN completed: series={_arch_series_scanned}, new={_arch_episodes_new}, refreshed={_arch_episodes_refreshed}")
 
         if not comics_only_cycle and not movies_only_cycle:
             # 4. Gap filling (serie TV)
