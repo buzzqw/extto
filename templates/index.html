@@ -2423,6 +2423,31 @@ sudo mount /mnt/ramdisk</div>
                         </div>
                     </div>
 
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                            <span><i class="fa-solid fa-ban" style="color:var(--danger)"></i> <span data-i18n="Blocklist Download">Blocklist Download</span></span>
+                            <button class="btn btn-secondary btn-small" onclick="app.loadBlocklist()"><i class="fa-solid fa-rotate"></i> <span data-i18n="Aggiorna">Aggiorna</span></button>
+                        </div>
+                        <div class="card-body">
+                            <p style="margin:0 0 8px 0; font-size:0.9rem; color:var(--text-secondary);" data-i18n="Release scartate automaticamente dopo un fallimento (magnet non raggiungibile, download bloccato, errore irreversibile) o segnalate manualmente. Non verranno mai più riproposte: rimuovile da qui se vuoi ridarle una possibilità.">Release scartate automaticamente dopo un fallimento (magnet non raggiungibile, download bloccato, errore irreversibile) o segnalate manualmente. Non verranno mai più riproposte: rimuovile da qui se vuoi ridarle una possibilità.</p>
+                            <div style="overflow-x:auto;">
+                                <table class="data-table" style="width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="Titolo">Titolo</th>
+                                            <th data-i18n="Motivo">Motivo</th>
+                                            <th data-i18n="Data">Data</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="blocklist-table-body">
+                                        <tr><td colspan="4" style="text-align:center;color:var(--text-muted);" data-i18n="Nessuna release in blocklist.">Nessuna release in blocklist.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- aMule — Gestione Servizio ★ v45 -->
                     <div class="card" style="grid-column: 1 / -1; border: 1px solid var(--primary);">
                         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">

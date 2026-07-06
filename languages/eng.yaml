@@ -1399,3 +1399,21 @@ e altri: and
 'Disinstallazione': 'Uninstall'
 'Come funziona': 'How it works'
 "Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:": "The browser calls extto-magnet / extto-torrent via xdg-open, which sends a POST to EXTTO. The server URL is already written inside the downloaded scripts. To change it after installation:"
+
+# --- Blocklist Download (Failed Download Handling) ---
+'Blocklist Download': 'Download Blocklist'
+'Release scartate automaticamente dopo un fallimento (magnet non raggiungibile, download bloccato, errore irreversibile) o segnalate manualmente. Non verranno mai più riproposte: rimuovile da qui se vuoi ridarle una possibilità.': 'Releases discarded automatically after a failure (unreachable magnet, stalled download, unrecoverable error) or reported manually. They will never be proposed again: remove them from here if you want to give them another chance.'
+'Nessuna release in blocklist.': 'No releases in the blocklist.'
+'Magnet non raggiungibile': 'Unreachable magnet'
+'Download bloccato': 'Stalled download'
+'Errore irreversibile': 'Unrecoverable error'
+'Segnalato manualmente': 'Reported manually'
+'Rimuovi dalla blocklist': 'Remove from blocklist'
+'Errore nel caricamento della blocklist.': 'Error loading the blocklist.'
+'Rimuovere questa release dalla blocklist? Potrà essere riscaricata in futuro.': 'Remove this release from the blocklist? It will be downloadable again in the future.'
+'Rimosso dalla blocklist.': 'Removed from the blocklist.'
+'Errore durante la rimozione.': 'Error during removal.'
+'Segnare questo download come fallito? Verrà rimosso, aggiunto alla blocklist e ritentato con una release diversa al prossimo ciclo.': 'Mark this download as failed? It will be removed, added to the blocklist, and retried with a different release on the next cycle.'
+'Download segnato come fallito.': 'Download marked as failed.'
+'Errore durante la segnalazione.': 'Error while reporting.'
+'Segna come fallito (blocklist e riprova con un''altra release)': 'Mark as failed (blocklist and retry with a different release)'

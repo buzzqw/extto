@@ -1315,3 +1315,21 @@
 'Disinstallazione': 'Disinstallazione'
 'Come funziona': 'Come funziona'
 "Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:": "Il browser chiama extto-magnet / extto-torrent via xdg-open, che manda una POST a EXTTO. L'URL del server è già scritto negli script scaricati. Per cambiarlo dopo l'installazione:"
+
+# --- Blocklist Download (Failed Download Handling) ---
+'Blocklist Download': 'Blocklist Download'
+'Release scartate automaticamente dopo un fallimento (magnet non raggiungibile, download bloccato, errore irreversibile) o segnalate manualmente. Non verranno mai più riproposte: rimuovile da qui se vuoi ridarle una possibilità.': 'Release scartate automaticamente dopo un fallimento (magnet non raggiungibile, download bloccato, errore irreversibile) o segnalate manualmente. Non verranno mai più riproposte: rimuovile da qui se vuoi ridarle una possibilità.'
+'Nessuna release in blocklist.': 'Nessuna release in blocklist.'
+'Magnet non raggiungibile': 'Magnet non raggiungibile'
+'Download bloccato': 'Download bloccato'
+'Errore irreversibile': 'Errore irreversibile'
+'Segnalato manualmente': 'Segnalato manualmente'
+'Rimuovi dalla blocklist': 'Rimuovi dalla blocklist'
+'Errore nel caricamento della blocklist.': 'Errore nel caricamento della blocklist.'
+'Rimuovere questa release dalla blocklist? Potrà essere riscaricata in futuro.': 'Rimuovere questa release dalla blocklist? Potrà essere riscaricata in futuro.'
+'Rimosso dalla blocklist.': 'Rimosso dalla blocklist.'
+'Errore durante la rimozione.': 'Errore durante la rimozione.'
+'Segnare questo download come fallito? Verrà rimosso, aggiunto alla blocklist e ritentato con una release diversa al prossimo ciclo.': 'Segnare questo download come fallito? Verrà rimosso, aggiunto alla blocklist e ritentato con una release diversa al prossimo ciclo.'
+'Download segnato come fallito.': 'Download segnato come fallito.'
+'Errore durante la segnalazione.': 'Errore durante la segnalazione.'
+'Segna come fallito (blocklist e riprova con un''altra release)': 'Segna come fallito (blocklist e riprova con un''altra release)'

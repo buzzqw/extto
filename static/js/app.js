@@ -341,7 +341,7 @@ const app = {
                 }).catch(()=>{});
                 break; 
             case 'config': this.loadConfig(); break;
-            case 'maintenance': this.loadDbInfo(); this.loadBackupSettings(); this.loadConfigForMaintenance(); break;
+            case 'maintenance': this.loadDbInfo(); this.loadBackupSettings(); this.loadConfigForMaintenance(); this.loadBlocklist(); break;
             case 'logs': this.loadLogs(); break;
             case 'health': this.loadHealth(); break;
             case 'wanted': this.loadWanted(); break;
@@ -6694,6 +6694,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     <div class="torrent-actions" style="display:flex; gap:3px; justify-content:center;">
                         <button class="btn btn-small btn-primary" onclick="app.showTorrentDetails('${torr.hash}')" title="Dettagli Torrent"><i class="fa-solid fa-circle-info"></i></button>
                         <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${torr.hash}', this)" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
+                        ${!isDone ? `<button class="btn btn-small btn-secondary" onclick="app.markTorrentFailed('${torr.hash}', '${(torr.name || '').replace(/'/g, "\\'")}')" title="${t('Segna come fallito (blocklist e riprova con un\'altra release)')}"><i class="fa-solid fa-ban"></i></button>` : ''}
                         ${torr.paused
                             ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${torr.hash}')"><i class="fa-solid fa-play"></i></button>`
                             : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${torr.hash}')"><i class="fa-solid fa-pause"></i></button>`
@@ -7113,6 +7114,76 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 if (showFeedback) this.showToast(t('Statistiche del database aggiornate!'), 'success');
             }
         } catch(e) {}
+    },
+
+    _blocklistReasonLabel(reason) {
+        const labels = {
+            'dead_magnet': t('Magnet non raggiungibile'),
+            'stalled':     t('Download bloccato'),
+            'error':       t('Errore irreversibile'),
+            'manual':      t('Segnalato manualmente'),
+        };
+        return labels[reason] || reason;
+    },
+
+    async loadBlocklist() {
+        const tbody = document.getElementById('blocklist-table-body');
+        if (!tbody) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/blocklist`);
+            const data = await res.json();
+            const items = (data.success && data.items) ? data.items : [];
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">${t('Nessuna release in blocklist.')}</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = items.map(it => `
+                <tr>
+                    <td title="${(it.title || '').replace(/"/g, '&quot;')}">${(it.title || '').substring(0, 70)}</td>
+                    <td>${this._blocklistReasonLabel(it.reason)}</td>
+                    <td>${new Date(it.blocked_at).toLocaleString('it-IT')}</td>
+                    <td style="text-align:right;">
+                        <button class="btn btn-small btn-secondary" onclick="app.removeBlocklistEntry('${it.magnet_hash}')" title="${t('Rimuovi dalla blocklist')}">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch(e) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--danger);">${t('Errore nel caricamento della blocklist.')}</td></tr>`;
+        }
+    },
+
+    async removeBlocklistEntry(hash) {
+        if (!confirm(t('Rimuovere questa release dalla blocklist? Potrà essere riscaricata in futuro.'))) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/blocklist/${hash}/remove`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast(t('Rimosso dalla blocklist.'), 'success');
+                this.loadBlocklist();
+            } else {
+                this.showToast(data.error || t('Errore durante la rimozione.'), 'error');
+            }
+        } catch(e) {
+            this.showToast(t('Errore durante la rimozione.'), 'error');
+        }
+    },
+
+    async markTorrentFailed(hash, name) {
+        if (!confirm(t('Segnare questo download come fallito? Verrà rimosso, aggiunto alla blocklist e ritentato con una release diversa al prossimo ciclo.'))) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/torrents/${hash}/mark_failed`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                this.showToast(t('Download segnato come fallito.'), 'success');
+                this.loadTorrents();
+            } else {
+                this.showToast(data.error || t('Errore durante la segnalazione.'), 'error');
+            }
+        } catch(e) {
+            this.showToast(t('Errore durante la segnalazione.'), 'error');
+        }
     },
 
     async runDbAction(action) {

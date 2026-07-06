@@ -3219,6 +3219,50 @@ def archive_batch_download():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/blocklist')
+def get_blocklist():
+    """Lista delle release fallite (magnet morto, download stallato, errore,
+    o segnalate manualmente) mai più riproposte da check_series()/check_movie()."""
+    try:
+        from core.database import Database as _CoreDB
+        with _CoreDB() as _cdb:
+            items = _cdb.list_blocklist()
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        logger.error(f'get_blocklist: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/blocklist/<hash_val>/remove', methods=['POST'])
+def remove_blocklist_entry(hash_val):
+    """Rimuove una voce dalla blocklist — la release torna riproponibile."""
+    try:
+        from core.database import Database as _CoreDB
+        with _CoreDB() as _cdb:
+            removed = _cdb.remove_from_blocklist(hash_val)
+        return jsonify({'success': True, 'removed': removed})
+    except Exception as e:
+        logger.error(f'remove_blocklist_entry: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/torrents/<hash_val>/mark_failed', methods=['POST'])
+def mark_torrent_failed(hash_val):
+    """Segna manualmente un torrent come fallito: stessa gestione automatica
+    (blocklist + rollback episodes/movies + rimozione + notifica) usata per
+    stalli/magnet morti/errori, ma innescata a mano dall'utente."""
+    try:
+        from core.clients.libtorrent import LibtorrentClient
+        h = LibtorrentClient._find(hash_val)
+        if not h:
+            return jsonify({'success': False, 'error': 'Torrent non trovato'}), 404
+        LibtorrentClient._handle_download_failure(h, 'manual')
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f'mark_torrent_failed: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/config')
 def get_config():
     """Configurazione completa"""

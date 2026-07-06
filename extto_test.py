@@ -6,6 +6,7 @@ Per eseguire i test: python3 test_extto.py
 
 import logging
 import os
+import time
 import unittest
 from unittest.mock import patch, MagicMock
 from core.models import Parser, normalize_series_name, _series_name_matches
@@ -2681,6 +2682,935 @@ class TestWebSearchEngines(unittest.TestCase):
             'magnet': 'magnet:?xt=urn:btih:' + 'a' * 40,
         }
         self.assertEqual(item_no_source.get('source', ''), '')
+
+
+# =============================================================================
+# TEST DI REGRESSIONE — bug documentati in CLAUDE.md ("Known Bugs Fixed")
+# Nessuno di questi bug, gia' avvenuti in produzione, aveva un test dedicato.
+# =============================================================================
+
+class TestKnownBugRegressions(unittest.TestCase):
+    """Un test per ciascun bug storico elencato in CLAUDE.md. Se una futura
+    modifica reintroduce uno di questi comportamenti, questi test devono
+    fallire — sono la rete di sicurezza esplicitamente richiesta dal progetto."""
+
+    def setUp(self):
+        self._orig_session      = LibtorrentClient._session
+        self._orig_lt           = LibtorrentClient._lt
+        self._orig_state_dir    = LibtorrentClient.STATE_DIR
+        self._orig_seed_cache   = LibtorrentClient._seed_limits_cache
+        self._orig_restored     = set(LibtorrentClient._restored_seeding)
+        self._orig_ui_prev      = LibtorrentClient._ui_state_prev
+        self._orig_pp_executor  = LibtorrentClient._pp_executor
+        self._orig_running      = LibtorrentClient._running
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        LibtorrentClient._session      = self._orig_session
+        LibtorrentClient._lt           = self._orig_lt
+        LibtorrentClient.STATE_DIR     = self._orig_state_dir
+        LibtorrentClient._seed_limits_cache = self._orig_seed_cache
+        LibtorrentClient._restored_seeding  = self._orig_restored
+        LibtorrentClient._ui_state_prev     = self._orig_ui_prev
+        LibtorrentClient._pp_executor       = self._orig_pp_executor
+        LibtorrentClient._running           = self._orig_running
+        self.tmp.cleanup()
+
+    @staticmethod
+    def _fake_info_hashes(v1_hex):
+        class _Hashes:
+            def has_v1(self): return True
+            def has_v2(self): return False
+            v1 = v1_hex
+        return _Hashes()
+
+    # ── _save_ui_state: NameError silenzioso (result vs snapshot) ───────────
+
+    def test_save_ui_state_persiste_snapshot(self):
+        """Bug storico: la variabile si chiamava 'result' ma il codice
+        referenziava 'snapshot' — NameError ingoiato dal try/except esterno,
+        lo stato UI non veniva mai scritto nel DB. Verifica che oggi lo
+        snapshot venga effettivamente costruito e persistito."""
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._ui_state_prev = {}
+
+        ih = 'a' * 40
+        status = MagicMock(progress=0.42, paused=False, state='downloading',
+                            is_seeding=False, is_finished=False,
+                            auto_managed=True, download_payload_rate=1000,
+                            upload_payload_rate=0, error=None,
+                            total_wanted=1000, total_wanted_done=420,
+                            name='Serie.S01E01')
+        h = MagicMock()
+        h.status.return_value = status
+        h.name.return_value = 'Serie.S01E01'
+        h.info_hashes.return_value = self._fake_info_hashes(ih)
+        LibtorrentClient._session.get_torrents.return_value = [h]
+
+        with patch.object(LibtorrentClient, '_save_ui_state_to_db') as mock_persist:
+            LibtorrentClient._save_ui_state()
+
+        mock_persist.assert_called_once()
+        snapshot = mock_persist.call_args[0][0]
+        self.assertIn(ih, snapshot, "Lo snapshot deve contenere l'info-hash del torrent")
+        self.assertEqual(snapshot[ih]['progress'], 0.42)
+        self.assertEqual(snapshot[ih]['downloaded'], 420)
+
+    # ── storage_moved_alert: guardia _is_done ────────────────────────────────
+
+    def _run_process_alerts_once(self, fake_alert):
+        """Esegue _process_alerts (loop infinito) in un thread, gli fa
+        processare un solo batch di alert e poi lo ferma."""
+        import threading
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.post_torrent_updates.return_value = None
+        state = {'n': 0}
+
+        def _pop_alerts():
+            state['n'] += 1
+            if state['n'] == 1:
+                return [fake_alert]
+            LibtorrentClient._running = False
+            return []
+
+        LibtorrentClient._session.pop_alerts.side_effect = _pop_alerts
+        LibtorrentClient._running = True
+        LibtorrentClient._pp_executor = None
+        LibtorrentClient.STATE_DIR = self.tmp.name
+
+        t = threading.Thread(target=LibtorrentClient._process_alerts, daemon=True)
+        t.start()
+        t.join(timeout=5)
+        self.assertFalse(t.is_alive(),
+            "_process_alerts non si e' fermato entro il timeout: il test harness non ha funzionato")
+
+    def test_storage_moved_alert_skip_se_download_non_completo(self):
+        """Bug storico: storage_moved_alert innescava rinomina/post-processing
+        anche per spostamenti intermedi (RAM disk -> temp) con torrent ancora
+        al 0%. Con progress<1.0 e non seeding/finished, non deve succedere nulla."""
+        class storage_moved_alert:
+            pass
+        status = MagicMock(is_seeding=False, is_finished=False, progress=0.3,
+                            save_path='/tmp/fake_intermedio')
+        handle = MagicMock()
+        handle.status.return_value = status
+        handle.name.return_value = 'Serie.S01E01.mkv'
+        handle.save_resume_data.return_value = None
+        alert = storage_moved_alert()
+        alert.handle = handle
+
+        with patch.object(LibtorrentClient, '_trigger_renamer') as mock_rename, \
+             patch.object(LibtorrentClient, '_ih', return_value='b' * 40):
+            self._run_process_alerts_once(alert)
+
+        mock_rename.assert_not_called()
+
+    def test_storage_moved_alert_procede_se_torrent_completo(self):
+        """Controparte del test precedente: con is_seeding=True (torrent
+        davvero completo) il post-processing deve procedere normalmente."""
+        class storage_moved_alert:
+            pass
+        status = MagicMock(is_seeding=True, is_finished=False, progress=1.0,
+                            save_path='/tmp/fake_nas')
+        handle = MagicMock()
+        handle.status.return_value = status
+        handle.name.return_value = 'Serie.S01E01.mkv'
+        handle.save_resume_data.return_value = None
+        alert = storage_moved_alert()
+        alert.handle = handle
+
+        with patch.object(LibtorrentClient, '_trigger_renamer') as mock_rename, \
+             patch.object(LibtorrentClient, '_trigger_folder_scan'), \
+             patch.object(LibtorrentClient, '_trigger_mediaserver_refresh'), \
+             patch.object(LibtorrentClient, '_load_full_cfg', return_value={'auto_remove_completed': 'no'}), \
+             patch.object(LibtorrentClient, '_ih', return_value='c' * 40):
+            self._run_process_alerts_once(alert)
+
+        mock_rename.assert_called_once()
+
+    # ── seed_limits.json: chiavi normalizzate lowercase ──────────────────────
+
+    def test_seed_limits_json_chiavi_normalizzate_lowercase(self):
+        """Bug storico: libtorrent restituisce str(h.info_hash()) in
+        maiuscolo, ma seed_limits.json veniva scritto/letto senza
+        normalizzazione, causando mismatch nei lookup."""
+        import json
+        LibtorrentClient.STATE_DIR = self.tmp.name
+        LibtorrentClient._seed_limits_cache = None
+        p = os.path.join(self.tmp.name, 'seed_limits.json')
+        with open(p, 'w') as f:
+            json.dump({'AABBCCDDEE': {'dl_bytes': 100, 'ul_bytes': 200}}, f)
+
+        db = LibtorrentClient._get_seed_limits_db()
+
+        self.assertIn('aabbccddee', db)
+        self.assertNotIn('AABBCCDDEE', db)
+        self.assertEqual(db['aabbccddee']['dl_bytes'], 100)
+
+    # ── _was_seeding troppo ampio al restart ─────────────────────────────────
+
+    def _load_state_con_fastresume(self, ih, fr_dict):
+        LibtorrentClient._lt = MagicMock()
+        LibtorrentClient._lt.bdecode.return_value = fr_dict
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._restored_seeding = set()
+        LibtorrentClient.STATE_DIR = self.tmp.name
+        open(os.path.join(self.tmp.name, f"{ih}.fastresume"), 'wb').close()
+        with patch('core.config_db.get_all_torrent_limits', return_value={}):
+            LibtorrentClient._load_state()
+
+    def test_was_seeding_false_per_download_appena_finito(self):
+        """Bug storico: _was_seeding includeva _fr_finished da solo, quindi
+        un torrent con download appena completato (seeding_time=0, mai
+        seedato) veniva marcato come 'gia' in seeding' al restart — il suo
+        torrent_finished_alert veniva saltato e move+rename su NAS non si
+        completavano mai."""
+        ih = 'a' * 40
+        self._load_state_con_fastresume(ih, {
+            b'finished_time': 1, b'seeding_time': 0,
+            b'total_uploaded': 0, b'total_downloaded': 500,
+        })
+        self.assertNotIn(ih, LibtorrentClient._restored_seeding,
+            "Un torrent con seeding_time=0 non deve finire in _restored_seeding")
+
+    def test_was_seeding_true_se_ha_gia_seedato(self):
+        ih = 'b' * 40
+        self._load_state_con_fastresume(ih, {
+            b'finished_time': 1, b'seeding_time': 120,
+            b'total_uploaded': 100, b'total_downloaded': 500,
+        })
+        self.assertIn(ih, LibtorrentClient._restored_seeding,
+            "Un torrent che aveva gia' seedato deve finire in _restored_seeding")
+
+
+class TestMovieSoftDelete(unittest.TestCase):
+    """Bug storico (core/database.py): check_movie() trattava un film
+    soft-deleted (removed_at valorizzato) con lo stesso magnet_hash come un
+    duplicato da scartare, invece di ripristinarlo — restava invisibile e
+    mai piu' scaricabile."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_db  = os.path.join(self.temp_dir.name, 'test_series.db')
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_check_movie_ripristina_soft_deleted(self):
+        hash_val = '1234567890abcdef1234567890abcdef12345678'
+        magnet   = f'magnet:?xt=urn:btih:{hash_val}'
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                c = db.conn.cursor()
+                c.execute(
+                    "INSERT INTO movies (name, year, title, quality_score, magnet_hash, "
+                    "magnet_link, downloaded_at, removed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    ('Dune', 2021, 'Dune.2021.1080p', 1000, hash_val, magnet,
+                     '2024-01-01T00:00:00+00:00', '2024-06-01T00:00:00+00:00')
+                )
+                db.conn.commit()
+
+                mov = {'config_name': 'Dune', 'year': 2021, 'title': 'Dune.2021.1080p.ITA',
+                       'quality': Quality(resolution='1080p', source='bluray', codec='h264')}
+                ok, reason = db.check_movie(mov, magnet, '1080p')
+
+                self.assertTrue(ok, f"Il film soft-deleted doveva essere ripristinato: {reason}")
+                self.assertEqual(reason, "Restored")
+
+                c.execute("SELECT removed_at FROM movies WHERE magnet_hash=?", (hash_val,))
+                self.assertIsNone(c.fetchone()['removed_at'])
+
+
+class TestExtto3GuardFormulas(unittest.TestCase):
+    """Due bug storici (extto3.py) la cui logica vive inline in funzioni
+    enormi (il loop principale e un HTTP handler locale), non in funzioni
+    standalone. Questi test duplicano la formula ESATTA presente oggi nel
+    sorgente (vedi commenti) come protezione minima. ATTENZIONE: non
+    eseguono il codice reale di extto3.py — se la formula in extto3.py
+    cambia senza aggiornare questi test, non se ne accorgerebbero. Una
+    protezione piena richiederebbe estrarre due funzioni pure in extto3.py."""
+
+    def test_trigger_file_rimosso_solo_se_precedente_al_ciclo(self):
+        # Formula in extto3.py: os.path.exists(_tf) and os.path.getmtime(_tf) < _cycle_start
+        import time
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            cycle_start = time.time()
+
+            trigger_vecchio = os.path.join(tmp.name, 'trigger_vecchio')
+            open(trigger_vecchio, 'w').close()
+            os.utime(trigger_vecchio, (cycle_start - 10, cycle_start - 10))
+
+            trigger_nuovo = os.path.join(tmp.name, 'trigger_nuovo')
+            open(trigger_nuovo, 'w').close()
+            os.utime(trigger_nuovo, (cycle_start + 10, cycle_start + 10))
+
+            def should_remove(path, _cycle_start):
+                return os.path.exists(path) and os.path.getmtime(path) < _cycle_start
+
+            self.assertTrue(should_remove(trigger_vecchio, cycle_start),
+                "Trigger creato PRIMA del ciclo deve essere ripulito")
+            self.assertFalse(should_remove(trigger_nuovo, cycle_start),
+                "Trigger creato DURANTE il ciclo deve sopravvivere per il prossimo giro")
+        finally:
+            tmp.cleanup()
+
+    def test_can_remove_formula_torrent_attivo_vs_completato(self):
+        # Formula in extto3.py:
+        #   is_finished_state = st in ('finished','finished_t','completato','finito','salvato',
+        #                               'seeding (completato)','in coda (seeding)')
+        #   can_remove = (pr >= 1.0 or is_finished_state or physical_found)
+        _FINISHED_STATES = ('finished', 'finished_t', 'completato', 'finito', 'salvato',
+                             'seeding (completato)', 'in coda (seeding)')
+
+        def can_remove(state, progress, physical_found):
+            is_finished_state = state in _FINISHED_STATES
+            return (progress >= 1.0) or is_finished_state or physical_found
+
+        # Bug 1: un torrent in download attivo veniva rimosso da Pulisci (falso positivo)
+        self.assertFalse(
+            can_remove(state='downloading', progress=0.4, physical_found=False),
+            "Un torrent in download attivo non deve mai essere removibile da Pulisci")
+
+        # Bug 2: 'Seeding (Completato)' pausato non veniva mai rimosso (falso negativo,
+        # perche' non era incluso in is_finished_state prima della fix)
+        self.assertTrue(
+            can_remove(state='seeding (completato)', progress=1.0, physical_found=False),
+            "'Seeding (Completato)' deve essere removibile da Pulisci")
+        self.assertTrue(
+            can_remove(state='in coda (seeding)', progress=1.0, physical_found=False),
+            "'In Coda (Seeding)' deve essere removibile da Pulisci")
+
+
+# =============================================================================
+# FUNZIONI PURE DI UTILITA' — core/utils.py, core/tagger.py (0 copertura)
+# =============================================================================
+
+class TestUtilsPuri(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_safe_save_load_json_round_trip(self):
+        from core.utils import safe_save_json, safe_load_json
+        path = os.path.join(self.tmp.name, 'data.json')
+        data = {'a': 1, 'b': [1, 2, 3]}
+        self.assertTrue(safe_save_json(path, data))
+        self.assertEqual(safe_load_json(path), data)
+
+    def test_safe_load_json_file_assente_ritorna_default(self):
+        from core.utils import safe_load_json
+        result = safe_load_json(os.path.join(self.tmp.name, 'non_esiste.json'), default={'x': 1})
+        self.assertEqual(result, {'x': 1})
+
+    def test_safe_load_json_corrotto_non_solleva(self):
+        from core.utils import safe_load_json
+        path = os.path.join(self.tmp.name, 'corrotto.json')
+        with open(path, 'w') as f:
+            f.write("{questo non e' json valido")
+        try:
+            result = safe_load_json(path, default=[])
+            self.assertEqual(result, [])
+        except Exception as e:
+            self.fail(f"safe_load_json ha sollevato su JSON corrotto: {e}")
+
+    def test_get_file_lock_stesso_path_stesso_lock(self):
+        from core.utils import get_file_lock
+        path = os.path.join(self.tmp.name, 'file.json')
+        self.assertIs(get_file_lock(path), get_file_lock(path),
+            "Path identico deve restituire lo stesso oggetto Lock — altrimenti niente mutua esclusione")
+
+    def test_tagger_extract_hash(self):
+        from core.tagger import _extract_hash
+        magnet = "magnet:?xt=urn:btih:AABBCCDDEEFF00112233445566778899AABBCCDD&dn=x"
+        self.assertEqual(_extract_hash(magnet), "aabbccddeeff00112233445566778899aabbccdd")
+        self.assertIsNone(_extract_hash("http://non-e-un-magnet.com"))
+        self.assertIsNone(_extract_hash(""))
+
+    def test_tagger_save_ui_tag_scrive_hash_lowercase(self):
+        import json
+        import core.tagger as tagger_mod
+        tags_file = os.path.join(self.tmp.name, 'torrent_tags.json')
+        with patch.object(tagger_mod, '_TAGS_FILE', tags_file):
+            tagger_mod._save_ui_tag("AABBCCDDEE", "Serie TV")
+            with open(tags_file) as f:
+                saved = json.load(f)
+        self.assertEqual(saved.get('aabbccddee'), "Serie TV")
+
+
+# =============================================================================
+# CLIENT TORRENT ADD-ONLY — qBittorrent, Transmission, aria2, rqbit (0 copertura)
+# =============================================================================
+
+class TestTorrentClientsAddOnly(unittest.TestCase):
+
+    # ── qBittorrent: compatibilita' handshake login multi-versione ─────────
+
+    def test_qbt_login_ok_status_204(self):
+        from core.clients.qbittorrent import QbtClient
+        resp = MagicMock(status_code=204, text='')
+        with patch('core.clients.qbittorrent.requests.Session.post', return_value=resp):
+            client = QbtClient({'qbittorrent_enabled': 'yes'})
+        self.assertTrue(client.enabled,
+            "Login con HTTP 204 deve considerarsi riuscito (qBittorrent >=5.2.0)")
+
+    def test_qbt_login_ok_status_200_ok_body(self):
+        from core.clients.qbittorrent import QbtClient
+        resp = MagicMock(status_code=200, text='Ok.')
+        with patch('core.clients.qbittorrent.requests.Session.post', return_value=resp):
+            client = QbtClient({'qbittorrent_enabled': 'yes'})
+        self.assertTrue(client.enabled,
+            "Login con HTTP 200 body 'Ok.' deve riuscire (retrocompatibilita' <5.2.0)")
+
+    def test_qbt_login_fallito_disabilita_client(self):
+        from core.clients.qbittorrent import QbtClient
+        resp = MagicMock(status_code=403, text='Forbidden')
+        with patch('core.clients.qbittorrent.requests.Session.post', return_value=resp):
+            client = QbtClient({'qbittorrent_enabled': 'yes'})
+        self.assertFalse(client.enabled)
+
+    def test_qbt_add_form_paused_e_stopped_allineati(self):
+        from core.clients.qbittorrent import QbtClient
+        login_resp = MagicMock(status_code=204, text='')
+        with patch('core.clients.qbittorrent.requests.Session.post', return_value=login_resp):
+            client = QbtClient({'qbittorrent_enabled': 'yes'})
+
+        with patch.object(client.sess, 'post', return_value=MagicMock()) as mock_add:
+            client.add("magnet:?xt=urn:btih:" + "a" * 40, {'qbittorrent_paused': 'yes'})
+
+        _, kwargs = mock_add.call_args
+        form = kwargs['files']
+        self.assertEqual(form['paused'][1], 'true')
+        self.assertEqual(form['stopped'][1], 'true',
+            "'stopped' deve rispecchiare 'paused' per compatibilita' con qBittorrent >=5.x")
+
+    # ── Transmission: rinnovo Session-Id su 409, gestione duplicati ─────────
+
+    def test_transmission_session_id_renewal_su_409(self):
+        from core.clients.transmission import TransmissionClient
+        login_resp = MagicMock(status_code=200, headers={})
+        login_resp.json.return_value = {'result': 'success'}
+        with patch('core.clients.transmission.requests.Session.post', return_value=login_resp):
+            client = TransmissionClient({'transmission_enabled': 'yes'})
+        self.assertTrue(client.enabled)
+
+        resp_409 = MagicMock(status_code=409, headers={'X-Transmission-Session-Id': 'nuovo-id'})
+        resp_ok  = MagicMock(status_code=200, headers={})
+        resp_ok.json.return_value = {'result': 'success'}
+        with patch.object(client.sess, 'post', side_effect=[resp_409, resp_ok]) as mock_post:
+            result = client._rpc_call({'method': 'torrent-add'})
+
+        self.assertEqual(mock_post.call_count, 2,
+            "Alla risposta 409 il client deve ritentare con il nuovo Session-Id")
+        self.assertEqual(client.sess.headers.get('X-Transmission-Session-Id'), 'nuovo-id')
+        self.assertIs(result, resp_ok)
+
+    def test_transmission_add_duplicate_e_successo(self):
+        from core.clients.transmission import TransmissionClient
+        login_resp = MagicMock(status_code=200, headers={})
+        login_resp.json.return_value = {'result': 'success'}
+        with patch('core.clients.transmission.requests.Session.post', return_value=login_resp):
+            client = TransmissionClient({'transmission_enabled': 'yes'})
+
+        dup_resp = MagicMock(status_code=200, headers={})
+        dup_resp.json.return_value = {'result': 'duplicate torrent'}
+        with patch.object(client.sess, 'post', return_value=dup_resp):
+            ok = client.add("magnet:?xt=urn:btih:" + "b" * 40, {})
+        self.assertTrue(ok, "Un torrent gia' presente (duplicate) deve essere trattato come successo")
+
+    # ── aria2: mapping stato/progress/ratio, guardia division-by-zero ──────
+
+    def _make_aria2_client(self):
+        from core.clients.aria2 import Aria2Client
+        client = Aria2Client.__new__(Aria2Client)
+        client.rpc_url    = 'http://fake:6800/rpc'
+        client.rpc_secret = ''
+        client.dir        = ''
+        return client
+
+    def test_aria2_list_torrents_mapping_stato_e_progress(self):
+        client = self._make_aria2_client()
+        active_item = {
+            'gid': 'abc123', 'bittorrent': {'info': {'name': 'Serie.S01E01'}},
+            'totalLength': '1000', 'completedLength': '400', 'uploadLength': '0',
+            'downloadSpeed': '100', 'uploadSpeed': '0',
+            'status': 'active', 'numSeeders': '3', 'connections': '5',
+        }
+        complete_item = {
+            'gid': 'def456', 'bittorrent': {'info': {'name': 'Film.2024'}},
+            'totalLength': '2000', 'completedLength': '2000', 'uploadLength': '500',
+            'downloadSpeed': '0', 'uploadSpeed': '0',
+            'status': 'complete', 'numSeeders': '0', 'connections': '0',
+        }
+
+        def _fake_rpc(method, *args, **kwargs):
+            return {
+                'aria2.tellActive':  {'result': [active_item]},
+                'aria2.tellWaiting': {'result': []},
+                'aria2.tellStopped': {'result': [complete_item]},
+            }[method]
+
+        with patch.object(client, '_rpc_post', side_effect=_fake_rpc):
+            out = client.list_torrents()
+
+        by_gid = {t['hash']: t for t in out}
+        self.assertEqual(by_gid['abc123']['state'], 'downloading')
+        self.assertAlmostEqual(by_gid['abc123']['progress'], 0.4)
+        self.assertEqual(by_gid['def456']['state'], 'seeding')
+        self.assertAlmostEqual(by_gid['def456']['ratio'], 0.25)
+
+    def test_aria2_list_torrents_guardia_division_by_zero(self):
+        """Un torrent senza metadati (totalLength/downloadSpeed a 0) non deve
+        sollevare ZeroDivisionError sul calcolo di progress/ratio/eta."""
+        client = self._make_aria2_client()
+        item = {
+            'gid': 'zzz', 'totalLength': '0', 'completedLength': '0', 'uploadLength': '0',
+            'downloadSpeed': '0', 'uploadSpeed': '0',
+            'status': 'waiting', 'numSeeders': '0', 'connections': '0',
+        }
+
+        def _fake_rpc(method, *args, **kwargs):
+            return {
+                'aria2.tellActive':  {'result': []},
+                'aria2.tellWaiting': {'result': [item]},
+                'aria2.tellStopped': {'result': []},
+            }[method]
+
+        try:
+            with patch.object(client, '_rpc_post', side_effect=_fake_rpc):
+                out = client.list_torrents()
+        except ZeroDivisionError:
+            self.fail("list_torrents ha sollevato ZeroDivisionError con totalLength=0")
+        self.assertEqual(out[0]['progress'], 0.0)
+        self.assertEqual(out[0]['ratio'], 0.0)
+        self.assertEqual(out[0]['eta'], 0)
+
+    # ── rqbit: mapping stato UI, condivisione seed-limits con libtorrent ────
+
+    def test_rqbit_ui_state_mapping(self):
+        from core.clients.rqbit import RqbitClient
+        self.assertEqual(RqbitClient._ui_state(False, False, False, 0, 0),   "In Scarico (Fermo)")
+        self.assertEqual(RqbitClient._ui_state(False, False, False, 500, 0), "In Scarico")
+        self.assertEqual(RqbitClient._ui_state(False, True,  False, 0, 100), "In Seeding")
+        self.assertEqual(RqbitClient._ui_state(False, True,  False, 0, 0),   "Seeding (Fermo)")
+        self.assertEqual(RqbitClient._ui_state(False, True,  True,  0, 0),   "Seeding (Completato)")
+        self.assertEqual(RqbitClient._ui_state(True,  False, False, 0, 0),   "Errore")
+
+    def test_rqbit_seed_limit_entry_condivide_db_con_libtorrent(self):
+        """_seed_limit_entry legge dalla stessa fonte usata dal blocco Pulisci
+        in extto3.py per rqbit (LibtorrentClient._get_seed_limits_db) —
+        condivisa tra client diversi, incluse le chiavi lowercase."""
+        from core.clients.rqbit import RqbitClient
+        orig_state_dir = LibtorrentClient.STATE_DIR
+        orig_cache     = LibtorrentClient._seed_limits_cache
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            import json
+            LibtorrentClient.STATE_DIR = tmp.name
+            LibtorrentClient._seed_limits_cache = None
+            with open(os.path.join(tmp.name, 'seed_limits.json'), 'w') as f:
+                json.dump({'AABBCC': {'ratio': 0, 'days': -1}}, f)
+
+            entry = RqbitClient._seed_limit_entry('aabbcc')
+            self.assertEqual(entry.get('ratio'), 0)
+        finally:
+            LibtorrentClient.STATE_DIR = orig_state_dir
+            LibtorrentClient._seed_limits_cache = orig_cache
+            tmp.cleanup()
+
+
+# =============================================================================
+# FAILED DOWNLOAD HANDLING — blocklist + rollback + retry automatico
+# =============================================================================
+
+class TestBlocklistCRUD(unittest.TestCase):
+    """CRUD della tabella download_blocklist e rollback ottimistico episodes/movies."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_db  = os.path.join(self.temp_dir.name, 'test_series.db')
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_add_and_is_blocklisted(self):
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                self.assertFalse(db.is_blocklisted('aabbcc'))
+                self.assertTrue(db.add_to_blocklist('AABBCC', 'episode', 'La Serie', 'stalled'))
+                # Case-insensitive: salvato e cercato sempre in lowercase
+                self.assertTrue(db.is_blocklisted('aabbcc'))
+                self.assertTrue(db.is_blocklisted('AABBCC'))
+
+    def test_add_idempotente(self):
+        """Aggiungere due volte lo stesso hash non deve sollevare né duplicare."""
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                db.add_to_blocklist('aabbcc', 'episode', 'La Serie', 'stalled')
+                db.add_to_blocklist('aabbcc', 'episode', 'La Serie', 'dead_magnet')
+                voci = db.list_blocklist()
+                self.assertEqual(len(voci), 1)
+
+    def test_remove_from_blocklist(self):
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                db.add_to_blocklist('aabbcc', 'episode', 'La Serie', 'stalled')
+                self.assertTrue(db.remove_from_blocklist('aabbcc'))
+                self.assertFalse(db.is_blocklisted('aabbcc'))
+                # Rimuovere un hash già assente non deve sollevare, solo restituire False
+                self.assertFalse(db.remove_from_blocklist('aabbcc'))
+
+    def test_list_blocklist(self):
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                db.add_to_blocklist('aaaa', 'episode', 'Serie A', 'stalled')
+                db.add_to_blocklist('bbbb', 'movie', 'Film B', 'dead_magnet', movie_name='Film B', movie_year=2020)
+                voci = db.list_blocklist()
+                self.assertEqual(len(voci), 2)
+                hashes = {v['magnet_hash'] for v in voci}
+                self.assertEqual(hashes, {'aaaa', 'bbbb'})
+
+    def test_rollback_failed_episode_rimuove_riga(self):
+        """Il rollback deve eliminare la riga episodes ottimistica cosi' l'episodio
+        torna 'mancante' — questo e' il fix del bug strutturale scoperto: senza
+        rollback un fallimento blocca l'episodio per sempre."""
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                c = db.conn.cursor()
+                c.execute("INSERT INTO series (name) VALUES ('La Serie')")
+                series_id = c.lastrowid
+                c.execute(
+                    "INSERT INTO episodes (series_id, season, episode, title, quality_score, magnet_hash, downloaded_at) "
+                    "VALUES (?, 1, 1, 'La.Serie.S01E01.1080p', 1000, 'aabbcc', '2024-01-01T00:00:00+00:00')",
+                    (series_id,)
+                )
+                db.conn.commit()
+
+                self.assertTrue(db.rollback_failed_episode('aabbcc'))
+
+                c.execute("SELECT * FROM episodes WHERE magnet_hash='aabbcc'")
+                self.assertIsNone(c.fetchone(), "La riga episodes doveva essere eliminata dal rollback")
+
+    def test_rollback_failed_episode_noop_se_hash_diverso(self):
+        """Se nel frattempo un candidato migliore ha gia' sovrascritto la riga
+        (magnet_hash diverso), il rollback non deve toccare nulla."""
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                c = db.conn.cursor()
+                c.execute("INSERT INTO series (name) VALUES ('La Serie')")
+                series_id = c.lastrowid
+                c.execute(
+                    "INSERT INTO episodes (series_id, season, episode, title, quality_score, magnet_hash, downloaded_at) "
+                    "VALUES (?, 1, 1, 'La.Serie.S01E01.2160p', 5000, 'ddeeff', '2024-01-01T00:00:00+00:00')",
+                    (series_id,)
+                )
+                db.conn.commit()
+
+                # Rollback riferito al VECCHIO hash fallito ('aabbcc'), ormai sostituito
+                self.assertFalse(db.rollback_failed_episode('aabbcc'))
+
+                c.execute("SELECT * FROM episodes WHERE magnet_hash='ddeeff'")
+                self.assertIsNotNone(c.fetchone(), "La riga con l'hash aggiornato non doveva essere toccata")
+
+    def test_rollback_failed_movie_rimuove_riga(self):
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                c = db.conn.cursor()
+                c.execute(
+                    "INSERT INTO movies (name, year, title, quality_score, magnet_hash, downloaded_at) "
+                    "VALUES ('Dune', 2021, 'Dune.2021.1080p', 1000, 'aabbcc', '2024-01-01T00:00:00+00:00')"
+                )
+                db.conn.commit()
+
+                self.assertTrue(db.rollback_failed_movie('aabbcc'))
+                c.execute("SELECT * FROM movies WHERE magnet_hash='aabbcc'")
+                self.assertIsNone(c.fetchone())
+
+
+class TestBlocklistGateCheckSeriesMovie(unittest.TestCase):
+    """check_series()/check_movie() devono rifiutare subito un hash blocklistato,
+    prima di qualunque altro controllo (duplicate hash, qualita', ecc.)."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_db  = os.path.join(self.temp_dir.name, 'test_series.db')
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_check_series_rifiuta_hash_blocklistato(self):
+        magnet = "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678"
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                c = db.conn.cursor()
+                c.execute("INSERT INTO series (name) VALUES ('Fallout')")
+                db.conn.commit()
+                db.add_to_blocklist('1234567890abcdef1234567890abcdef12345678', 'episode', 'Fallout', 'stalled')
+
+                ep = {'name': 'Fallout', 'season': 1, 'episode': 4,
+                      'title': 'Fallout.S01E04.1080p', 'quality': Quality(resolution='1080p')}
+                ok, reason = db.check_series(ep, magnet, '1080p')
+
+                self.assertFalse(ok)
+                self.assertEqual(reason, "Blocklisted")
+
+    def test_check_movie_rifiuta_hash_blocklistato(self):
+        magnet = "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678"
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                db.add_to_blocklist('1234567890abcdef1234567890abcdef12345678', 'movie', 'Dune', 'dead_magnet')
+
+                mov = {'config_name': 'Dune', 'year': 2021, 'title': 'Dune.2021.1080p',
+                       'quality': Quality(resolution='1080p', source='bluray', codec='h264')}
+                ok, reason = db.check_movie(mov, magnet, '1080p')
+
+                self.assertFalse(ok)
+                self.assertEqual(reason, "Blocklisted")
+
+
+class TestFailedDownloadDetection(unittest.TestCase):
+    """Rilevamento fallimento in core/clients/libtorrent.py: magnet morto
+    (_check_metadata_stuck con giveup), download stallato ed errore
+    irreversibile (_check_stalled_downloads)."""
+
+    def setUp(self):
+        self._orig_session  = LibtorrentClient._session
+        self._orig_meta_wait = dict(LibtorrentClient._metadata_wait_start)
+        self._orig_meta_seen = dict(LibtorrentClient._metadata_first_seen)
+        self._orig_stall     = dict(LibtorrentClient._stall_wait_start)
+        LibtorrentClient._metadata_wait_start = {}
+        LibtorrentClient._metadata_first_seen = {}
+        LibtorrentClient._stall_wait_start    = {}
+
+    def tearDown(self):
+        LibtorrentClient._session = self._orig_session
+        LibtorrentClient._metadata_wait_start = self._orig_meta_wait
+        LibtorrentClient._metadata_first_seen = self._orig_meta_seen
+        LibtorrentClient._stall_wait_start    = self._orig_stall
+
+    @staticmethod
+    def _fake_handle(ih_hex, **status_kwargs):
+        class _Hashes:
+            def has_v1(self): return True
+            def has_v2(self): return False
+            v1 = ih_hex
+        h = MagicMock()
+        h.info_hashes.return_value = _Hashes()
+        status = MagicMock(paused=False, error=None)
+        for k, v in status_kwargs.items():
+            setattr(status, k, v)
+        h.status.return_value = status
+        h.name.return_value = status_kwargs.get('name', 'Fake.Torrent')
+        return h
+
+    def test_metadata_stuck_ritenta_prima_del_giveup(self):
+        """Prima del tetto di giveup, il comportamento storico (reannounce) resta invariato."""
+        ih = 'a' * 40
+        h = self._fake_handle(ih, state='downloading_metadata')
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.get_torrents.return_value = [h]
+        now = time.time()
+        LibtorrentClient._metadata_wait_start[ih] = now - 700   # oltre i 600s di default: reannounce
+        LibtorrentClient._metadata_first_seen[ih] = now - 700   # ma sotto il giveup
+
+        with patch.object(LibtorrentClient, '_handle_download_failure') as mock_fail:
+            LibtorrentClient._check_metadata_stuck(timeout_secs=600, giveup_secs=10800)
+
+        mock_fail.assert_not_called()
+        h.force_reannounce.assert_called_once()
+
+    def test_metadata_stuck_si_arrende_dopo_giveup(self):
+        """Bug/gap risolto: prima non c'era alcun tetto — reannounce all'infinito.
+        Oltre giveup_secs deve arrendersi e trattare il magnet come morto."""
+        ih = 'b' * 40
+        h = self._fake_handle(ih, state='downloading_metadata')
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.get_torrents.return_value = [h]
+        now = time.time()
+        LibtorrentClient._metadata_wait_start[ih] = now - 20
+        LibtorrentClient._metadata_first_seen[ih] = now - 20   # supera il giveup_secs=1 sotto
+
+        with patch.object(LibtorrentClient, '_handle_download_failure') as mock_fail:
+            LibtorrentClient._check_metadata_stuck(timeout_secs=600, giveup_secs=1)
+
+        mock_fail.assert_called_once_with(h, 'dead_magnet')
+
+    def test_stalled_download_oltre_soglia_fallisce(self):
+        ih = 'c' * 40
+        h = self._fake_handle(ih, state='downloading', progress=0.4, is_seeding=False,
+                               is_finished=False, download_payload_rate=0, num_peers=0)
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.get_torrents.return_value = [h]
+        LibtorrentClient._stall_wait_start[ih] = time.time() - 10
+
+        with patch.object(LibtorrentClient, '_handle_download_failure') as mock_fail:
+            LibtorrentClient._check_stalled_downloads(stall_timeout_secs=1)
+
+        mock_fail.assert_called_once_with(h, 'stalled')
+
+    def test_download_attivo_non_viene_segnalato(self):
+        """Un torrent con rate>0 non deve mai essere considerato stallato,
+        indipendentemente da quanto tempo e' rimasto nel dizionario di tracking."""
+        ih = 'd' * 40
+        h = self._fake_handle(ih, state='downloading', progress=0.4, is_seeding=False,
+                               is_finished=False, download_payload_rate=500, num_peers=2)
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.get_torrents.return_value = [h]
+        LibtorrentClient._stall_wait_start[ih] = time.time() - 9999
+
+        with patch.object(LibtorrentClient, '_handle_download_failure') as mock_fail:
+            LibtorrentClient._check_stalled_downloads(stall_timeout_secs=1)
+
+        mock_fail.assert_not_called()
+
+    def test_torrent_completato_non_viene_segnalato(self):
+        """progress>=1.0 non deve mai finire nel controllo stallo."""
+        ih = 'e' * 40
+        h = self._fake_handle(ih, state='finished', progress=1.0, is_seeding=True,
+                               is_finished=True, download_payload_rate=0, num_peers=0)
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.get_torrents.return_value = [h]
+        LibtorrentClient._stall_wait_start[ih] = time.time() - 9999
+
+        with patch.object(LibtorrentClient, '_handle_download_failure') as mock_fail:
+            LibtorrentClient._check_stalled_downloads(stall_timeout_secs=1)
+
+        mock_fail.assert_not_called()
+
+    def test_errore_libtorrent_fallisce_subito(self):
+        """Un errore irreversibile segnalato da libtorrent non deve aspettare
+        alcuna soglia: fallimento immediato al primo controllo."""
+        ih = 'f' * 40
+        fake_error = MagicMock()
+        fake_error.message.return_value = "no space left on device"
+        h = self._fake_handle(ih, state='downloading', progress=0.1, is_seeding=False,
+                               is_finished=False, download_payload_rate=0, num_peers=0,
+                               error=fake_error)
+        LibtorrentClient._session = MagicMock()
+        LibtorrentClient._session.get_torrents.return_value = [h]
+
+        with patch.object(LibtorrentClient, '_handle_download_failure') as mock_fail:
+            LibtorrentClient._check_stalled_downloads(stall_timeout_secs=2700)
+
+        mock_fail.assert_called_once_with(h, 'error')
+
+
+class TestHandleDownloadFailure(unittest.TestCase):
+    """Test end-to-end di _handle_download_failure: blocklist + rollback DB +
+    rimozione torrent + notifica, con DB temporaneo reale (non mockato) per
+    verificare che le scritture SQL siano corrette."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_db  = os.path.join(self.temp_dir.name, 'test_series.db')
+        # Crea lo schema completo (episodes, movies, download_blocklist, ecc.)
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database():
+                pass
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    @staticmethod
+    def _fake_handle(ih_hex, name):
+        class _Hashes:
+            def has_v1(self): return True
+            def has_v2(self): return False
+            v1 = ih_hex
+        h = MagicMock()
+        h.info_hashes.return_value = _Hashes()
+        h.name.return_value = name
+        return h
+
+    def test_blocklist_e_rollback_episodio(self):
+        ih = '1234567890abcdef1234567890abcdef12345678'
+        with sqlite3.connect(self.temp_db) as conn:
+            conn.execute("INSERT INTO series (name) VALUES ('Fallout')")
+            conn.execute(
+                "INSERT INTO episodes (series_id, season, episode, title, quality_score, magnet_hash, downloaded_at) "
+                "VALUES (1, 1, 4, 'Fallout.S01E04.1080p', 1000, ?, '2024-01-01T00:00:00+00:00')",
+                (ih,)
+            )
+            conn.commit()
+
+        h = self._fake_handle(ih, 'Fallout.S01E04.1080p')
+
+        with patch('core.clients.libtorrent.DB_FILE', self.temp_db), \
+             patch.object(LibtorrentClient, '_load_full_cfg', return_value={'auto_blocklist_failed': 'yes'}), \
+             patch.object(LibtorrentClient, 'remove_torrent') as mock_remove, \
+             patch('core.notifier.Notifier.notify_download_failed') as mock_notify:
+            LibtorrentClient._handle_download_failure(h, 'stalled')
+
+        mock_remove.assert_called_once_with(ih, delete_files=True)
+        mock_notify.assert_called_once()
+
+        with sqlite3.connect(self.temp_db) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT * FROM download_blocklist WHERE magnet_hash=?", (ih,)).fetchone()
+            self.assertIsNotNone(row, "La release doveva essere aggiunta alla blocklist")
+            self.assertEqual(row['reason'], 'stalled')
+            self.assertEqual(row['kind'], 'episode')
+
+            ep_row = conn.execute("SELECT * FROM episodes WHERE magnet_hash=?", (ih,)).fetchone()
+            self.assertIsNone(ep_row, "La riga episodes doveva essere rimossa dal rollback")
+
+    def test_disabilitato_via_config_non_fa_nulla(self):
+        """Se auto_blocklist_failed=no, _handle_download_failure non deve
+        toccare DB ne' rimuovere il torrent."""
+        ih = 'aabbccddeeff00112233445566778899aabbccdd'
+        h = self._fake_handle(ih, 'Qualsiasi.Nome')
+
+        with patch('core.clients.libtorrent.DB_FILE', self.temp_db), \
+             patch.object(LibtorrentClient, '_load_full_cfg', return_value={'auto_blocklist_failed': 'no'}), \
+             patch.object(LibtorrentClient, 'remove_torrent') as mock_remove:
+            LibtorrentClient._handle_download_failure(h, 'stalled')
+
+        mock_remove.assert_not_called()
+        with sqlite3.connect(self.temp_db) as conn:
+            row = conn.execute("SELECT * FROM download_blocklist WHERE magnet_hash=?", (ih,)).fetchone()
+            self.assertIsNone(row)
+
+
+class TestBlocklistWebEndpoints(unittest.TestCase):
+    """Endpoint REST /api/blocklist* e /api/torrents/<hash>/mark_failed."""
+
+    def setUp(self):
+        self.client = flask_app.test_client()
+        flask_app.config['TESTING'] = True
+
+    def test_get_blocklist_vuoto(self):
+        response = self.client.get('/api/blocklist')
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data['success'])
+        self.assertIsInstance(data['items'], list)
+
+    def test_remove_blocklist_hash_inesistente(self):
+        response = self.client.post('/api/blocklist/hashinesistente/remove')
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data['success'])
+        self.assertFalse(data['removed'])
+
+    def test_mark_failed_torrent_non_trovato(self):
+        with patch('core.clients.libtorrent.LibtorrentClient._find', return_value=None):
+            response = self.client.post('/api/torrents/hashinesistente/mark_failed')
+        self.assertEqual(response.status_code, 404)
+        data = response.get_json()
+        self.assertFalse(data['success'])
+
+    def test_mark_failed_torrent_trovato_chiama_handle_failure(self):
+        fake_handle = MagicMock()
+        with patch('core.clients.libtorrent.LibtorrentClient._find', return_value=fake_handle), \
+             patch('core.clients.libtorrent.LibtorrentClient._handle_download_failure') as mock_fail:
+            response = self.client.post('/api/torrents/aabbcc/mark_failed')
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data['success'])
+        mock_fail.assert_called_once_with(fake_handle, 'manual')
 
 
 if __name__ == '__main__':

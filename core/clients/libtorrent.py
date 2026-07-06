@@ -42,7 +42,9 @@ class LibtorrentClient:
     _handle_cache: dict = {}          # info_hash → handle per O(1) _find()
     _seed_limits_cache: object = None # cache in-memory per seed_limits.json
     _ui_state_prev: dict = {}         # snapshot UI precedente per change-detection
-    _metadata_wait_start: dict = {}   # ih → time() quando downloading_metadata è iniziato
+    _metadata_wait_start: dict = {}   # ih → time() dell'ultimo reannounce (retry timer)
+    _metadata_first_seen: dict = {}   # ih → time() quando downloading_metadata è iniziato (per giveup)
+    _stall_wait_start: dict = {}      # ih → time() da cui il download risulta a 0 rate/0 peer
 
     _ENC_MAP = {
         '0': 0, '1': 1, '2': 2,
@@ -1175,11 +1177,20 @@ class LibtorrentClient:
         return copied
 
     @classmethod
-    def _check_metadata_stuck(cls, timeout_secs: int = 600):
-        """Riavvia i torrent bloccati in downloading_metadata oltre timeout_secs.
-        Tipicamente causati da tracker non raggiungibili o DHT degradato."""
+    def _check_metadata_stuck(cls, timeout_secs: int = 600, giveup_secs: int = None):
+        """Riavvia i torrent bloccati in downloading_metadata oltre timeout_secs
+        (reannounce periodico). Tipicamente causati da tracker non raggiungibili
+        o DHT degradato. Se restano bloccati oltre giveup_secs (default
+        @libtorrent_metadata_giveup_min, 180min), si arrende: il magnet è
+        considerato morto e viene gestito da _handle_download_failure invece
+        di ri-annunciare all'infinito."""
         if not cls.session_available():
             return
+        if giveup_secs is None:
+            try:
+                giveup_secs = int(float(cls._load_full_cfg().get('libtorrent_metadata_giveup_min', 180)) * 60)
+            except Exception:
+                giveup_secs = 10800
         now = time.time()
         for h in cls._session.get_torrents():
             try:
@@ -1190,7 +1201,19 @@ class LibtorrentClient:
                     first_seen = cls._metadata_wait_start.get(ih)
                     if first_seen is None:
                         cls._metadata_wait_start[ih] = now
-                    elif (now - first_seen) > timeout_secs:
+                        cls._metadata_first_seen[ih] = now
+                        continue
+                    absolute_start = cls._metadata_first_seen.get(ih, first_seen)
+                    if giveup_secs > 0 and (now - absolute_start) > giveup_secs:
+                        logger.warning(
+                            f"❌ Metadata mai ricevuti oltre {giveup_secs // 60}min per "
+                            f"'{h.name() or ih[:12]}' — magnet morto, blocklist"
+                        )
+                        cls._metadata_wait_start.pop(ih, None)
+                        cls._metadata_first_seen.pop(ih, None)
+                        cls._handle_download_failure(h, 'dead_magnet')
+                        continue
+                    if (now - first_seen) > timeout_secs:
                         logger.warning(
                             f"⚠️ Metadata stuck >10min for '{h.name() or ih[:12]}' — reannouncing"
                         )
@@ -1202,8 +1225,168 @@ class LibtorrentClient:
                         cls._metadata_wait_start[ih] = now
                 else:
                     cls._metadata_wait_start.pop(ih, None)
+                    cls._metadata_first_seen.pop(ih, None)
             except Exception:
                 pass
+
+    @classmethod
+    def _check_stalled_downloads(cls, stall_timeout_secs: int = None):
+        """Rileva download stallati (metadata già ricevuti, progress<100%,
+        download_rate=0 e num_peers=0 in modo continuativo oltre
+        stall_timeout_secs, default @libtorrent_stall_timeout_min 45min) o con
+        un errore irreversibile segnalato direttamente da libtorrent, e li
+        tratta come falliti tramite _handle_download_failure — così il ciclo
+        successivo (o lo stesso, vedi extto3.py best-in-cycle) può tentare una
+        release diversa invece di restare bloccato per sempre."""
+        if not cls.session_available():
+            return
+        if stall_timeout_secs is None:
+            try:
+                stall_timeout_secs = int(float(cls._load_full_cfg().get('libtorrent_stall_timeout_min', 45)) * 60)
+            except Exception:
+                stall_timeout_secs = 2700
+        now = time.time()
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                raw = str(s.state).split('.')[-1] if '.' in str(s.state) else str(s.state)
+                ih = cls._ih(h).lower()
+
+                # Errore esplicito e irreversibile segnalato da libtorrent: fallimento immediato
+                err_msg = ""
+                if getattr(s, 'error', None):
+                    err_msg = s.error.message() if hasattr(s.error, 'message') else str(s.error)
+                    if err_msg.lower() == 'no error':
+                        err_msg = ""
+                if err_msg:
+                    cls._stall_wait_start.pop(ih, None)
+                    logger.warning(f"❌ Errore irreversibile su '{h.name() or ih[:12]}': {err_msg} — blocklist")
+                    cls._handle_download_failure(h, 'error')
+                    continue
+
+                if raw in ('downloading_metadata', 'checking_resume_data', 'checking_files', 'allocating'):
+                    cls._stall_wait_start.pop(ih, None)
+                    continue
+
+                progress    = float(getattr(s, 'progress', 0))
+                is_seeding  = getattr(s, 'is_seeding',  False) or raw == 'seeding'
+                is_finished = getattr(s, 'is_finished', False) or raw == 'finished'
+                is_paused   = getattr(s, 'paused', False)
+                if progress >= 1.0 or is_seeding or is_finished or is_paused:
+                    cls._stall_wait_start.pop(ih, None)
+                    continue
+
+                dl_rate   = getattr(s, 'download_payload_rate', getattr(s, 'download_rate', 0))
+                num_peers = int(getattr(s, 'num_peers', 0))
+                if dl_rate > 0 or num_peers > 0:
+                    cls._stall_wait_start.pop(ih, None)
+                    continue
+
+                if stall_timeout_secs <= 0:
+                    continue  # check disattivato via config
+
+                first_seen = cls._stall_wait_start.get(ih)
+                if first_seen is None:
+                    cls._stall_wait_start[ih] = now
+                    continue
+                if (now - first_seen) > stall_timeout_secs:
+                    logger.warning(
+                        f"❌ Download stallato da oltre {stall_timeout_secs // 60}min per "
+                        f"'{h.name() or ih[:12]}' (0 peer, 0 rate) — blocklist"
+                    )
+                    cls._stall_wait_start.pop(ih, None)
+                    cls._handle_download_failure(h, 'stalled')
+            except Exception:
+                pass
+
+    @classmethod
+    def _handle_download_failure(cls, h, reason: str):
+        """Gestisce un download fallito: blocklist dell'hash (mai più
+        riproposto), rollback della riga episodes/movies inserita
+        ottimisticamente da check_series()/check_movie() prima del download
+        (così l'episodio/film torna 'mancante' e può essere ripreso da una
+        release diversa anche con score più basso o uguale), rimozione del
+        torrent e notifica. reason: 'dead_magnet' | 'stalled' | 'error' | 'manual'."""
+        try:
+            full_cfg = cls._load_full_cfg()
+        except Exception:
+            full_cfg = {}
+        if str(full_cfg.get('auto_blocklist_failed', 'yes')).lower() not in ('yes', 'true', '1'):
+            return
+
+        try:
+            ih   = cls._ih(h)
+            name = h.name() or ih
+        except Exception:
+            logger.debug(f"_handle_download_failure: impossibile leggere handle (reason={reason})")
+            return
+
+        kind = 'episode'
+        identity = {}
+        try:
+            from ..models import Parser as _Parser
+            ep = _Parser.parse_series_episode(name)
+            if ep:
+                identity = {'season': ep.get('season'), 'episode': ep.get('episode')}
+            else:
+                mov = _Parser.parse_movie(name)
+                if mov:
+                    kind = 'movie'
+                    identity = {'movie_name': mov.get('name', name), 'movie_year': mov.get('year')}
+        except Exception as e:
+            logger.debug(f"_handle_download_failure identity parse: {e}")
+
+        try:
+            import sqlite3 as _sq3
+            with _sq3.connect(DB_FILE, timeout=5) as conn:
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS download_blocklist (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        magnet_hash TEXT UNIQUE NOT NULL,
+                        kind TEXT NOT NULL,
+                        series_id INTEGER,
+                        season INTEGER,
+                        episode INTEGER,
+                        movie_name TEXT,
+                        movie_year INTEGER,
+                        title TEXT,
+                        reason TEXT NOT NULL,
+                        blocked_at TEXT NOT NULL
+                    )
+                ''')
+                conn.execute(
+                    """INSERT OR IGNORE INTO download_blocklist
+                       (magnet_hash, kind, season, episode, movie_name, movie_year, title, reason, blocked_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (ih.lower(), kind, identity.get('season'), identity.get('episode'),
+                     identity.get('movie_name'), identity.get('movie_year'), name, reason,
+                     datetime.now().isoformat())
+                )
+                if kind == 'episode':
+                    conn.execute("DELETE FROM episodes WHERE magnet_hash = ?", (ih.lower(),))
+                else:
+                    conn.execute("DELETE FROM movies WHERE magnet_hash = ?", (ih.lower(),))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"❌ _handle_download_failure blocklist/rollback per '{name}': {e}")
+
+        try:
+            cls.remove_torrent(ih, delete_files=True)
+        except Exception as e:
+            logger.debug(f"_handle_download_failure remove_torrent: {e}")
+
+        try:
+            from ..notifier import Notifier as _N
+            _N(full_cfg).notify_download_failed(name, reason)
+        except Exception as e:
+            logger.debug(f"_handle_download_failure notify: {e}")
+
+        try:
+            stats.add_error('download_failed')
+        except Exception:
+            pass
+
+        logger.warning(f"🚫 Download fallito ({reason}): '{name}' — blocklist e rimozione")
 
     @classmethod
     def _process_alerts(cls):
@@ -1211,10 +1394,12 @@ class LibtorrentClient:
         SCHED_INTERVAL   = 60
         FILTER_INTERVAL  = 3600   # controlla ogni ora se aggiornare
         META_INTERVAL    = 600    # controlla torrent bloccati in metadata ogni 10min
+        STALL_INTERVAL   = 300    # controlla download stallati/in errore ogni 5min
         last_auto_save   = time.time()
         last_sched_check = time.time()
         last_filter_chk  = time.time()
         last_meta_chk    = time.time()
+        last_stall_chk   = time.time()
 
         while cls._running:
             try:
@@ -1232,6 +1417,9 @@ class LibtorrentClient:
                 if now - last_meta_chk > META_INTERVAL:
                     cls._check_metadata_stuck()
                     last_meta_chk = now
+                if now - last_stall_chk > STALL_INTERVAL:
+                    cls._check_stalled_downloads()
+                    last_stall_chk = now
 
                 if cls._session:
                     cls._session.post_torrent_updates()

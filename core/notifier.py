@@ -278,6 +278,24 @@ class Notifier:
         self._send_email(f"EXTTO: {self.t('Download Film')} {name}", msg)
         self._send_webhook('movie', {'title': name, 'year': year, 'release': release_name, 'score': score})
 
+    def notify_download_failed(self, release_name, reason):
+        reason_map = {
+            'dead_magnet': self.t('Magnet non raggiungibile'),
+            'stalled':     self.t('Download bloccato'),
+            'error':       self.t('Errore irreversibile'),
+            'manual':      self.t('Segnalato manualmente'),
+        }
+        reason_label = reason_map.get(reason, reason)
+        msg = (
+            f"🚫 <b>{self.t('DOWNLOAD FALLITO')}</b>\n\n"
+            f"🏷️ <b>Release:</b> <code>{release_name}</code>\n"
+            f"⚠️ <b>{self.t('Motivo')}:</b> {reason_label}\n"
+            f"🔁 <i>{self.t('La release è stata aggiunta alla blocklist: verrà ritentata una release diversa.')}</i>"
+        )
+        self._send_telegram(msg)
+        self._send_email(f"EXTTO: {self.t('Download Fallito')} — {release_name}", msg)
+        self._send_webhook('download_failed', {'release': release_name, 'reason': reason})
+
     def notify_gap_filled(self, name, season, episode):
         msg = (
             f"🕵️ <b>{self.t('RECUPERO MANCANTI COMPLETATO')}</b>\n\n"

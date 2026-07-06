@@ -137,6 +137,26 @@ class Database:
         c.execute('CREATE INDEX IF NOT EXISTS idx_episode_discards_ep ON episode_discards(series_id, season, episode, at DESC)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_episode_discards_at ON episode_discards(at)')
 
+        # Blocklist: release (magnet_hash) che sono fallite (magnet morto, download
+        # stallato, errore irreversibile) e non devono mai più essere riproposte.
+        # Vedi Database.add_to_blocklist/is_blocklisted/rollback_failed_episode.
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS download_blocklist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                magnet_hash TEXT UNIQUE NOT NULL,
+                kind TEXT NOT NULL,
+                series_id INTEGER,
+                season INTEGER,
+                episode INTEGER,
+                movie_name TEXT,
+                movie_year INTEGER,
+                title TEXT,
+                reason TEXT NOT NULL,
+                blocked_at TEXT NOT NULL
+            )
+        ''')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_blocklist_hash ON download_blocklist(magnet_hash)')
+
         c.execute('''
             CREATE TABLE IF NOT EXISTS movies (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -428,6 +448,83 @@ class Database:
             self.conn.commit()
         except Exception as e:
             logger.debug(f"record_episode_discard: {e}")
+
+    # ------------------------------------------------------------------
+    # BLOCKLIST — release fallite (magnet morto, download stallato, errore
+    # irreversibile) che non devono mai più essere riproposte.
+    # ------------------------------------------------------------------
+
+    def add_to_blocklist(self, magnet_hash: str, kind: str, title: str, reason: str,
+                          series_id: int = None, season: int = None, episode: int = None,
+                          movie_name: str = None, movie_year: int = None) -> bool:
+        try:
+            c = self.conn.cursor()
+            c.execute(
+                """INSERT OR IGNORE INTO download_blocklist
+                   (magnet_hash, kind, series_id, season, episode, movie_name, movie_year,
+                    title, reason, blocked_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (magnet_hash.lower(), kind, series_id, season, episode, movie_name, movie_year,
+                 title, reason, datetime.now(timezone.utc).isoformat())
+            )
+            self.conn.commit()
+            return True
+        except Exception as e:
+            logger.debug(f"add_to_blocklist: {e}")
+            return False
+
+    def is_blocklisted(self, magnet_hash: str) -> bool:
+        try:
+            c = self.conn.cursor()
+            c.execute("SELECT 1 FROM download_blocklist WHERE magnet_hash = ?", (magnet_hash.lower(),))
+            return c.fetchone() is not None
+        except Exception as e:
+            logger.debug(f"is_blocklisted: {e}")
+            return False
+
+    def remove_from_blocklist(self, magnet_hash: str) -> bool:
+        try:
+            c = self.conn.cursor()
+            c.execute("DELETE FROM download_blocklist WHERE magnet_hash = ?", (magnet_hash.lower(),))
+            self.conn.commit()
+            return c.rowcount > 0
+        except Exception as e:
+            logger.debug(f"remove_from_blocklist: {e}")
+            return False
+
+    def list_blocklist(self, limit: int = 200) -> list:
+        try:
+            c = self.conn.cursor()
+            c.execute("SELECT * FROM download_blocklist ORDER BY blocked_at DESC LIMIT ?", (limit,))
+            return [dict(row) for row in c.fetchall()]
+        except Exception as e:
+            logger.debug(f"list_blocklist: {e}")
+            return []
+
+    def rollback_failed_episode(self, magnet_hash: str) -> bool:
+        """Elimina la riga episodes inserita ottimisticamente per questo hash, cosi'
+        l'episodio torna 'mancante' e puo' essere riscaricato da una release
+        diversa anche con score piu' basso o uguale. No-op sicuro se la riga
+        e' gia' stata sovrascritta da un candidato migliore nel frattempo."""
+        try:
+            c = self.conn.cursor()
+            c.execute("DELETE FROM episodes WHERE magnet_hash = ?", (magnet_hash.lower(),))
+            self.conn.commit()
+            return c.rowcount > 0
+        except Exception as e:
+            logger.debug(f"rollback_failed_episode: {e}")
+            return False
+
+    def rollback_failed_movie(self, magnet_hash: str) -> bool:
+        """Analogo a rollback_failed_episode ma per la tabella movies."""
+        try:
+            c = self.conn.cursor()
+            c.execute("DELETE FROM movies WHERE magnet_hash = ?", (magnet_hash.lower(),))
+            self.conn.commit()
+            return c.rowcount > 0
+        except Exception as e:
+            logger.debug(f"rollback_failed_movie: {e}")
+            return False
 
     def record_movie_feed_match(self, movie_name: str, title: str,
                                quality_score: int, lang_bonus: int,
@@ -889,6 +986,10 @@ class Database:
             return False, "No hash"
         hash_val = h.group(1).lower()
 
+        if self.is_blocklisted(hash_val):
+            stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{ep['episode']:02d}")
+            return False, "Blocklisted"
+
         c = self.conn.cursor()
         # Matching robusto: normalizza il nome estratto e confronta con
         # tutti i nomi nel DB usando _series_name_matches (anti-ambiguità).
@@ -1277,6 +1378,10 @@ class Database:
         hash_val = _extract_btih(magnet)
         if not hash_val:
             return False, "No hash"
+
+        if self.is_blocklisted(hash_val):
+            stats.duplicates.append(f"{mov['config_name']} ({mov['year']})")
+            return False, "Blocklisted"
 
         c = self.conn.cursor()
         c.execute("SELECT id, removed_at FROM movies WHERE magnet_hash = ?", (hash_val,))

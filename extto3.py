@@ -1725,6 +1725,15 @@ def main():
                 match = cfg.find_series_match(ep['name'], ep['season'])
                 if match:
                     ep['name'] = match['name']  # normalizza al nome canonico (gestisce alias RSS)
+
+                    # Release già fallita in precedenza (magnet morto/stallo/errore):
+                    # scartala subito così, se esiste un'alternativa in questo stesso
+                    # ciclo, viene scelta senza aspettare il ciclo successivo.
+                    _ep_hash = _extract_btih(item.get('magnet', ''))
+                    if _ep_hash and db.is_blocklisted(_ep_hash):
+                        stats.duplicates.append(f"{item['title'][:60]}... [blocklisted]")
+                        continue
+
                     timeframe = match.get('timeframe', 0)
                     min_rank  = cfg._min_res_from_qual_req(match.get('qual', ''))
                     max_rank  = cfg._max_res_from_qual_req(match.get('qual', ''))
@@ -1883,6 +1892,14 @@ def main():
 
                 match = cfg.find_movie_match(mov['name'], mov['year'])
                 if match:
+                    # Release già fallita in precedenza: scartala subito così, se esiste
+                    # un'alternativa in questo stesso ciclo, viene scelta senza aspettare
+                    # il ciclo successivo (vedi anche il gate in db.check_movie()).
+                    _mov_hash = _extract_btih(item.get('magnet', ''))
+                    if _mov_hash and db.is_blocklisted(_mov_hash):
+                        stats.quality_rejected.append(f"{item['title'][:60]}... [blocklisted]")
+                        continue
+
                     lang_req = match.get('lang', match.get('language', 'ita'))
                     lang_ok  = not lang_req or cfg._lang_ok(item['title'], lang_req)
                     lang_bonus = 0
