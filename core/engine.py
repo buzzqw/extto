@@ -1053,7 +1053,9 @@ class Engine:
         base = indexer['url'].rstrip('/')
         q = query
         if season is not None:
-            q = f"{q} S{season:02d}E{ep:02d}" if ep is not None else f"{q} S{season:02d}"
+            season_tag = f"S{season:02d}E{ep:02d}" if ep is not None else f"S{season:02d}"
+            if season_tag.lower() not in q.lower():
+                q = f"{q} {season_tag}"
 
         params = {'apikey': indexer['api'], 'type': 'search', 'limit': 100}
         if q.strip():
@@ -1081,6 +1083,19 @@ class Engine:
                 if not mg.startswith('magnet:'):
                     info_hash = item.get('infoHash')
                     mg = f"magnet:?xt=urn:btih:{info_hash}&dn={quote(t_disp)}" if info_hash else ''
+                if not mg:
+                    # Molti indexer (es. LimeTorrents) non espongono magnetUrl/infoHash
+                    # nel JSON: il link magnete si ottiene solo seguendo il redirect
+                    # HTTP di downloadUrl (proxy di Prowlarr).
+                    dl = item.get('downloadUrl') or ''
+                    if dl:
+                        try:
+                            r2 = self.sess.get(dl, timeout=min(timeout, 10), allow_redirects=False)
+                            loc = r2.headers.get('Location', '')
+                            if loc.startswith('magnet:'):
+                                mg = loc
+                        except Exception:
+                            pass
                 if not mg:
                     continue
                 mg = sanitize_magnet(mg, t_disp) or mg
