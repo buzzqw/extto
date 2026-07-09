@@ -2003,6 +2003,18 @@ const app = {
             if (document.getElementById('websearch-bitsearch')) s.websearch_engines = _ws.join(',');
         }
 
+        // Jackett / Prowlarr / FlareSolverr — idem: legge i campi attuali solo se il tab
+        // Integrazioni è stato caricato, altrimenti lascia intatto il valore già salvato.
+        if (document.getElementById('indexer-jackett-url')) {
+            s.jackett_url              = v('indexer-jackett-url');
+            s.jackett_api              = v('indexer-jackett-api');
+            s.jackett_save_to_archive  = cb('indexer-jackett-archive') ? 'yes' : 'no';
+            s.prowlarr_url             = v('indexer-prowlarr-url');
+            s.prowlarr_api             = v('indexer-prowlarr-api');
+            s.prowlarr_save_to_archive = cb('indexer-prowlarr-archive') ? 'yes' : 'no';
+            s.flaresolverr_url         = v('indexer-flare-url');
+        }
+
         // Salva la lingua TMDB scegliendo tra la tendina o il campo di testo
         const tmdbSelect = document.getElementById('tmdb_lang_select');
         if (tmdbSelect) {
