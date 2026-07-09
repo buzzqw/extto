@@ -1020,22 +1020,80 @@ class Engine:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _is_prowlarr(base_url: str) -> bool:
+        """Heuristica: porta 9696 = Prowlarr di default; altrimenti Jackett (9117)."""
+        url = base_url.lower()
+        return 'prowlarr' in url or ':9696' in url
+
+    @staticmethod
     def _torznab_url(base_url: str) -> str:
         """Costruisce l'endpoint Torznab corretto in base al tipo di indexer.
-        
-        - Jackett:  /api/v2.0/indexers/all/results/torznab/api
-        - Prowlarr: /api/v1/indexer/all/results/torznab/api
-        
-        Il rilevamento è automatico: se l'URL contiene 'prowlarr' o la porta
-        tipica 9696, usa il path Prowlarr; altrimenti usa quello Jackett.
+
+        NOTA: Prowlarr NON espone un endpoint Torznab aggregato "all" come
+        Jackett (ogni indexer ha il proprio endpoint numerato /{id}/api).
+        Per Prowlarr si usa invece l'API di ricerca aggregata JSON nativa
+        (vedi `_prowlarr_search`); questo metodo resta valido solo per Jackett.
         """
         url = base_url.rstrip('/')
-        # Heuristica: porta 9696 = Prowlarr di default; altrimenti 9117 = Jackett
-        is_prowlarr = ('prowlarr' in url.lower() or ':9696' in url)
-        if is_prowlarr:
+        if Engine._is_prowlarr(url):
             return f"{url}/api/v1/indexer/all/results/torznab/api"
         else:
             return f"{url}/api/v2.0/indexers/all/results/torznab/api"
+
+    def _prowlarr_search(self, indexer: dict, query: str = '', season: int = None,
+                          ep: int = None, timeout: int = 30) -> list:
+        """Ricerca aggregata su Prowlarr via API JSON nativa (/api/v1/search).
+
+        Prowlarr non ha un endpoint Torznab "all": la ricerca aggregata su tutti
+        gli indexer abilitati passa da qui. `query=''` restituisce le release più
+        recenti su tutti gli indexer (equivalente a un feed RSS globale).
+        Season/episode non sono filtrati server-side in modo affidabile da questa
+        API, quindi vengono aggiunti come testo alla query.
+        """
+        base = indexer['url'].rstrip('/')
+        q = query
+        if season is not None:
+            q = f"{q} S{season:02d}E{ep:02d}" if ep is not None else f"{q} S{season:02d}"
+
+        params = {'apikey': indexer['api'], 'type': 'search', 'limit': 100}
+        if q.strip():
+            params['query'] = q.strip()
+
+        results = []
+        try:
+            res = self.sess.get(f"{base}/api/v1/search", params=params, timeout=timeout)
+            if res.status_code != 200:
+                logger.warning(f"⚠️ {indexer['label']} RSS: HTTP {res.status_code}")
+                return results
+            for item in res.json():
+                if item.get('protocol') != 'torrent':
+                    continue
+                size = item.get('size') or 0
+                if 0 < size < 50_000_000:
+                    continue  # scarta sample/NFO
+                t = (item.get('title') or '').strip()
+                if not t:
+                    continue
+                tracker = f"{indexer['label']} - {item.get('indexer', '')}"
+                t_disp = f"{t} [{tracker}]"
+
+                mg = item.get('magnetUrl') or ''
+                if not mg.startswith('magnet:'):
+                    info_hash = item.get('infoHash')
+                    mg = f"magnet:?xt=urn:btih:{info_hash}&dn={quote(t_disp)}" if info_hash else ''
+                if not mg:
+                    continue
+                mg = sanitize_magnet(mg, t_disp) or mg
+                if mg.startswith('magnet:?'):
+                    if 'dn=' in mg:
+                        mg = re.sub(r'dn=[^&]+', f"dn={quote(t_disp)}", mg)
+                    else:
+                        mg += f"&dn={quote(t_disp)}"
+
+                results.append({'title': t_disp, 'magnet': mg, 'source': tracker})
+        except Exception as e:
+            logger.warning(f"⚠️ {indexer['label']} RSS error: {e}")
+        return results
 
     @staticmethod
     def _get_indexers(cfg_obj) -> list:
@@ -1072,16 +1130,21 @@ class Engine:
 
         all_results = []
         for ix in indexers:
-            search_url = self._torznab_url(ix['url'])
-            params = {'apikey': ix['api'], 't': 'search', 'limit': 100}
-            
             # --- LETTURA TIMEOUT DINAMICO ---
             try:
                 j_timeout = int(getattr(cfg_obj, 'jackett_timeout', 30))
             except (ValueError, TypeError):
                 j_timeout = 30
             # --------------------------------
-            
+
+            if self._is_prowlarr(ix['url']):
+                # Prowlarr non ha un endpoint Torznab "all": usa l'API JSON nativa
+                all_results.extend(self._prowlarr_search(ix, query='', timeout=j_timeout))
+                continue
+
+            search_url = self._torznab_url(ix['url'])
+            params = {'apikey': ix['api'], 't': 'search', 'limit': 100}
+
             try:
                 res = self.sess.get(search_url, params=params, timeout=j_timeout)
                 if res.status_code == 200:
@@ -1160,6 +1223,19 @@ class Engine:
     def _torznab_single(self, indexer: dict, query: str, season: int = None,
                         ep: int = None, tvdb_id: int = None) -> list:
         """Esegue una singola query Torznab su un indexer specifico."""
+        if self._is_prowlarr(indexer['url']):
+            # Prowlarr non ha un endpoint Torznab "all": usa l'API JSON nativa
+            try:
+                from .config import Config as _Cfg
+                j_timeout = int(getattr(_Cfg(), 'jackett_timeout', 30))
+            except (ValueError, TypeError):
+                j_timeout = 30
+            results = self._prowlarr_search(indexer, query, season=season, ep=ep, timeout=j_timeout)
+            mode = 'tvsearch' if season is not None else 'search'
+            season_info = f" S{season:02d}" if season is not None else ""
+            logger.info(f"      ✓ {indexer['label']} [{mode}{season_info}]: {len(results)} results for '{query}'")
+            return results
+
         results    = []
         search_url = self._torznab_url(indexer['url'])
         label      = indexer['label']
