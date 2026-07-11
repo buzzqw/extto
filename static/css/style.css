@@ -2480,6 +2480,8 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
    ============================================================================ */
 #mfs-list .table-row { grid-template-columns: 1fr 60px 90px 60px 90px 130px; }
 #mfs-list .table-header { font-weight: 600; font-size: .78rem; }
+#sfs-list .table-row { grid-template-columns: 1fr 60px 90px 60px 90px 130px; }
+#sfs-list .table-header { font-weight: 600; font-size: .78rem; }
 .mfs-col-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mfs-col-year  { text-align: center; }
 .mfs-col-res   { text-align: center; }

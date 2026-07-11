@@ -9893,7 +9893,7 @@ def _mfs_enrich_worker():
                         first = good[0] if good else None
                         if first:
                             n = db2.apply_mfs_tmdb(ck, first['id'], first.get('title', clean_name))
-                            logger.info(f"🎬 mfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('title')}' (pop={first.get('popularity',0):.1f}, {n} record aggiornati)")
+                            logger.debug(f"🎬 mfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('title')}' (pop={first.get('popularity',0):.1f}, {n} record aggiornati)")
                         else:
                             db2.apply_mfs_tmdb(ck, 0, '')
                             logger.debug(f"mfs_enrich: '{clean_name}' → solo risultati a bassa popolarità (scartati)")
@@ -9955,7 +9955,7 @@ def _sfs_enrich_worker():
                         first = good[0] if good else None
                         if first:
                             n = db2.apply_sfs_tmdb(ck, first['id'], first.get('name', clean_name))
-                            logger.info(f"📺 sfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('name')}' (pop={first.get('popularity',0):.1f}, {n} record aggiornati)")
+                            logger.debug(f"📺 sfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('name')}' (pop={first.get('popularity',0):.1f}, {n} record aggiornati)")
                         else:
                             db2.apply_sfs_tmdb(ck, 0, '')
                             logger.debug(f"sfs_enrich: '{clean_name}' → solo risultati a bassa popolarità (scartati)")
