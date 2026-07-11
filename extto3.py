@@ -1722,6 +1722,24 @@ def main():
         for item in candidates:
             ep = Parser.parse_series_episode(item['title'])
             if ep:
+                # Registra nel feed globale serie (tutte le serie viste nei sorgenti RSS)
+                try:
+                    _q = ep['quality']
+                    db.record_series_seen(
+                        title=item['title'],
+                        name=ep['name'],
+                        season=ep.get('season', 0) or 0,
+                        episode=ep.get('episode', 0) or 0,
+                        resolution=_q.resolution,
+                        codec=_q.codec,
+                        audio=_q.audio,
+                        quality_score=_q.score(),
+                        magnet=item.get('magnet', ''),
+                        source=item.get('source', ''),
+                    )
+                except Exception as _sse:
+                    logger.debug(f"record_series_seen: {_sse}")
+
                 match = cfg.find_series_match(ep['name'], ep['season'])
                 if match:
                     ep['name'] = match['name']  # normalizza al nome canonico (gestisce alias RSS)

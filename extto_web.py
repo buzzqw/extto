@@ -3124,6 +3124,7 @@ def movies_seen_grouped():
             _mfs_migrated = True
         result = _db.get_movies_seen_grouped(page=page, q=q, sort=sort,
                                              direction=direction, per_page=50)
+        result['pending'] = _db.get_mfs_pending_count()
         return jsonify(result)
     except Exception as e:
         logger.exception(f"❌ movies_seen_grouped: {e}")
@@ -3163,6 +3164,46 @@ def movies_seen_by_key():
         return jsonify(items)
     except Exception as e:
         logger.exception(f"❌ movies_seen_by_key: {e}")
+        return jsonify([]), 500
+
+@app.route('/api/series/seen/grouped')
+def series_seen_grouped():
+    """Serie TV dai feed raggruppate per nome, con paginazione."""
+    try:
+        page      = int(request.args.get('page', 0))
+        q         = request.args.get('q', '').strip()
+        sort      = request.args.get('sort', 'found_at')
+        direction = request.args.get('dir', 'desc')
+        from core.database import Database as _CoreDB
+        _db = _CoreDB()
+        result = _db.get_series_seen_grouped(page=page, q=q, sort=sort,
+                                             direction=direction, per_page=50)
+        result['pending'] = _db.get_sfs_pending_count()
+        return jsonify(result)
+    except Exception as e:
+        logger.exception(f"❌ series_seen_grouped: {e}")
+        return jsonify({'groups': [], 'total': 0, 'pages': 1}), 500
+
+@app.route('/api/series/seen/by-key')
+def series_seen_by_key():
+    """Tutte le release di un gruppo serie (per group_key restituito da /grouped)."""
+    try:
+        key = request.args.get('key', '').strip()
+        if not key:
+            return jsonify([])
+        from core.database import Database as _CoreDB
+        db = _CoreDB()
+        if key.startswith('tmdb:'):
+            try:
+                tmdb_id = int(key[5:])
+                items = db.get_series_seen_by_tmdb_id(tmdb_id)
+            except ValueError:
+                items = []
+        else:
+            items = db.get_series_seen_by_condensed_key(key)
+        return jsonify(items)
+    except Exception as e:
+        logger.exception(f"❌ series_seen_by_key: {e}")
         return jsonify([]), 500
 
 @app.route('/api/archive')
@@ -9868,6 +9909,68 @@ def _mfs_enrich_worker():
         _t.sleep(300)   # 5 minuti tra un batch e il prossimo
 
 
+def _sfs_enrich_worker():
+    """Thread background: arricchisce series_feed_seen con dati TMDB a bassa priorità.
+    Stessa cadenza e semantica di _mfs_enrich_worker, ma verso /search/tv.
+    tmdb_id=0 significa 'cercato, non trovato' → non viene riprovato.
+    """
+    import time as _t
+    _t.sleep(60)  # warm-up: lascia avviare il server (sfalsato rispetto a mfs-enrich)
+    while True:
+        try:
+            from core.config import Config as _Cfg
+            from core.database import Database as _DB
+            cfg = _Cfg()
+            api_key = getattr(cfg, 'tmdb_api_key', '').strip()
+            if not api_key:
+                _t.sleep(300)
+                continue
+            tmdb_lang = getattr(cfg, 'tmdb_language', 'it-IT').strip() or 'it-IT'
+            db = _DB()
+            groups = db.get_sfs_unenriched_groups(limit=10)
+            db.close()
+            if not groups:
+                _t.sleep(300)
+                continue
+            for g in groups:
+                ck        = g['ck']
+                raw_name  = g['best_name'] or ''
+                # Pulisci eventuali tag sorgente residui nel nome
+                clean_name = re.sub(r'\[.*?\].*$', '', raw_name).strip(' -_.,')
+                if not clean_name or len(clean_name) < 2:
+                    db2 = _DB(); db2.apply_sfs_tmdb(ck, 0, ''); db2.close()
+                    _t.sleep(4)
+                    continue
+                try:
+                    url = (f"https://api.themoviedb.org/3/search/tv"
+                           f"?api_key={api_key}"
+                           f"&query={requests.utils.quote(clean_name)}"
+                           f"&language={tmdb_lang}")
+                    res = requests.get(url, timeout=8).json()
+                    results = res.get('results', [])
+                    db2 = _DB()
+                    if results:
+                        # Escludi voci a bassissima popolarità (spot TV, trailer, ecc.)
+                        good = [r for r in results if r.get('popularity', 0) >= 1.0]
+                        first = good[0] if good else None
+                        if first:
+                            n = db2.apply_sfs_tmdb(ck, first['id'], first.get('name', clean_name))
+                            logger.info(f"📺 sfs_enrich: '{clean_name}' → TMDB {first['id']} '{first.get('name')}' (pop={first.get('popularity',0):.1f}, {n} record aggiornati)")
+                        else:
+                            db2.apply_sfs_tmdb(ck, 0, '')
+                            logger.debug(f"sfs_enrich: '{clean_name}' → solo risultati a bassa popolarità (scartati)")
+                    else:
+                        db2.apply_sfs_tmdb(ck, 0, '')
+                        logger.debug(f"sfs_enrich: '{clean_name}' → nessun risultato TMDB")
+                    db2.close()
+                except Exception as ex:
+                    logger.warning(f"sfs_enrich TMDB error for '{clean_name}': {ex}")
+                _t.sleep(4)   # rate limit conservativo
+        except Exception as ex:
+            logger.warning(f"_sfs_enrich_worker: {ex}")
+        _t.sleep(300)   # 5 minuti tra un batch e il prossimo
+
+
 if __name__ == '__main__':
     from waitress import serve
     import logging
@@ -9883,6 +9986,7 @@ if __name__ == '__main__':
 
     # Thread enrichment TMDB per Film dal Feed (low-priority, rate-limited)
     threading.Thread(target=_mfs_enrich_worker, daemon=True, name='mfs-enrich').start()
+    threading.Thread(target=_sfs_enrich_worker, daemon=True, name='sfs-enrich').start()
 
     # Supervisore rqbit: rileva crash del processo esterno e lo riavvia automaticamente
     threading.Thread(target=_rqbit_supervisor_loop, daemon=True, name='rqbit-supervisor').start()

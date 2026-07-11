@@ -220,6 +220,7 @@
                         <button class="tab-btn active" id="discover-btn-movie" onclick="app.discoverySetTab('tmdb'); app.loadDiscovery('movie','trending')">🎬 <span data-i18n="Film">Film</span></button>
                         <button class="tab-btn" id="discover-btn-tv" onclick="app.discoverySetTab('tmdb'); app.loadDiscovery('tv','trending')">📺 <span data-i18n="Serie TV">Serie TV</span></button>
                         <button class="tab-btn" id="discover-btn-feed" onclick="app.discoverySetTab('feed')">📡 <span data-i18n="Film dal Feed">Film dal Feed</span></button>
+                        <button class="tab-btn" id="discover-btn-feed-series" onclick="app.discoverySetTab('feed-series')">📡 <span data-i18n="Serie TV dal Feed">Serie TV dal Feed</span></button>
                     </div>
                 </div>
 
@@ -267,6 +268,36 @@
                         <div id="mfs-rows"></div>
                     </div>
                     <div id="mfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
+                </div>
+
+                <!-- pannello Serie TV dal Feed -->
+                <div id="discover-panel-feed-series" style="display:none;">
+                    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+                        <div style="position:relative;flex:1;min-width:180px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
+                            <input id="sfs-search" type="text" class="search-input" placeholder="Filtra per titolo…" style="padding-left:2.75rem;"
+                                   oninput="app._mfsSearchKeyup(event, 'series')">
+                        </div>
+                        <span id="sfs-total" style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;"></span>
+                    </div>
+
+                    <div id="sfs-list" class="data-table archive-table">
+                        <div class="table-row table-header">
+                            <div class="mfs-col-name" style="cursor:pointer;user-select:none;" onclick="app._mfsSort('name', 'series')">
+                                Nome <span id="sfs-sort-name"></span></div>
+                            <div class="mfs-col-year" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('season', 'series')">
+                                Stagione <span id="sfs-sort-season"></span></div>
+                            <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score', 'series')">
+                                Qualità <span id="sfs-sort-quality_score"></span></div>
+                            <div class="mfs-col-count" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('count', 'series')">
+                                Sorgenti <span id="sfs-sort-count"></span></div>
+                            <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at', 'series')">
+                                Trovato <span id="sfs-sort-found_at">▼</span></div>
+                            <div style="text-align:right;">Azioni</div>
+                        </div>
+                        <div id="sfs-rows"></div>
+                    </div>
+                    <div id="sfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
                 </div>
             </div>
 

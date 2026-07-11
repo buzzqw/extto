@@ -985,49 +985,75 @@ const app = {
     // ESPLORA — gestione tab TMDB / Dal Feed
     // -------------------------------------------------------------------------
     _mfsState: { page: 0, q: '', sort: 'found_at', dir: 'desc' },
+    _sfsState: { page: 0, q: '', sort: 'found_at', dir: 'desc' },
     _mfsSearchTimer: null,
-    _mfsGroupMap: {},   // idx -> group_key per _mfsToggleGroup
+    _sfsSearchTimer: null,
+    _mfsGroupMap: {},   // idx -> group_key per _mfsToggleGroup (film)
+    _sfsGroupMap: {},   // idx -> group_key per _mfsToggleGroup (serie)
+
+    _mfsKindCfg(kind) {
+        return kind === 'series' ? {
+            prefix: 'sfs', api: '/api/series/seen', stateKey: '_sfsState', groupMapKey: '_sfsGroupMap',
+            noun: 'serie', emptyMsg: 'Nessuna serie trovata nei feed', loadFn: 'loadSeriesSeen',
+            sortCols: ['name','season','quality_score','count','found_at'],
+        } : {
+            prefix: 'mfs', api: '/api/movies/seen', stateKey: '_mfsState', groupMapKey: '_mfsGroupMap',
+            noun: 'film', emptyMsg: 'Nessun film trovato nei feed', loadFn: 'loadMoviesSeen',
+            sortCols: ['name','year','quality_score','count','found_at'],
+        };
+    },
 
     discoverySetTab(tab) {
-        const tmdb = document.getElementById('discover-panel-tmdb');
-        const feed = document.getElementById('discover-panel-feed');
-        const btnMovie = document.getElementById('discover-btn-movie');
-        const btnTv    = document.getElementById('discover-btn-tv');
-        const btnFeed  = document.getElementById('discover-btn-feed');
-        if (tab === 'feed') {
+        const tmdb          = document.getElementById('discover-panel-tmdb');
+        const feed          = document.getElementById('discover-panel-feed');
+        const feedSeries    = document.getElementById('discover-panel-feed-series');
+        const btnMovie      = document.getElementById('discover-btn-movie');
+        const btnTv         = document.getElementById('discover-btn-tv');
+        const btnFeed       = document.getElementById('discover-btn-feed');
+        const btnFeedSeries = document.getElementById('discover-btn-feed-series');
+        if (tab === 'feed' || tab === 'feed-series') {
             if (tmdb) tmdb.style.display = 'none';
-            if (feed) feed.style.display = '';
-            btnFeed?.classList.add('active');
+            if (feed) feed.style.display = (tab === 'feed') ? '' : 'none';
+            if (feedSeries) feedSeries.style.display = (tab === 'feed-series') ? '' : 'none';
+            btnFeed?.classList.toggle('active', tab === 'feed');
+            btnFeedSeries?.classList.toggle('active', tab === 'feed-series');
             btnMovie?.classList.remove('active');
             btnTv?.classList.remove('active');
-            this.loadMoviesSeen(0);
+            if (tab === 'feed') this.loadMoviesSeen(0);
+            else this.loadSeriesSeen(0);
         } else {
             if (tmdb) tmdb.style.display = '';
             if (feed) feed.style.display = 'none';
+            if (feedSeries) feedSeries.style.display = 'none';
             btnFeed?.classList.remove('active');
+            btnFeedSeries?.classList.remove('active');
         }
     },
 
-    async loadMoviesSeen(page = 0) {
-        const state = this._mfsState;
+    async _loadFeedSeen(kind, page = 0) {
+        const cfg   = this._mfsKindCfg(kind);
+        const state = this[cfg.stateKey];
         state.page = page;
-        this._mfsGroupMap = {};
+        this[cfg.groupMapKey] = {};
         const params = new URLSearchParams({
             page: page, q: state.q, sort: state.sort, dir: state.dir
         });
         try {
-            const res  = await fetch(`${API_BASE}/api/movies/seen/grouped?${params}`);
+            const res  = await fetch(`${API_BASE}${cfg.api}/grouped?${params}`);
             const data = await res.json();
-            const rows = document.getElementById('mfs-rows');
-            const tot  = document.getElementById('mfs-total');
-            const pag  = document.getElementById('mfs-pagination');
+            const rows = document.getElementById(`${cfg.prefix}-rows`);
+            const tot  = document.getElementById(`${cfg.prefix}-total`);
+            const pag  = document.getElementById(`${cfg.prefix}-pagination`);
             if (!rows) return;
 
-            if (tot) tot.textContent = `${data.total} film trovati nei feed`;
+            const totalLabel = `${data.total} ${cfg.noun} trovati nei feed`;
+            if (tot) tot.textContent = data.pending
+                ? `${totalLabel} · ${data.pending} in verifica TMDB`
+                : totalLabel;
 
             // Aggiorna icone ordinamento
-            ['name','year','quality_score','count','found_at'].forEach(col => {
-                const el = document.getElementById(`mfs-sort-${col}`);
+            cfg.sortCols.forEach(col => {
+                const el = document.getElementById(`${cfg.prefix}-sort-${col}`);
                 if (!el) return;
                 el.textContent = state.sort === col ? (state.dir === 'desc' ? '▼' : '▲') : '';
             });
@@ -1043,16 +1069,16 @@ const app = {
 
             let html = '';
             data.groups.forEach((g, idx) => {
-                this._mfsGroupMap[idx] = g.group_key;
-                const name  = this.escapeHtml(g.group_name || '');
-                const year  = g.year || '—';
-                const res   = g.best_resolution || 'unknown';
-                const badge = RES_BADGE[res] || RES_BADGE['unknown'];
-                const date  = g.first_found ? this.formatDate(g.first_found) : '—';
-                const cnt   = g.cnt || 1;
+                this[cfg.groupMapKey][idx] = g.group_key;
+                const name      = this.escapeHtml(g.group_name || '');
+                const secondCol = kind === 'series' ? (g.season ? `S${g.season}` : '—') : (g.year || '—');
+                const res       = g.best_resolution || 'unknown';
+                const badge     = RES_BADGE[res] || RES_BADGE['unknown'];
+                const date      = g.first_found ? this.formatDate(g.first_found) : '—';
+                const cnt       = g.cnt || 1;
                 html += `<div class="table-row" style="cursor:default;">
                     <div class="mfs-col-name"><small><strong>${name}</strong></small></div>
-                    <div class="mfs-col-year"><small>${year}</small></div>
+                    <div class="mfs-col-year"><small>${secondCol}</small></div>
                     <div class="mfs-col-res">
                         <span style="font-size:.7rem;padding:1px 5px;border-radius:4px;${badge}">${res}</span>
                     </div>
@@ -1064,17 +1090,17 @@ const app = {
                         <button class="btn btn-small" style="background:#0ea5e9;color:white;border:none;"
                                 onclick="app.searchArchiveOnTMDB('${this.escapeJs(g.group_name)}')"
                                 title="Cerca su TMDB"><i class="fa-solid fa-magnifying-glass"></i> TMDB</button>
-                        <button id="mfs-exp-btn-${idx}" class="btn btn-small btn-secondary"
-                                onclick="app._mfsToggleGroup(${idx})"
+                        <button id="${cfg.prefix}-exp-btn-${idx}" class="btn btn-small btn-secondary"
+                                onclick="app._mfsToggleGroup(${idx}, '${kind}')"
                                 title="Mostra sorgenti"><i class="fa-solid fa-chevron-down"></i></button>
                     </div>
                 </div>
-                <div id="mfs-sub-${idx}" class="mfs-sub-rows" style="display:none;"></div>`;
+                <div id="${cfg.prefix}-sub-${idx}" class="mfs-sub-rows" style="display:none;"></div>`;
             });
             if (!data.groups.length) {
                 html = `<div style="padding:30px;text-align:center;color:var(--text-muted);">
-                    ${t('Nessun film trovato nei feed')}<br>
-                    <small>${t('I film appariranno qui al prossimo ciclo di scraping')}</small></div>`;
+                    ${t(cfg.emptyMsg)}<br>
+                    <small>${t('Le release appariranno qui al prossimo ciclo di scraping')}</small></div>`;
             }
             rows.innerHTML = html;
 
@@ -1082,17 +1108,21 @@ const app = {
             const totalPages = Math.max(1, data.pages);
             let pagHtml = '';
             if (page > 0)
-                pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.loadMoviesSeen(${page-1})"><i class="fa-solid fa-chevron-left"></i></button>`;
+                pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.${cfg.loadFn}(${page-1})"><i class="fa-solid fa-chevron-left"></i></button>`;
             pagHtml += `<span style="margin:0 10px;font-weight:700;">${t('Pag')} ${page+1} / ${totalPages}</span>`;
             if (page < totalPages - 1)
-                pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.loadMoviesSeen(${page+1})"><i class="fa-solid fa-chevron-right"></i></button>`;
+                pagHtml += `<button class="btn btn-small btn-secondary" onclick="app.${cfg.loadFn}(${page+1})"><i class="fa-solid fa-chevron-right"></i></button>`;
             pag.innerHTML = pagHtml;
-        } catch(e) { console.error('loadMoviesSeen:', e); }
+        } catch(e) { console.error(`_loadFeedSeen(${kind}):`, e); }
     },
 
-    async _mfsToggleGroup(idx) {
-        const container = document.getElementById(`mfs-sub-${idx}`);
-        const btn       = document.getElementById(`mfs-exp-btn-${idx}`);
+    async loadMoviesSeen(page = 0) { return this._loadFeedSeen('movie', page); },
+    async loadSeriesSeen(page = 0) { return this._loadFeedSeen('series', page); },
+
+    async _mfsToggleGroup(idx, kind = 'movie') {
+        const cfg       = this._mfsKindCfg(kind);
+        const container = document.getElementById(`${cfg.prefix}-sub-${idx}`);
+        const btn       = document.getElementById(`${cfg.prefix}-exp-btn-${idx}`);
         if (!container) return;
 
         if (container._mfsLoaded) {
@@ -1108,9 +1138,9 @@ const app = {
         container.style.display = '';
         if (btn) btn.querySelector('i').className = 'fa-solid fa-chevron-up';
 
-        const groupKey = this._mfsGroupMap[idx];
+        const groupKey = this[cfg.groupMapKey][idx];
         try {
-            const res   = await fetch(`${API_BASE}/api/movies/seen/by-key?key=${encodeURIComponent(groupKey)}`);
+            const res   = await fetch(`${API_BASE}${cfg.api}/by-key?key=${encodeURIComponent(groupKey)}`);
             const items = await res.json();
             const RES_BADGE = {
                 '2160p': 'background:#7c3aed;color:#fff',
@@ -1156,18 +1186,20 @@ const app = {
         }
     },
 
-    _mfsSort(col) {
-        const s = this._mfsState;
+    _mfsSort(col, kind = 'movie') {
+        const cfg = this._mfsKindCfg(kind);
+        const s = this[cfg.stateKey];
         if (s.sort === col) s.dir = s.dir === 'desc' ? 'asc' : 'desc';
         else { s.sort = col; s.dir = 'desc'; }
-        this.loadMoviesSeen(0);
+        this[cfg.loadFn](0);
     },
 
-    _mfsSearchKeyup(e) {
-        clearTimeout(this._mfsSearchTimer);
-        this._mfsSearchTimer = setTimeout(() => {
-            this._mfsState.q = e.target.value.trim();
-            this.loadMoviesSeen(0);
+    _mfsSearchKeyup(e, kind = 'movie') {
+        const cfg = this._mfsKindCfg(kind);
+        clearTimeout(this[`_${cfg.prefix}SearchTimer`]);
+        this[`_${cfg.prefix}SearchTimer`] = setTimeout(() => {
+            this[cfg.stateKey].q = e.target.value.trim();
+            this[cfg.loadFn](0);
         }, 320);
     },
 

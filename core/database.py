@@ -267,6 +267,31 @@ class Database:
             pass
 
         c.execute('''
+            CREATE TABLE IF NOT EXISTS series_feed_seen (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                title         TEXT    NOT NULL UNIQUE,
+                name          TEXT,
+                season        INTEGER DEFAULT 0,
+                episode       INTEGER DEFAULT 0,
+                resolution    TEXT    DEFAULT 'unknown',
+                codec         TEXT    DEFAULT 'unknown',
+                audio         TEXT    DEFAULT 'unknown',
+                quality_score INTEGER DEFAULT 0,
+                magnet        TEXT,
+                source        TEXT,
+                found_at      TEXT    NOT NULL,
+                first_seen_at TEXT,
+                tmdb_id       INTEGER DEFAULT NULL,
+                tmdb_name     TEXT    DEFAULT NULL
+            )
+        ''')
+        try:
+            c.execute('CREATE INDEX IF NOT EXISTS idx_sfs_found ON series_feed_seen(found_at DESC)')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_sfs_score ON series_feed_seen(quality_score DESC)')
+        except Exception:
+            pass
+
+        c.execute('''
             CREATE TABLE IF NOT EXISTS pending_downloads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 series_id INTEGER,
@@ -688,7 +713,7 @@ class Database:
                "mfs_key(COALESCE(m.name, m.title)))")
         try:
             c = self.conn.cursor()
-            conditions: list = []
+            conditions: list = ['m.tmdb_id > 0']
             params:     list = []
             if q:
                 for token in q.strip().split():
@@ -700,7 +725,7 @@ class Database:
                     else:
                         conditions.append('(title LIKE ? OR name LIKE ?)')
                     params.extend([kw_like, kw_like])
-            where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+            where = 'WHERE ' + ' AND '.join(conditions)
             c.execute(f'SELECT COUNT(DISTINCT {_GK}) FROM movie_feed_seen m {where}', params)
             total = c.fetchone()[0]
             offset = page * per_page
@@ -730,6 +755,20 @@ class Database:
         except Exception as e:
             logger.warning(f"get_movies_seen_grouped: {e}")
             return {'groups': [], 'total': 0, 'pages': 1}
+
+    def get_mfs_pending_count(self):
+        """Numero di gruppi film (per condensed key) ancora in coda di verifica TMDB."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT COUNT(DISTINCT mfs_key(COALESCE(name, title)))
+                FROM movie_feed_seen
+                WHERE tmdb_id IS NULL
+            ''')
+            return c.fetchone()[0] or 0
+        except Exception as e:
+            logger.warning(f"get_mfs_pending_count: {e}")
+            return 0
 
     def get_movies_seen_by_condensed_key(self, ck: str):
         try:
@@ -796,6 +835,175 @@ class Database:
             return c.rowcount
         except Exception as e:
             logger.warning(f"apply_mfs_tmdb: {e}")
+            return 0
+
+    # ------------------------------------------------------------------
+    # SERIES FEED SEEN  (tutte le serie viste nei feed RSS, non solo quelle in config)
+    # ------------------------------------------------------------------
+
+    def record_series_seen(self, title: str, name: str, season: int, episode: int,
+                           resolution: str, codec: str, audio: str,
+                           quality_score: int, magnet: str, source: str):
+        try:
+            c = self.conn.cursor()
+            found_at = datetime.now(timezone.utc).isoformat()
+            c.execute('''
+                INSERT INTO series_feed_seen
+                    (title, name, season, episode, resolution, codec, audio, quality_score, magnet, source, found_at, first_seen_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(title) DO UPDATE SET
+                    found_at=excluded.found_at,
+                    magnet=excluded.magnet,
+                    source=excluded.source,
+                    name=excluded.name,
+                    season=excluded.season,
+                    episode=excluded.episode,
+                    quality_score=excluded.quality_score,
+                    resolution=excluded.resolution,
+                    codec=excluded.codec,
+                    audio=excluded.audio,
+                    first_seen_at=COALESCE(series_feed_seen.first_seen_at, excluded.first_seen_at)
+            ''', (title, name, season, episode, resolution, codec, audio, quality_score, magnet, source, found_at, found_at))
+            self.conn.commit()
+        except Exception as e:
+            logger.debug(f"record_series_seen: {e}")
+
+    def get_series_seen_grouped(self, page: int = 0, q: str = '',
+                                sort: str = 'found_at', direction: str = 'desc',
+                                per_page: int = 50):
+        sort_map = {
+            'found_at': 'first_found', 'name': 'group_name',
+            'quality_score': 'best_score', 'count': 'cnt',
+        }
+        sort_col  = sort_map.get(sort, 'first_found')
+        direction = 'DESC' if direction.lower() == 'desc' else 'ASC'
+        # group key: tmdb_id quando disponibile, altrimenti condensed name (solo alfanumerici)
+        _GK = ("COALESCE("
+               "CASE WHEN m.tmdb_id > 0 THEN 'tmdb:' || CAST(m.tmdb_id AS TEXT) ELSE NULL END,"
+               "mfs_key(COALESCE(m.name, m.title)))")
+        try:
+            c = self.conn.cursor()
+            conditions: list = ['m.tmdb_id > 0']
+            params:     list = []
+            if q:
+                for token in q.strip().split():
+                    exclude = token.startswith('-') and len(token) > 1
+                    kw = token[1:] if token.startswith(('+', '-')) and len(token) > 1 else token
+                    kw_like = kw.replace('*', '%').replace('?', '_') if ('*' in kw or '?' in kw) else f'%{kw}%'
+                    if exclude:
+                        conditions.append('(title NOT LIKE ? AND name NOT LIKE ?)')
+                    else:
+                        conditions.append('(title LIKE ? OR name LIKE ?)')
+                    params.extend([kw_like, kw_like])
+            where = 'WHERE ' + ' AND '.join(conditions)
+            c.execute(f'SELECT COUNT(DISTINCT {_GK}) FROM series_feed_seen m {where}', params)
+            total = c.fetchone()[0]
+            offset = page * per_page
+            c.execute(f'''
+                SELECT
+                    {_GK}                            AS group_key,
+                    COALESCE(
+                        MAX(CASE WHEN m.tmdb_id > 0 THEN m.tmdb_name END),
+                        MIN(COALESCE(m.name, m.title))
+                    )                                AS group_name,
+                    MAX(m.season)                    AS season,
+                    COUNT(*)                         AS cnt,
+                    MAX(m.quality_score)             AS best_score,
+                    MAX(m.found_at)                  AS latest_found,
+                    MIN(COALESCE(m.first_seen_at, m.found_at)) AS first_found,
+                    COALESCE(MAX(CASE WHEN m.tmdb_id > 0 THEN m.tmdb_id END), NULL) AS tmdb_id,
+                    SUBSTRING(MAX(PRINTF('%010d', m.quality_score) ||
+                              COALESCE(m.resolution, 'unknown')), 11) AS best_resolution
+                FROM series_feed_seen m
+                {where}
+                GROUP BY {_GK}
+                ORDER BY {sort_col} {direction}
+                LIMIT ? OFFSET ?
+            ''', params + [per_page, offset])
+            rows = [dict(r) for r in c.fetchall()]
+            return {'groups': rows, 'total': total, 'pages': max(1, -(-total // per_page))}
+        except Exception as e:
+            logger.warning(f"get_series_seen_grouped: {e}")
+            return {'groups': [], 'total': 0, 'pages': 1}
+
+    def get_sfs_pending_count(self):
+        """Numero di gruppi serie (per condensed key) ancora in coda di verifica TMDB."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT COUNT(DISTINCT mfs_key(COALESCE(name, title)))
+                FROM series_feed_seen
+                WHERE tmdb_id IS NULL
+            ''')
+            return c.fetchone()[0] or 0
+        except Exception as e:
+            logger.warning(f"get_sfs_pending_count: {e}")
+            return 0
+
+    def get_series_seen_by_condensed_key(self, ck: str):
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT id, title, name, season, episode, resolution, codec, audio,
+                       quality_score, magnet, source, found_at
+                FROM series_feed_seen
+                WHERE mfs_key(COALESCE(name, title)) = ?
+                ORDER BY quality_score DESC, resolution DESC, found_at DESC
+            ''', [ck])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_series_seen_by_condensed_key: {e}")
+            return []
+
+    def get_series_seen_by_tmdb_id(self, tmdb_id: int):
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT id, title, name, season, episode, resolution, codec, audio,
+                       quality_score, magnet, source, found_at
+                FROM series_feed_seen
+                WHERE tmdb_id = ?
+                ORDER BY quality_score DESC, resolution DESC, found_at DESC
+            ''', [tmdb_id])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_series_seen_by_tmdb_id: {e}")
+            return []
+
+    def get_sfs_unenriched_groups(self, limit: int = 10):
+        """Restituisce gruppi di serie (per condensed key) senza tmdb_id, ordinati per impatto."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                SELECT
+                    mfs_key(COALESCE(name, title)) AS ck,
+                    MIN(COALESCE(name, title))      AS best_name,
+                    COUNT(*)                        AS cnt
+                FROM series_feed_seen
+                WHERE tmdb_id IS NULL
+                GROUP BY ck
+                HAVING LENGTH(ck) > 3
+                ORDER BY cnt DESC, MAX(first_seen_at) DESC
+                LIMIT ?
+            ''', [limit])
+            return [dict(r) for r in c.fetchall()]
+        except Exception as e:
+            logger.warning(f"get_sfs_unenriched_groups: {e}")
+            return []
+
+    def apply_sfs_tmdb(self, condensed_key: str, tmdb_id: int, tmdb_name: str):
+        """Applica tmdb_id/tmdb_name a tutti i record con il dato condensed key."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                UPDATE series_feed_seen
+                SET tmdb_id = ?, tmdb_name = ?
+                WHERE mfs_key(COALESCE(name, title)) = ?
+            ''', [tmdb_id, tmdb_name or '', condensed_key])
+            self.conn.commit()
+            return c.rowcount
+        except Exception as e:
+            logger.warning(f"apply_sfs_tmdb: {e}")
             return 0
 
     def get_movies_seen_by_name(self, name: str):
