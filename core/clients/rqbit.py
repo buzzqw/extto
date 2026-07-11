@@ -434,6 +434,7 @@ class RqbitClient:
                 'ul_limit':      -1,
                 'seed_ratio':    _slimits.get('ratio', -1),
                 'seed_days':     _slimits.get('days', -1),
+                'magnet':        uri,
             }
         except Exception as e:
             logger.error(f"rqbit get_torrent_details error: {e}")

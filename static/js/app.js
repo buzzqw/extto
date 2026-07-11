@@ -9433,6 +9433,11 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         
         document.getElementById('td-g-pieces').textContent = `${d.pieces} frammenti da ${this._fmtBytes(d.piece_size)}`;
         document.getElementById('td-g-hash').textContent = d.hash;
+
+        // Copia Magnet Link
+        this._tdMagnet = d.magnet || '';
+        const _copyBtn = document.getElementById('td-copy-magnet');
+        if (_copyBtn) _copyBtn.disabled = !this._tdMagnet;
         const _typeEl = document.getElementById('td-g-type');
         if (_typeEl) {
             const _typeColors = { v1: '#55bb77', hybrid: '#ffaa22', v2: '#4499ff' };

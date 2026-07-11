@@ -974,6 +974,63 @@ class Database:
         return c.rowcount
 
     # ------------------------------------------------------------------
+    # UPGRADE BACKUP
+    # ------------------------------------------------------------------
+
+    def _save_upgrade_backup(self, kind: str, new_hash: str, old_row, **ids):
+        """Salva lo stato precedente di un episodio/film appena prima che
+        check_series()/check_movie() lo sovrascriva otticamente per un
+        tentativo di upgrade (nuovo magnet non ancora scaricato). Se quel
+        nuovo magnet fallisce (dead_magnet/stalled/error — vedi
+        LibtorrentClient._handle_download_failure), il file già presente non
+        deve essere perso: viene ripristinato invece di essere cancellato.
+        Rilevante soprattutto per i season pack, dove un fallimento non deve
+        invalidare episodi già scaricati in precedenza con un magnet diverso."""
+        try:
+            c = self.conn.cursor()
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS upgrade_backup (
+                    magnet_hash TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    series_id INTEGER,
+                    season INTEGER,
+                    episode INTEGER,
+                    movie_name TEXT,
+                    movie_year INTEGER,
+                    old_quality_score INTEGER,
+                    old_is_repack INTEGER,
+                    old_magnet_hash TEXT,
+                    old_magnet_link TEXT,
+                    old_title TEXT,
+                    old_original_title TEXT,
+                    old_downloaded_at TEXT,
+                    old_archive_path TEXT,
+                    created_at TEXT NOT NULL
+                )
+            ''')
+            c.execute('''INSERT OR REPLACE INTO upgrade_backup
+                (magnet_hash, kind, series_id, season, episode, movie_name, movie_year,
+                 old_quality_score, old_is_repack, old_magnet_hash, old_magnet_link,
+                 old_title, old_original_title, old_downloaded_at, old_archive_path, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (new_hash.lower(), kind, ids.get('series_id'), ids.get('season'), ids.get('episode'),
+                 ids.get('movie_name'), ids.get('movie_year'),
+                 old_row['quality_score'],
+                 old_row['is_repack'] if kind == 'episode' else None,
+                 old_row['magnet_hash'], old_row['magnet_link'],
+                 old_row['title'], old_row['original_title'] if kind == 'episode' else None,
+                 old_row['downloaded_at'], old_row['archive_path'] if kind == 'episode' else None,
+                 datetime.now(timezone.utc).isoformat()))
+            # Pulizia opportunistica: righe più vecchie di 30gg sono backup di
+            # upgrade completati con successo (o rimossi manualmente) per cui
+            # nessun rollback è mai arrivato — non servono più.
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+            c.execute("DELETE FROM upgrade_backup WHERE created_at < ?", (cutoff,))
+            self.conn.commit()
+        except Exception as e:
+            logger.warning(f"_save_upgrade_backup: {e}")
+
+    # ------------------------------------------------------------------
     # SERIES CHECK
     # ------------------------------------------------------------------
 
@@ -1152,13 +1209,19 @@ class Database:
                 logger.info(f"[SEASON-PACK] ACCEPT: incomplete season ({db_cnt}/{safe_exp}), downloading pack to fill gaps")
 
         c.execute(
-            "SELECT quality_score FROM episodes WHERE series_id = ? AND season = ? AND episode = ?",
+            "SELECT * FROM episodes WHERE series_id = ? AND season = ? AND episode = ?",
             (series_id, ep['season'], ep['episode'])
         )
         row = c.fetchone()
 
         if row:
             if new_score > row['quality_score']:
+                # Backup della riga precedente PRIMA di sovrascriverla: se il
+                # nuovo magnet (upgrade/season pack) fallisce, _handle_download_failure
+                # potrà ripristinare la versione già scaricata invece di cancellarla
+                # e segnare l'episodio come mancante.
+                self._save_upgrade_backup('episode', hash_val, row,
+                                           series_id=series_id, season=ep['season'], episode=ep['episode'])
                 c.execute("""UPDATE episodes SET quality_score=?, is_repack=?,
                             magnet_hash=?, magnet_link=?, title=?, downloaded_at=?, archive_path=?
                             WHERE series_id=? AND season=? AND episode=?""",
@@ -1411,13 +1474,18 @@ class Database:
             self.record_movie_discard(mov['config_name'], mov['year'], 'above_quality')
             return False, "Above maximum quality"
 
-        c.execute("SELECT quality_score FROM movies WHERE name = ? AND year = ? AND removed_at IS NULL",
+        c.execute("SELECT * FROM movies WHERE name = ? AND year = ? AND removed_at IS NULL",
                   (mov['config_name'], mov['year']))
         row       = c.fetchone()
         new_score = mov['quality'].score()
 
         if row:
             if new_score > row['quality_score']:
+                # Backup della riga precedente PRIMA di sovrascriverla: se il
+                # nuovo magnet (upgrade) fallisce, _handle_download_failure potrà
+                # ripristinare la versione già scaricata invece di cancellarla.
+                self._save_upgrade_backup('movie', hash_val, row,
+                                           movie_name=mov['config_name'], movie_year=mov['year'])
                 c.execute("""UPDATE movies SET quality_score=?, magnet_hash=?,
                             magnet_link=?, title=?, downloaded_at=?
                             WHERE name=? AND year=? AND removed_at IS NULL""",

@@ -187,6 +187,8 @@
 'Connessioni max': 'Connessioni max'
 'Connesso': 'Connesso'
 'Connesso a Trakt': 'Connesso a Trakt'
+'Copia Magnet': 'Copia Magnet'
+'Copia Magnet Link': 'Copia Magnet Link'
 'Contenuto': 'Contenuto'
 'Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett + Motori Web).': 'Conto alla rovescia per il prossimo avvio automatico del motore di ricerca (Scraping + Jackett + Motori Web).'
 'Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore.': 'Controlla la verbosità di extto.log. DEBUG mostra tutto. INFO è il default. WARNING/ERROR riducono il rumore.'

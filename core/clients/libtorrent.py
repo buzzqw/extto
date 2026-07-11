@@ -1302,11 +1302,18 @@ class LibtorrentClient:
     @classmethod
     def _handle_download_failure(cls, h, reason: str):
         """Gestisce un download fallito: blocklist dell'hash (mai più
-        riproposto), rollback della riga episodes/movies inserita
-        ottimisticamente da check_series()/check_movie() prima del download
-        (così l'episodio/film torna 'mancante' e può essere ripreso da una
-        release diversa anche con score più basso o uguale), rimozione del
-        torrent e notifica. reason: 'dead_magnet' | 'stalled' | 'error' | 'manual'."""
+        riproposto), rollback della riga episodes/movies toccata
+        ottimisticamente da check_series()/check_movie() prima del download,
+        rimozione del torrent e notifica. reason: 'dead_magnet' | 'stalled' |
+        'error' | 'manual'.
+
+        Rollback intelligente: se la riga era un INSERT a nuovo (nessun file
+        precedente), viene cancellata e l'episodio/film torna 'mancante' —
+        corretto. Ma se era un UPGRADE di un episodio/film già scaricato in
+        precedenza (es. un season pack che sovrascrive ottimisticamente una
+        puntata già presente), la cancellazione secca perderebbe la traccia
+        di un file ancora valido sul NAS. In quel caso si ripristina invece
+        la versione precedente da `upgrade_backup` (vedi Database._save_upgrade_backup)."""
         try:
             full_cfg = cls._load_full_cfg()
         except Exception:
@@ -1339,6 +1346,7 @@ class LibtorrentClient:
         try:
             import sqlite3 as _sq3
             with _sq3.connect(DB_FILE, timeout=5) as conn:
+                conn.row_factory = _sq3.Row
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS download_blocklist (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1362,7 +1370,38 @@ class LibtorrentClient:
                      identity.get('movie_name'), identity.get('movie_year'), name, reason,
                      datetime.now().isoformat())
                 )
-                if kind == 'episode':
+
+                # Cerca un backup pre-upgrade per questo hash: se esiste, il magnet
+                # fallito stava sovrascrivendo un episodio/film già scaricato in
+                # precedenza — ripristina invece di cancellare (vedi docstring).
+                try:
+                    backup = conn.execute(
+                        "SELECT * FROM upgrade_backup WHERE magnet_hash = ?", (ih.lower(),)
+                    ).fetchone()
+                except _sq3.OperationalError:
+                    backup = None  # tabella non ancora creata (nessun upgrade mai tentato)
+
+                if backup:
+                    if kind == 'episode':
+                        conn.execute("""UPDATE episodes SET quality_score=?, is_repack=?,
+                                    magnet_hash=?, magnet_link=?, title=?, original_title=?,
+                                    downloaded_at=?, archive_path=?
+                                    WHERE series_id=? AND season=? AND episode=?""",
+                                 (backup['old_quality_score'], backup['old_is_repack'],
+                                  backup['old_magnet_hash'], backup['old_magnet_link'],
+                                  backup['old_title'], backup['old_original_title'],
+                                  backup['old_downloaded_at'], backup['old_archive_path'],
+                                  backup['series_id'], backup['season'], backup['episode']))
+                    else:
+                        conn.execute("""UPDATE movies SET quality_score=?, magnet_hash=?,
+                                    magnet_link=?, title=?, downloaded_at=?
+                                    WHERE name=? AND year=? AND removed_at IS NULL""",
+                                 (backup['old_quality_score'], backup['old_magnet_hash'],
+                                  backup['old_magnet_link'], backup['old_title'],
+                                  backup['old_downloaded_at'], backup['movie_name'], backup['movie_year']))
+                    conn.execute("DELETE FROM upgrade_backup WHERE magnet_hash = ?", (ih.lower(),))
+                    logger.info(f"↩️  Rollback upgrade fallito: ripristinata versione precedente di '{name}' (non segnata come mancante)")
+                elif kind == 'episode':
                     conn.execute("DELETE FROM episodes WHERE magnet_hash = ?", (ih.lower(),))
                 else:
                     conn.execute("DELETE FROM movies WHERE magnet_hash = ?", (ih.lower(),))
@@ -2158,6 +2197,7 @@ class LibtorrentClient:
                 'ul_limit': h.upload_limit()   if hasattr(h, 'upload_limit')   else -1,
                 'seed_ratio': _slimits.get('ratio', -1),
                 'seed_days':  _slimits.get('days',  -1),
+                'magnet':     cls.get_magnet_uri(info_hash) or '',
             }
         except Exception as e:
             logger.error(f"Critical error reading torrent details: {e}")
