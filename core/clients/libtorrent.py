@@ -1181,16 +1181,16 @@ class LibtorrentClient:
         """Riavvia i torrent bloccati in downloading_metadata oltre timeout_secs
         (reannounce periodico). Tipicamente causati da tracker non raggiungibili
         o DHT degradato. Se restano bloccati oltre giveup_secs (default
-        @libtorrent_metadata_giveup_min, 180min), si arrende: il magnet è
+        @libtorrent_metadata_giveup_min, 1440min/24h), si arrende: il magnet è
         considerato morto e viene gestito da _handle_download_failure invece
         di ri-annunciare all'infinito."""
         if not cls.session_available():
             return
         if giveup_secs is None:
             try:
-                giveup_secs = int(float(cls._load_full_cfg().get('libtorrent_metadata_giveup_min', 180)) * 60)
+                giveup_secs = int(float(cls._load_full_cfg().get('libtorrent_metadata_giveup_min', 1440)) * 60)
             except Exception:
-                giveup_secs = 10800
+                giveup_secs = 86400
         now = time.time()
         for h in cls._session.get_torrents():
             try:
