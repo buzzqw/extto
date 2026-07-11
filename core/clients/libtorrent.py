@@ -1233,18 +1233,23 @@ class LibtorrentClient:
     def _check_stalled_downloads(cls, stall_timeout_secs: int = None):
         """Rileva download stallati (metadata già ricevuti, progress<100%,
         download_rate=0 e num_peers=0 in modo continuativo oltre
-        stall_timeout_secs, default @libtorrent_stall_timeout_min 45min) o con
-        un errore irreversibile segnalato direttamente da libtorrent, e li
-        tratta come falliti tramite _handle_download_failure — così il ciclo
-        successivo (o lo stesso, vedi extto3.py best-in-cycle) può tentare una
-        release diversa invece di restare bloccato per sempre."""
+        stall_timeout_secs, default @libtorrent_stall_timeout_min 1440min/24h)
+        o con un errore irreversibile segnalato direttamente da libtorrent, e
+        li tratta come falliti tramite _handle_download_failure — così il
+        ciclo successivo (o lo stesso, vedi extto3.py best-in-cycle) può
+        tentare una release diversa invece di restare bloccato per sempre.
+
+        Timeout lungo (24h) anche per i download a progress=0: con la banda
+        e i seed disponibili in Italia, un torrent con pochissime fonti può
+        restare a 0 peer/0 rate per ore senza essere morto — basta un timeout
+        più aggressivo a far perdere download altrimenti recuperabili."""
         if not cls.session_available():
             return
         if stall_timeout_secs is None:
             try:
-                stall_timeout_secs = int(float(cls._load_full_cfg().get('libtorrent_stall_timeout_min', 45)) * 60)
+                stall_timeout_secs = int(float(cls._load_full_cfg().get('libtorrent_stall_timeout_min', 1440)) * 60)
             except Exception:
-                stall_timeout_secs = 2700
+                stall_timeout_secs = 86400
         now = time.time()
         for h in cls._session.get_torrents():
             try:
