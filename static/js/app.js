@@ -322,12 +322,12 @@ const app = {
         // Carica i dati specifici della view
         switch(view) {
             case 'dashboard': this.loadDashboard(); break;
-            case 'discovery': this.discoverySetTab('tmdb'); this.loadDiscovery('movie'); break;
+            case 'discovery': this.loadDiscovery('movie'); break;
             case 'license': this.loadLicense(); break;
             case 'series': this.loadSeries(); break;
             case 'movies': this.loadMovies(); break;
             case 'radarr': break;
-            case 'archive': this.loadArchive(); break;
+            case 'archive': this.archiveSetTab('list'); this.loadArchive(); break;
             case 'torrent': 
                 fetch(`${API_BASE}/api/config?_t=` + Date.now()).then(r => r.json()).then(data => {
                     const s = data.settings || {};
@@ -1003,31 +1003,25 @@ const app = {
         };
     },
 
-    discoverySetTab(tab) {
-        const tmdb          = document.getElementById('discover-panel-tmdb');
-        const feed          = document.getElementById('discover-panel-feed');
-        const feedSeries    = document.getElementById('discover-panel-feed-series');
-        const btnMovie      = document.getElementById('discover-btn-movie');
-        const btnTv         = document.getElementById('discover-btn-tv');
-        const btnFeed       = document.getElementById('discover-btn-feed');
-        const btnFeedSeries = document.getElementById('discover-btn-feed-series');
-        if (tab === 'feed' || tab === 'feed-series') {
-            if (tmdb) tmdb.style.display = 'none';
-            if (feed) feed.style.display = (tab === 'feed') ? '' : 'none';
-            if (feedSeries) feedSeries.style.display = (tab === 'feed-series') ? '' : 'none';
-            btnFeed?.classList.toggle('active', tab === 'feed');
-            btnFeedSeries?.classList.toggle('active', tab === 'feed-series');
-            btnMovie?.classList.remove('active');
-            btnTv?.classList.remove('active');
-            if (tab === 'feed') this.loadMoviesSeen(0);
-            else this.loadSeriesSeen(0);
-        } else {
-            if (tmdb) tmdb.style.display = '';
-            if (feed) feed.style.display = 'none';
-            if (feedSeries) feedSeries.style.display = 'none';
-            btnFeed?.classList.remove('active');
-            btnFeedSeries?.classList.remove('active');
-        }
+    archiveSetTab(tab) {
+        const list          = document.getElementById('archive-panel-list');
+        const feed          = document.getElementById('archive-panel-feed');
+        const feedSeries    = document.getElementById('archive-panel-feed-series');
+        const btnList       = document.getElementById('archive-btn-list');
+        const btnFeed       = document.getElementById('archive-btn-feed');
+        const btnFeedSeries = document.getElementById('archive-btn-feed-series');
+        const pagination    = document.getElementById('archive-pagination');
+
+        if (list) list.style.display = (tab === 'list') ? '' : 'none';
+        if (feed) feed.style.display = (tab === 'feed') ? '' : 'none';
+        if (feedSeries) feedSeries.style.display = (tab === 'feed-series') ? '' : 'none';
+        if (pagination) pagination.style.display = (tab === 'list') ? '' : 'none';
+        btnList?.classList.toggle('active', tab === 'list');
+        btnFeed?.classList.toggle('active', tab === 'feed');
+        btnFeedSeries?.classList.toggle('active', tab === 'feed-series');
+
+        if (tab === 'feed') this.loadMoviesSeen(0);
+        else if (tab === 'feed-series') this.loadSeriesSeen(0);
     },
 
     async _loadFeedSeen(kind, page = 0) {

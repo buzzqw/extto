@@ -217,10 +217,8 @@
                 <div class="view-header" style="margin-bottom:.75rem;">
                     <h3 style="margin:0;white-space:nowrap;"><i class="fa-regular fa-compass" style="color:var(--primary)"></i> Esplora</h3>
                     <div class="config-tabs" style="margin:0;border:none;background:transparent;flex-shrink:0;">
-                        <button class="tab-btn active" id="discover-btn-movie" onclick="app.discoverySetTab('tmdb'); app.loadDiscovery('movie','trending')">🎬 <span data-i18n="Film">Film</span></button>
-                        <button class="tab-btn" id="discover-btn-tv" onclick="app.discoverySetTab('tmdb'); app.loadDiscovery('tv','trending')">📺 <span data-i18n="Serie TV">Serie TV</span></button>
-                        <button class="tab-btn" id="discover-btn-feed" onclick="app.discoverySetTab('feed')">📡 <span data-i18n="Film dal Feed">Film dal Feed</span></button>
-                        <button class="tab-btn" id="discover-btn-feed-series" onclick="app.discoverySetTab('feed-series')">📡 <span data-i18n="Serie TV dal Feed">Serie TV dal Feed</span></button>
+                        <button class="tab-btn active" id="discover-btn-movie" onclick="app.loadDiscovery('movie','trending')">🎬 <span data-i18n="Film">Film</span></button>
+                        <button class="tab-btn" id="discover-btn-tv" onclick="app.loadDiscovery('tv','trending')">📺 <span data-i18n="Serie TV">Serie TV</span></button>
                     </div>
                 </div>
 
@@ -238,66 +236,6 @@
                     </div>
                     <div id="discovery-loading" class="hidden" style="text-align:center;padding:40px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
                     <div id="discovery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;padding-bottom:1rem;"></div>
-                </div>
-
-                <!-- pannello Dal Feed -->
-                <div id="discover-panel-feed" style="display:none;">
-                    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
-                        <div style="position:relative;flex:1;min-width:180px;">
-                            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
-                            <input id="mfs-search" type="text" class="search-input" placeholder="Filtra per titolo…" style="padding-left:2.75rem;"
-                                   oninput="app._mfsSearchKeyup(event)">
-                        </div>
-                        <span id="mfs-total" style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;"></span>
-                    </div>
-
-                    <div id="mfs-list" class="data-table archive-table">
-                        <div class="table-row table-header">
-                            <div class="mfs-col-name" style="cursor:pointer;user-select:none;" onclick="app._mfsSort('name')">
-                                Nome <span id="mfs-sort-name"></span></div>
-                            <div class="mfs-col-year" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('year')">
-                                Anno <span id="mfs-sort-year"></span></div>
-                            <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score')">
-                                Qualità <span id="mfs-sort-quality_score"></span></div>
-                            <div class="mfs-col-count" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('count')">
-                                Sorgenti <span id="mfs-sort-count"></span></div>
-                            <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at')">
-                                Trovato <span id="mfs-sort-found_at">▼</span></div>
-                            <div style="text-align:right;">Azioni</div>
-                        </div>
-                        <div id="mfs-rows"></div>
-                    </div>
-                    <div id="mfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
-                </div>
-
-                <!-- pannello Serie TV dal Feed -->
-                <div id="discover-panel-feed-series" style="display:none;">
-                    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
-                        <div style="position:relative;flex:1;min-width:180px;">
-                            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
-                            <input id="sfs-search" type="text" class="search-input" placeholder="Filtra per titolo…" style="padding-left:2.75rem;"
-                                   oninput="app._mfsSearchKeyup(event, 'series')">
-                        </div>
-                        <span id="sfs-total" style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;"></span>
-                    </div>
-
-                    <div id="sfs-list" class="data-table archive-table">
-                        <div class="table-row table-header">
-                            <div class="mfs-col-name" style="cursor:pointer;user-select:none;" onclick="app._mfsSort('name', 'series')">
-                                Nome <span id="sfs-sort-name"></span></div>
-                            <div class="mfs-col-year" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('season', 'series')">
-                                Stagione <span id="sfs-sort-season"></span></div>
-                            <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score', 'series')">
-                                Qualità <span id="sfs-sort-quality_score"></span></div>
-                            <div class="mfs-col-count" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('count', 'series')">
-                                Sorgenti <span id="sfs-sort-count"></span></div>
-                            <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at', 'series')">
-                                Trovato <span id="sfs-sort-found_at">▼</span></div>
-                            <div style="text-align:right;">Azioni</div>
-                        </div>
-                        <div id="sfs-rows"></div>
-                    </div>
-                    <div id="sfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
                 </div>
             </div>
 
@@ -448,23 +386,93 @@
                     <button class="btn btn-primary" data-i18n-title="Inserisci manualmente un Magnet Link o carica un file .torrent locale per passarlo al client." title="Inserisci manualmente un Magnet Link o carica un file .torrent locale per passarlo al client." onclick="app.showAddMagnetModal()" data-i18n="Aggiungi Magnet">Aggiungi Magnet</button>
                     <div class="pagination" id="archive-pagination"></div>
                 </div>
-                <div id="archive-batch-bar" style="display:none; align-items:center; gap:10px; padding:8px 12px; background:var(--bg-tertiary); border-radius:8px; margin-bottom:8px; border:1px solid var(--primary);">
-                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; font-weight:600;">
-                        <input type="checkbox" id="archive-select-all" onchange="app.archiveToggleAll(this.checked)" style="width:16px; height:16px; accent-color:var(--primary);">
-                        <span id="archive-sel-count"><span data-i18n="0 selezionati">0 selezionati</span></span>
-                    </label>
-                    <div style="flex:1;"></div>
-                    <button class="btn btn-small btn-success" id="archive-btn-dl" onclick="app.archiveBatchDownload()" data-i18n-title="Invia i selezionati al client torrent" title="Invia i selezionati al client torrent" disabled>
-                        <i class="fa-solid fa-download"></i> <span data-i18n="Scarica">Scarica</span>
-                    </button>
-                    <button class="btn btn-small btn-secondary" id="archive-btn-copy" onclick="app.archiveBatchCopy()" data-i18n-title="Copia i magnet link negli appunti" title="Copia i magnet link negli appunti" disabled>
-                        <i class="fa-regular fa-copy"></i> <span data-i18n="Copia">Copia</span>
-                    </button>
-                    <button class="btn btn-small btn-danger" id="archive-btn-del" onclick="app.archiveBatchDelete()" data-i18n-title="Elimina i selezionati dall'archivio" title="Elimina i selezionati dall'archivio" disabled>
-                        <i class="fa-solid fa-trash"></i> <span data-i18n="Elimina">Elimina</span>
-                    </button>
+
+                <div class="config-tabs">
+                    <button class="tab-btn active" id="archive-btn-list" onclick="app.archiveSetTab('list')">📦 <span data-i18n="Archivio">Archivio</span></button>
+                    <button class="tab-btn" id="archive-btn-feed" onclick="app.archiveSetTab('feed')">📡 <span data-i18n="Film dal Feed">Film dal Feed</span></button>
+                    <button class="tab-btn" id="archive-btn-feed-series" onclick="app.archiveSetTab('feed-series')">📡 <span data-i18n="Serie TV dal Feed">Serie TV dal Feed</span></button>
                 </div>
-                <div id="archive-list" class="data-table archive-table"></div>
+
+                <!-- pannello Archivio -->
+                <div id="archive-panel-list">
+                    <div id="archive-batch-bar" style="display:none; align-items:center; gap:10px; padding:8px 12px; background:var(--bg-tertiary); border-radius:8px; margin-bottom:8px; border:1px solid var(--primary);">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; font-weight:600;">
+                            <input type="checkbox" id="archive-select-all" onchange="app.archiveToggleAll(this.checked)" style="width:16px; height:16px; accent-color:var(--primary);">
+                            <span id="archive-sel-count"><span data-i18n="0 selezionati">0 selezionati</span></span>
+                        </label>
+                        <div style="flex:1;"></div>
+                        <button class="btn btn-small btn-success" id="archive-btn-dl" onclick="app.archiveBatchDownload()" data-i18n-title="Invia i selezionati al client torrent" title="Invia i selezionati al client torrent" disabled>
+                            <i class="fa-solid fa-download"></i> <span data-i18n="Scarica">Scarica</span>
+                        </button>
+                        <button class="btn btn-small btn-secondary" id="archive-btn-copy" onclick="app.archiveBatchCopy()" data-i18n-title="Copia i magnet link negli appunti" title="Copia i magnet link negli appunti" disabled>
+                            <i class="fa-regular fa-copy"></i> <span data-i18n="Copia">Copia</span>
+                        </button>
+                        <button class="btn btn-small btn-danger" id="archive-btn-del" onclick="app.archiveBatchDelete()" data-i18n-title="Elimina i selezionati dall'archivio" title="Elimina i selezionati dall'archivio" disabled>
+                            <i class="fa-solid fa-trash"></i> <span data-i18n="Elimina">Elimina</span>
+                        </button>
+                    </div>
+                    <div id="archive-list" class="data-table archive-table"></div>
+                </div>
+
+                <!-- pannello Film dal Feed -->
+                <div id="archive-panel-feed" style="display:none;">
+                    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+                        <div style="position:relative;flex:1;min-width:180px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
+                            <input id="mfs-search" type="text" class="search-input" placeholder="Filtra per titolo…" style="padding-left:2.75rem;"
+                                   oninput="app._mfsSearchKeyup(event)">
+                        </div>
+                        <span id="mfs-total" style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;"></span>
+                    </div>
+
+                    <div id="mfs-list" class="data-table archive-table">
+                        <div class="table-row table-header">
+                            <div class="mfs-col-name" style="cursor:pointer;user-select:none;" onclick="app._mfsSort('name')">
+                                Nome <span id="mfs-sort-name"></span></div>
+                            <div class="mfs-col-year" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('year')">
+                                Anno <span id="mfs-sort-year"></span></div>
+                            <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score')">
+                                Qualità <span id="mfs-sort-quality_score"></span></div>
+                            <div class="mfs-col-count" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('count')">
+                                Sorgenti <span id="mfs-sort-count"></span></div>
+                            <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at')">
+                                Trovato <span id="mfs-sort-found_at">▼</span></div>
+                            <div style="text-align:right;">Azioni</div>
+                        </div>
+                        <div id="mfs-rows"></div>
+                    </div>
+                    <div id="mfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
+                </div>
+
+                <!-- pannello Serie TV dal Feed -->
+                <div id="archive-panel-feed-series" style="display:none;">
+                    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+                        <div style="position:relative;flex:1;min-width:180px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
+                            <input id="sfs-search" type="text" class="search-input" placeholder="Filtra per titolo…" style="padding-left:2.75rem;"
+                                   oninput="app._mfsSearchKeyup(event, 'series')">
+                        </div>
+                        <span id="sfs-total" style="font-size:.8rem;color:var(--text-muted);white-space:nowrap;"></span>
+                    </div>
+
+                    <div id="sfs-list" class="data-table archive-table">
+                        <div class="table-row table-header">
+                            <div class="mfs-col-name" style="cursor:pointer;user-select:none;" onclick="app._mfsSort('name', 'series')">
+                                Nome <span id="sfs-sort-name"></span></div>
+                            <div class="mfs-col-year" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('season', 'series')">
+                                Stagione <span id="sfs-sort-season"></span></div>
+                            <div class="mfs-col-res" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('quality_score', 'series')">
+                                Qualità <span id="sfs-sort-quality_score"></span></div>
+                            <div class="mfs-col-count" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('count', 'series')">
+                                Sorgenti <span id="sfs-sort-count"></span></div>
+                            <div class="mfs-col-date" style="cursor:pointer;user-select:none;text-align:center;" onclick="app._mfsSort('found_at', 'series')">
+                                Trovato <span id="sfs-sort-found_at">▼</span></div>
+                            <div style="text-align:right;">Azioni</div>
+                        </div>
+                        <div id="sfs-rows"></div>
+                    </div>
+                    <div id="sfs-pagination" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:.75rem 0;"></div>
+                </div>
             </div>
 
             <div id="view-torrent" class="view">
