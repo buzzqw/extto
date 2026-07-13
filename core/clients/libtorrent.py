@@ -1183,7 +1183,13 @@ class LibtorrentClient:
         o DHT degradato. Se restano bloccati oltre giveup_secs (default
         @libtorrent_metadata_giveup_min, 1440min/24h), si arrende: il magnet è
         considerato morto e viene gestito da _handle_download_failure invece
-        di ri-annunciare all'infinito."""
+        di ri-annunciare all'infinito.
+
+        I torrent in pausa (auto-managed, in coda per limite active_downloads/
+        active_limit) sono esclusi: non hanno mai avuto peer/DHT, quindi il
+        tempo passato in coda non deve contare per il giveup — altrimenti un
+        torrent con tanti altri scarichi in corso verrebbe blocklistato e
+        cancellato solo perché non ha ancora avuto il suo turno."""
         if not cls.session_available():
             return
         if giveup_secs is None:
@@ -1197,7 +1203,8 @@ class LibtorrentClient:
                 s = h.status()
                 raw = str(s.state).split('.')[-1] if '.' in str(s.state) else str(s.state)
                 ih = cls._ih(h).lower()
-                if raw == 'downloading_metadata':
+                is_paused = getattr(s, 'paused', False)
+                if raw == 'downloading_metadata' and not is_paused:
                     first_seen = cls._metadata_wait_start.get(ih)
                     if first_seen is None:
                         cls._metadata_wait_start[ih] = now
@@ -1226,6 +1233,40 @@ class LibtorrentClient:
                 else:
                     cls._metadata_wait_start.pop(ih, None)
                     cls._metadata_first_seen.pop(ih, None)
+            except Exception:
+                pass
+
+    @classmethod
+    def _promote_metadata_resolution(cls):
+        """Disaccoppia la risoluzione dei metadata dalla coda di scarico dati.
+
+        Un magnet senza metadata costa solo un handshake DHT/tracker/peer —
+        niente disco, banda trascurabile — ma con active_downloads/
+        active_limit condivide lo stesso pool di slot dello scarico vero e
+        proprio. Con molti torrent in corso, un magnet può restare in pausa
+        (in coda, auto_managed) per ore senza aver mai tentato una singola
+        connessione, il che genera falsi "bloccati" (vedi _check_metadata_stuck)
+        e spreca tempo utile: se avesse potuto provare subito, i metadata
+        (nome/dimensione) sarebbero già noti.
+
+        Per ogni torrent senza metadata ancora in coda, disattiva
+        auto_managed e forza il resume, bypassando active_limit. Una volta
+        ricevuti i metadata, metadata_received_alert lo restituisce alla
+        coda normale (auto_managed ON) per la fase di scarico dati, dove
+        active_downloads torna a valere come limite reale."""
+        if not cls.session_available():
+            return
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                if s.has_metadata:
+                    continue
+                if getattr(s, 'auto_managed', False) and getattr(s, 'paused', False):
+                    try:
+                        h.unset_flags(cls._lt.torrent_flags.auto_managed)
+                    except AttributeError:
+                        h.auto_managed(False)
+                    h.resume()
             except Exception:
                 pass
 
@@ -1439,11 +1480,13 @@ class LibtorrentClient:
         FILTER_INTERVAL  = 3600   # controlla ogni ora se aggiornare
         META_INTERVAL    = 600    # controlla torrent bloccati in metadata ogni 10min
         STALL_INTERVAL   = 300    # controlla download stallati/in errore ogni 5min
+        PROMOTE_INTERVAL = 30     # promuove magnet senza metadata fuori dalla coda ogni 30s
         last_auto_save   = time.time()
         last_sched_check = time.time()
         last_filter_chk  = time.time()
         last_meta_chk    = time.time()
         last_stall_chk   = time.time()
+        last_promote_chk = time.time()
 
         while cls._running:
             try:
@@ -1464,6 +1507,9 @@ class LibtorrentClient:
                 if now - last_stall_chk > STALL_INTERVAL:
                     cls._check_stalled_downloads()
                     last_stall_chk = now
+                if now - last_promote_chk > PROMOTE_INTERVAL:
+                    cls._promote_metadata_resolution()
+                    last_promote_chk = now
 
                 if cls._session:
                     cls._session.post_torrent_updates()
@@ -1554,6 +1600,17 @@ class LibtorrentClient:
 
                                     # Forza subito un save_resume_data con i metadati ora disponibili
                                     _mh.save_resume_data()
+
+                                    # Restituisce il torrent alla coda normale: fino ad ora
+                                    # potrebbe essere stato forzato fuori da auto_managed da
+                                    # _promote_metadata_resolution() per risolvere i metadata
+                                    # senza aspettare uno slot in active_limit. Da qui in poi è
+                                    # la fase di scarico dati vera e propria, che deve tornare
+                                    # sotto il controllo di active_downloads/active_limit.
+                                    try:
+                                        _mh.set_flags(cls._lt.torrent_flags.auto_managed)
+                                    except AttributeError:
+                                        _mh.auto_managed(True)
                             except Exception as _me:
                                 logger.debug(f"metadata_received save: {_me}")
 
