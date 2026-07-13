@@ -3493,6 +3493,7 @@ const app = {
         this._setToggle('lt-dynamic-queue', get('dynamic_queue', 'no'));
         set('lt-dynamic-queue-min', get('dynamic_queue_min', '1'));
         set('lt-dynamic-queue-max', get('dynamic_queue_max', '10'));
+        this.toggleDynamicQueue();
         this._setToggle('lt-preallocate', get('preallocate', 'no'));
         this._setToggle('lt-disable-cow', get('disable_copy_on_write', 'no'));
 
@@ -3590,6 +3591,17 @@ const app = {
         const i = document.getElementById('lt-ramdisk-info');
         if (s) { s.style.display = 'none'; s.innerHTML = ''; }
         if (i)   i.style.display = 'none';
+    },
+
+    toggleDynamicQueue() {
+        const dqEl = document.getElementById('lt-dynamic-queue');
+        const enabled = dqEl ? dqEl.checked : false;
+        ['lt-active-downloads', 'lt-active-seeds', 'lt-active-limit'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = enabled;
+        });
+        const hint = document.getElementById('lt-static-queue-hint');
+        if (hint) hint.classList.toggle('hidden', !enabled);
     },
 
     async checkRamdisk() {

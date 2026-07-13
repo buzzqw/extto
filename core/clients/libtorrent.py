@@ -49,6 +49,8 @@ class LibtorrentClient:
     _dq_rate_samples: list = []       # [(time(), aggregate_rate_bytes_s)] finestra mobile 10min
     _dq_last_change: float = 0.0      # time() dell'ultima modifica a active_downloads (cooldown)
     _dq_was_enabled: bool = False     # True se libtorrent_dynamic_queue era attivo all'ultimo giro
+    _dq_seed_state: bool = None       # has_priority_download all'ultimo giro (per lo stability check su active_seeds)
+    _dq_seed_state_since: float = 0.0 # time() da cui _dq_seed_state non cambia
 
     _ENC_MAP = {
         '0': 0, '1': 1, '2': 2,
@@ -1481,26 +1483,36 @@ class LibtorrentClient:
 
     @classmethod
     def _adjust_dynamic_queue(cls):
-        """Regola dinamicamente `active_downloads` in base alla saturazione
-        della banda che HAI impostato (`download_rate_limit`, non una banda
-        "reale" misurata) e alla disponibilità di fonti tra i torrent in
-        coda. Attivo solo con `libtorrent_dynamic_queue=yes`; altrimenti
-        `active_downloads` resta il valore statico configurato.
+        """Regola dinamicamente `active_downloads`, `active_seeds` e
+        `active_limit` insieme — non ha senso alzare gli slot di download se
+        il tetto totale (`active_limit`) resta basso e li ricaccia indietro.
+        Attivo solo con `libtorrent_dynamic_queue=yes`; altrimenti tutti e
+        tre restano ai valori statici configurati (`Max download/upload
+        attivi`, `Max totali` in UI — quei campi diventano solo il "punto di
+        partenza" quando la coda dinamica è attiva, vedi `toggleDynamicQueue`
+        in app.js che li disabilita in UI per non creare confusione).
 
-        - Se hai un tetto di banda configurato: guarda il rate aggregato
-          reale (media mobile 10min, non il singolo campione) contro quel
-          tetto. Se sei sopra il 90% per un po', più slot non aiuterebbero
-          — anzi diluirebbero la banda — quindi riduce. Se sei sotto il
-          50% e ci sono torrent in coda con fonti reali (peer/seed) non
-          sfruttate, aumenta per lasciarli competere per la banda libera.
-        - Se non hai un tetto (banda illimitata): non c'è nulla da saturare,
-          quindi l'unico segnale utile è la disponibilità di fonti in coda
-          — aumenta se ce ne sono, non tocca altrimenti (non riduce mai in
-          assenza di segnale di sovraccarico, che qui non può esistere).
+        - `active_downloads`: guarda il rate aggregato (media mobile 10min)
+          contro `download_rate_limit` che HAI impostato (non una banda
+          "reale" misurata). Sopra il 90% per un po' → riduce (più slot
+          diluirebbero solo la banda). Sotto il 50% con torrent in coda che
+          hanno fonti reali non sfruttate → aumenta. Banda illimitata →
+          aumenta solo se ci sono fonti in coda, non riduce mai (nessun
+          segnale di sovraccarico possibile).
+        - `active_seeds`: se c'è almeno un download prioritario in corso
+          (tier 0, rate>0 — stesso segnale di `_allocate_torrent_resources`),
+          scende a 1 (il seeding può aspettare); altrimenti torna al valore
+          statico configurato. Richiede che lo stato sia stabile da almeno
+          2 controlli (~180s) prima di cambiare, per non fermare/riavviare i
+          seed ad ogni giro.
+        - `active_limit`: sempre ricalcolato come
+          `max(valore statico configurato, active_downloads + active_seeds + 2)`
+          — non scende mai sotto quanto configurato dall'utente, ma sale se
+          serve per non essere lui stesso il collo di bottiglia invece dei
+          due limiti sopra.
 
-        Cambia al massimo un valore ogni 5 minuti (cooldown) e solo dopo
-        almeno 3 campioni nella finestra mobile, per non rincorrere singoli
-        picchi/cali momentanei."""
+        Il valore live non viene mai scritto nel DB: al prossimo riavvio del
+        ciclo (~2h) si riparte sempre dai valori statici configurati."""
         if not cls.session_available():
             return
         try:
@@ -1514,22 +1526,30 @@ class LibtorrentClient:
             dq_max = max(dq_min, int(cfg.get('libtorrent_dynamic_queue_max', 10)))
         except Exception:
             dq_min, dq_max = 1, 10
+        try:
+            static_seeds = max(1, int(cfg.get('libtorrent_active_seeds', 3)))
+        except Exception:
+            static_seeds = 3
+        try:
+            static_limit = max(1, int(cfg.get('libtorrent_active_limit', 5)))
+        except Exception:
+            static_limit = 5
 
         s = cls._session
         try:
             settings = s.get_settings()
         except Exception:
             return
-        ceiling = int(settings.get('download_rate_limit', 0) or 0)
-        current = int(settings.get('active_downloads', dq_min) or dq_min)
+        ceiling        = int(settings.get('download_rate_limit', 0) or 0)
+        current_dl     = int(settings.get('active_downloads', dq_min) or dq_min)
+        current_seeds  = int(settings.get('active_seeds', static_seeds) or static_seeds)
+        current_limit  = int(settings.get('active_limit', static_limit) or static_limit)
 
         now = time.time()
-        COOLDOWN = 300
-        if now - cls._dq_last_change < COOLDOWN:
-            return
 
         aggregate_rate = 0
         queued_with_sources = 0
+        has_priority_download = False
         for h in s.get_torrents():
             try:
                 st = h.status()
@@ -1539,38 +1559,64 @@ class LibtorrentClient:
                     if int(getattr(st, 'num_peers', 0)) + int(getattr(st, 'num_seeds', 0)) > 0:
                         queued_with_sources += 1
                 else:
-                    aggregate_rate += getattr(st, 'download_payload_rate', getattr(st, 'download_rate', 0))
+                    rate = getattr(st, 'download_payload_rate', getattr(st, 'download_rate', 0))
+                    aggregate_rate += rate
+                    if rate > 0:
+                        has_priority_download = True
             except Exception:
                 pass
 
-        new_value = current
-        if ceiling > 0:
-            cls._dq_rate_samples.append((now, aggregate_rate))
-            cls._dq_rate_samples[:] = [(t, r) for t, r in cls._dq_rate_samples if now - t <= 600]
-            if len(cls._dq_rate_samples) < 3:
-                return
-            avg_rate = sum(r for _, r in cls._dq_rate_samples) / len(cls._dq_rate_samples)
-            ratio = avg_rate / ceiling
-            if ratio >= 0.9 and current > dq_min:
-                new_value = current - 1
-            elif ratio <= 0.5 and queued_with_sources > 0 and current < dq_max:
-                new_value = current + 1
-        else:
-            if queued_with_sources > 0 and current < dq_max:
-                new_value = current + 1
+        # --- active_downloads: solo se il cooldown di 5min è scaduto ---
+        new_dl = current_dl
+        if now - cls._dq_last_change >= 300:
+            if ceiling > 0:
+                cls._dq_rate_samples.append((now, aggregate_rate))
+                cls._dq_rate_samples[:] = [(t, r) for t, r in cls._dq_rate_samples if now - t <= 600]
+                if len(cls._dq_rate_samples) >= 3:
+                    avg_rate = sum(r for _, r in cls._dq_rate_samples) / len(cls._dq_rate_samples)
+                    ratio = avg_rate / ceiling
+                    if ratio >= 0.9 and current_dl > dq_min:
+                        new_dl = current_dl - 1
+                    elif ratio <= 0.5 and queued_with_sources > 0 and current_dl < dq_max:
+                        new_dl = current_dl + 1
+            else:
+                if queued_with_sources > 0 and current_dl < dq_max:
+                    new_dl = current_dl + 1
 
-        if new_value != current:
+        # --- active_seeds: richiede stabilità ~180s prima di cambiare ---
+        new_seeds = current_seeds
+        prev_state = getattr(cls, '_dq_seed_state', None)
+        if prev_state != has_priority_download:
+            cls._dq_seed_state = has_priority_download
+            cls._dq_seed_state_since = now
+        elif now - getattr(cls, '_dq_seed_state_since', now) >= 180:
+            new_seeds = 1 if has_priority_download else static_seeds
+
+        # --- active_limit: mai sotto lo statico, alzato se serve. Scende solo
+        # negli stessi cicli in cui scendono davvero downloads o seeds (già
+        # protetti da cooldown/stabilità sopra) — mai di propria iniziativa,
+        # anche se qualcos'altro lo avesse alzato oltre il necessario nel
+        # frattempo: evita di rimettere in pausa torrent attivi a sorpresa. ---
+        new_limit = max(static_limit, new_dl + new_seeds + 2)
+        if new_dl >= current_dl and new_seeds >= current_seeds:
+            new_limit = max(new_limit, current_limit)
+
+        if (new_dl, new_seeds, new_limit) != (current_dl, current_seeds, current_limit):
+            payload = {'active_downloads': int(new_dl), 'active_seeds': int(new_seeds), 'active_limit': int(new_limit)}
             try:
-                s.apply_settings({'active_downloads': int(new_value)})
+                s.apply_settings(payload)
             except Exception:
                 ss = s.get_settings()
-                ss['active_downloads'] = int(new_value)
+                ss.update(payload)
                 s.apply_settings(ss)
             logger.info(
-                f"📊 Coda dinamica: active_downloads {current} → {new_value} "
-                f"(tetto={ceiling}B/s, rate medio={int(aggregate_rate)}B/s, in coda con fonti={queued_with_sources})"
+                f"📊 Auto-gestione: active_downloads {current_dl}→{new_dl}, "
+                f"active_seeds {current_seeds}→{new_seeds}, active_limit {current_limit}→{new_limit} "
+                f"(tetto={ceiling}B/s, rate medio={int(aggregate_rate)}B/s, in coda con fonti={queued_with_sources}, "
+                f"download prioritario={has_priority_download})"
             )
-            cls._dq_last_change = now
+            if new_dl != current_dl:
+                cls._dq_last_change = now
 
     @classmethod
     def _check_stalled_downloads(cls, stall_timeout_secs: int = None):
