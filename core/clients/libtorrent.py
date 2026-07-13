@@ -45,6 +45,7 @@ class LibtorrentClient:
     _metadata_wait_start: dict = {}   # ih → time() dell'ultimo reannounce (retry timer)
     _metadata_first_seen: dict = {}   # ih → time() quando downloading_metadata è iniziato (per giveup)
     _stall_wait_start: dict = {}      # ih → time() da cui il download risulta a 0 rate/0 peer
+    _active_since: dict = {}          # ih → time() da cui è uscito dalla pausa (slot minimo anti-thrashing)
 
     _ENC_MAP = {
         '0': 0, '1': 1, '2': 2,
@@ -1271,6 +1272,102 @@ class LibtorrentClient:
                 pass
 
     @classmethod
+    def _prioritize_near_completion(cls):
+        """Riordina la coda di libtorrent per dare priorità a chi finirà prima,
+        non solo a chi è più completo.
+
+        Di default libtorrent ordina la coda (queue_position) per ordine di
+        aggiunta: un torrent aggiunto prima ma fermo al 13% resta davanti
+        nella coda a uno aggiunto dopo ma già al 93%, che viene messo in
+        pausa "In Coda (DL)" invece di essere lasciato finire. Ma il solo
+        progress è un criterio ingannevole: un torrent al 93% senza seed
+        reali non finirà mai, mentre uno al 60% con molte fonti attive può
+        completarsi in pochi minuti — serve un criterio che consideri anche
+        la salute dello swarm (seed/peer, velocità reale), non solo quanto
+        manca.
+
+        Tre livelli di priorità (peggiore → migliore, così l'ultimo spostato
+        con queue_position_top() è il migliore e resta in cima):
+          2) nessuna fonte nota (0 peer, 0 seed) — non si sa se/quando
+             ripartirà, priorità minima, a parità solo su remaining crescente
+          1) fonti disponibili ma rate=0 ora (in coda/choked) — ordinato per
+             bytes rimanenti pesati sul numero di fonti (meno resta e più
+             fonti ci sono, meglio è)
+          0) sta scaricando davvero (rate>0) — ordinato per ETA reale
+             (remaining/rate): chi finisce prima vince, indipendentemente
+             dal progress assoluto
+
+        Anti-thrashing: un torrent appena uscito dalla pausa (ha ottenuto
+        uno slot attivo) resta protetto per almeno MIN_ACTIVE_SECS (10min)
+        prima di poter essere ripreso in coda da un altro, anche se nel
+        frattempo qualcun altro ottiene un badness migliore — altrimenti il
+        riordino ogni 60s farebbe continuamente pausa/resume di torrent che
+        non hanno ancora avuto il tempo di dimostrare se stanno progredendo."""
+        MIN_ACTIVE_SECS = 600
+        if not cls.session_available():
+            return
+        now = time.time()
+        live_ih = set()
+        candidates = []
+        protected = []
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                ih = cls._ih(h).lower()
+                live_ih.add(ih)
+                if not s.has_metadata:
+                    continue
+                if getattr(s, 'is_seeding', False) or getattr(s, 'is_finished', False):
+                    continue
+                progress = float(getattr(s, 'progress', 0))
+                if progress >= 1.0:
+                    continue
+
+                is_paused = getattr(s, 'paused', False)
+                if is_paused:
+                    cls._active_since.pop(ih, None)
+                else:
+                    since = cls._active_since.setdefault(ih, now)
+                    if (now - since) < MIN_ACTIVE_SECS:
+                        protected.append(h)
+                        continue
+
+                remaining = max(int(getattr(s, 'total_wanted', 0)) - int(getattr(s, 'total_wanted_done', 0)), 0)
+                dl_rate   = getattr(s, 'download_payload_rate', getattr(s, 'download_rate', 0))
+                num_peers = int(getattr(s, 'num_peers', 0))
+                num_seeds = int(getattr(s, 'num_seeds', 0))
+                sources   = num_peers + num_seeds
+
+                if dl_rate > 0:
+                    badness = (0, remaining / dl_rate)
+                elif sources > 0:
+                    badness = (1, remaining / (1 + sources))
+                else:
+                    badness = (2, remaining)
+                candidates.append((badness, h))
+            except Exception:
+                pass
+
+        # Pulizia timer per torrent non più presenti in sessione
+        for ih in list(cls._active_since.keys()):
+            if ih not in live_ih:
+                cls._active_since.pop(ih, None)
+
+        # Peggiore prima, poi i protetti in cima (restano sopra a chiunque
+        # altro indipendentemente dal badness, finché dura la protezione).
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        for _, h in candidates:
+            try:
+                h.queue_position_top()
+            except Exception:
+                pass
+        for h in protected:
+            try:
+                h.queue_position_top()
+            except Exception:
+                pass
+
+    @classmethod
     def _check_stalled_downloads(cls, stall_timeout_secs: int = None):
         """Rileva download stallati (metadata già ricevuti, progress<100%,
         download_rate=0 e num_peers=0 in modo continuativo oltre
@@ -1481,12 +1578,14 @@ class LibtorrentClient:
         META_INTERVAL    = 600    # controlla torrent bloccati in metadata ogni 10min
         STALL_INTERVAL   = 300    # controlla download stallati/in errore ogni 5min
         PROMOTE_INTERVAL = 30     # promuove magnet senza metadata fuori dalla coda ogni 30s
+        PRIORITY_INTERVAL = 60    # riordina la coda per vicinanza al completamento ogni 60s
         last_auto_save   = time.time()
         last_sched_check = time.time()
         last_filter_chk  = time.time()
         last_meta_chk    = time.time()
         last_stall_chk   = time.time()
         last_promote_chk = time.time()
+        last_priority_chk = time.time()
 
         while cls._running:
             try:
@@ -1510,6 +1609,9 @@ class LibtorrentClient:
                 if now - last_promote_chk > PROMOTE_INTERVAL:
                     cls._promote_metadata_resolution()
                     last_promote_chk = now
+                if now - last_priority_chk > PRIORITY_INTERVAL:
+                    cls._prioritize_near_completion()
+                    last_priority_chk = now
 
                 if cls._session:
                     cls._session.post_torrent_updates()
