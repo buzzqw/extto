@@ -96,7 +96,17 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 
 ---
 
-## Stato attuale del progetto (v50)
+## Stato attuale del progetto (v51)
+
+### v51 — Coda libtorrent: fix giveup, priorità per ETA, coda dinamica (13 Luglio 2026)
+
+Sessione nata dall'analisi dei tanti torrent fermi in "Attesa Metadati": non erano bloccati, erano in coda dietro al limite `active_downloads`/`active_limit` — ma il codice non distingueva "in coda" da "davvero bloccato".
+
+- **`_check_metadata_stuck()` fix** (`core/clients/libtorrent.py`): il timer di giveup (24h, poi blocklist + cancellazione) contava anche il tempo passato in pausa/coda. Un magnet in coda per il suo turno poteva finire cancellato solo perché non aveva ancora avuto la possibilità di provare. Ora `raw == 'downloading_metadata' and not is_paused`.
+- **`_promote_metadata_resolution()`** (nuova, ogni 30s): i torrent senza metadata ancora in coda vengono forzati fuori da `auto_managed`/`paused` per tentare subito DHT/tracker (costa pochissimo), bypassando `active_limit`. Tornano alla coda normale (`auto_managed=True`) quando arrivano i metadata.
+- **`_prioritize_near_completion()`** (nuova, ogni 60s): la coda di libtorrent ordina per ordine di aggiunta, non per completamento — un torrent al 93% restava in pausa dietro uno al 13%. Ora riordina per 3 tier di "badness" (0=sta scaricando→ETA reale, 1=ha fonti ma fermo→remaining/fonti, 2=nessuna fonte→remaining). Protezione anti-thrashing: un torrent appena attivato resta protetto 10min (`_active_since`) prima di poter essere ripreso in coda.
+- **Coda dinamica** (opt-in, `libtorrent_dynamic_queue=yes` + UI in Configurazione → Libtorrent → "Coda Dinamica"): `_adjust_dynamic_queue()` (ogni 90s) regola `active_downloads` live (non persistito) tra `dynamic_queue_min`/`max` in base al rate aggregato vs `download_rate_limit` configurato — non una banda "reale" misurata, il tetto che imposta l'utente. `_allocate_torrent_resources()` distribuisce connessioni/slot upload/banda per-torrent pesati per tier invece del pool globale condiviso senza criterio, e riduce gli slot upload dei seed quando c'è un download prioritario in corso. `_reset_torrent_resource_overrides()` ripristina i default quando il toggle viene disattivato.
+- **UI**: nuova sezione "Coda Dinamica" in `templates/index.html` (toggle + slot min/max, tooltip esteso) e campi corrispondenti in `static/js/app.js` (`saveLtSettings()`, `saveAllConfig()`, caricamento form).
 
 ### v50 — Smart Gap Fill · Webhook · Alias RSS · Parser fix (24 Maggio 2026)
 

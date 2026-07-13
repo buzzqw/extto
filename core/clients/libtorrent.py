@@ -46,6 +46,9 @@ class LibtorrentClient:
     _metadata_first_seen: dict = {}   # ih → time() quando downloading_metadata è iniziato (per giveup)
     _stall_wait_start: dict = {}      # ih → time() da cui il download risulta a 0 rate/0 peer
     _active_since: dict = {}          # ih → time() da cui è uscito dalla pausa (slot minimo anti-thrashing)
+    _dq_rate_samples: list = []       # [(time(), aggregate_rate_bytes_s)] finestra mobile 10min
+    _dq_last_change: float = 0.0      # time() dell'ultima modifica a active_downloads (cooldown)
+    _dq_was_enabled: bool = False     # True se libtorrent_dynamic_queue era attivo all'ultimo giro
 
     _ENC_MAP = {
         '0': 0, '1': 1, '2': 2,
@@ -1302,14 +1305,19 @@ class LibtorrentClient:
         prima di poter essere ripreso in coda da un altro, anche se nel
         frattempo qualcun altro ottiene un badness migliore — altrimenti il
         riordino ogni 60s farebbe continuamente pausa/resume di torrent che
-        non hanno ancora avuto il tempo di dimostrare se stanno progredendo."""
+        non hanno ancora avuto il tempo di dimostrare se stanno progredendo.
+
+        Se `libtorrent_dynamic_queue` è attivo, nella stessa passata (stesso
+        tier già calcolato, nessun giro doppio) chiama anche
+        `_allocate_torrent_resources()` per distribuire connessioni/slot
+        upload/banda per-torrent in base al tier — vedi quella funzione per
+        il dettaglio. Se il flag viene disattivato, ripristina i default."""
         MIN_ACTIVE_SECS = 600
         if not cls.session_available():
             return
         now = time.time()
         live_ih = set()
-        candidates = []
-        protected = []
+        scored = []   # (badness, h, ih, is_paused) — tier = badness[0]
         for h in cls._session.get_torrents():
             try:
                 s = h.status()
@@ -1323,15 +1331,6 @@ class LibtorrentClient:
                 if progress >= 1.0:
                     continue
 
-                is_paused = getattr(s, 'paused', False)
-                if is_paused:
-                    cls._active_since.pop(ih, None)
-                else:
-                    since = cls._active_since.setdefault(ih, now)
-                    if (now - since) < MIN_ACTIVE_SECS:
-                        protected.append(h)
-                        continue
-
                 remaining = max(int(getattr(s, 'total_wanted', 0)) - int(getattr(s, 'total_wanted_done', 0)), 0)
                 dl_rate   = getattr(s, 'download_payload_rate', getattr(s, 'download_rate', 0))
                 num_peers = int(getattr(s, 'num_peers', 0))
@@ -1344,7 +1343,9 @@ class LibtorrentClient:
                     badness = (1, remaining / (1 + sources))
                 else:
                     badness = (2, remaining)
-                candidates.append((badness, h))
+
+                is_paused = getattr(s, 'paused', False)
+                scored.append((badness, h, ih, is_paused))
             except Exception:
                 pass
 
@@ -1352,6 +1353,20 @@ class LibtorrentClient:
         for ih in list(cls._active_since.keys()):
             if ih not in live_ih:
                 cls._active_since.pop(ih, None)
+
+        # --- Riordino coda (sempre attivo, indipendente dalla coda dinamica) ---
+        candidates = []
+        protected = []
+        for badness, h, ih, is_paused in scored:
+            if is_paused:
+                cls._active_since.pop(ih, None)
+                candidates.append((badness, h))
+            else:
+                since = cls._active_since.setdefault(ih, now)
+                if (now - since) < MIN_ACTIVE_SECS:
+                    protected.append(h)
+                else:
+                    candidates.append((badness, h))
 
         # Peggiore prima, poi i protetti in cima (restano sopra a chiunque
         # altro indipendentemente dal badness, finché dura la protezione).
@@ -1366,6 +1381,196 @@ class LibtorrentClient:
                 h.queue_position_top()
             except Exception:
                 pass
+
+        # --- Allocazione risorse per-torrent (solo con coda dinamica attiva) ---
+        try:
+            cfg = cls._load_full_cfg()
+        except Exception:
+            cfg = {}
+        dynamic_on = str(cfg.get('libtorrent_dynamic_queue', 'no')).lower() in ('yes', 'true', '1')
+        if dynamic_on:
+            cls._allocate_torrent_resources(scored)
+            cls._dq_was_enabled = True
+        elif cls._dq_was_enabled:
+            cls._reset_torrent_resource_overrides()
+            cls._dq_was_enabled = False
+
+    @classmethod
+    def _allocate_torrent_resources(cls, scored):
+        """Distribuisce connessioni, slot upload e banda tra i torrent attivi
+        (non in pausa) in base al tier di priorità già calcolato da
+        `_prioritize_near_completion` (0=sta scaricando, 1=ha fonti ma è
+        fermo, 2=nessuna fonte nota). Attivo solo con
+        `libtorrent_dynamic_queue=yes`.
+
+        Motivo: `connections_limit`/`unchoke_slots_limit` in libtorrent sono
+        solo globali — i torrent se li contendono senza criterio. Con molti
+        torrent attivi insieme, uno che sta per finire (tier 0, ETA basso)
+        merita più connessioni/banda di uno appena partito o senza fonti,
+        non una fetta uguale per tutti.
+
+        I torrent in seeding vengono limitati a pochi slot upload quando
+        c'è almeno un download tier 0 in corso — il seeding può aspettare,
+        un download quasi completo no."""
+        WEIGHTS = {0: 3, 1: 2, 2: 1}
+        MIN_CONN  = 10
+        MIN_SLOTS = 2
+        active = [(badness[0], h) for badness, h, ih, is_paused in scored if not is_paused]
+        if not active:
+            return
+        try:
+            settings = cls._session.get_settings()
+        except Exception:
+            return
+        conn_limit  = int(settings.get('connections_limit', 200) or 200)
+        slots_limit = int(settings.get('unchoke_slots_limit', 4) or 4)
+        dl_ceiling  = int(settings.get('download_rate_limit', 0) or 0)
+
+        total_weight = sum(WEIGHTS.get(t, 1) for t, _ in active)
+        if total_weight <= 0:
+            return
+
+        # Riserva il 70% delle connessioni/slot globali a questo gruppo (il
+        # resto resta per seeding, risoluzione metadata, DHT), con un minimo
+        # per torrent così nessuno resta completamente a secco.
+        available_conn  = max(int(conn_limit * 0.7), MIN_CONN * len(active))
+        available_slots = max(int(slots_limit * 0.7), MIN_SLOTS * len(active))
+
+        has_priority_download = any(t == 0 for t, _ in active)
+
+        for tier, h in active:
+            share = WEIGHTS.get(tier, 1) / total_weight
+            try:
+                h.set_max_connections(max(MIN_CONN, int(available_conn * share)))
+            except Exception:
+                pass
+            try:
+                h.set_max_uploads(max(MIN_SLOTS, int(available_slots * share)))
+            except Exception:
+                pass
+            try:
+                h.set_download_limit(max(1024, int(dl_ceiling * share)) if dl_ceiling > 0 else 0)
+            except Exception:
+                pass
+
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                if not (s.is_seeding or s.is_finished):
+                    continue
+                h.set_max_uploads(2 if has_priority_download else -1)
+            except Exception:
+                pass
+
+    @classmethod
+    def _reset_torrent_resource_overrides(cls):
+        """Ripristina connessioni/slot upload/banda per-torrent ai default
+        (nessun override, gestione solo dai settaggi globali) quando
+        `libtorrent_dynamic_queue` viene disattivato — altrimenti gli ultimi
+        valori assegnati resterebbero attivi indefinitamente."""
+        if not cls.session_available():
+            return
+        for h in cls._session.get_torrents():
+            try:
+                h.set_max_connections(-1)
+                h.set_max_uploads(-1)
+                h.set_download_limit(0)
+            except Exception:
+                pass
+        logger.info("🔧 Coda dinamica disattivata: limiti per-torrent ripristinati ai default globali")
+
+    @classmethod
+    def _adjust_dynamic_queue(cls):
+        """Regola dinamicamente `active_downloads` in base alla saturazione
+        della banda che HAI impostato (`download_rate_limit`, non una banda
+        "reale" misurata) e alla disponibilità di fonti tra i torrent in
+        coda. Attivo solo con `libtorrent_dynamic_queue=yes`; altrimenti
+        `active_downloads` resta il valore statico configurato.
+
+        - Se hai un tetto di banda configurato: guarda il rate aggregato
+          reale (media mobile 10min, non il singolo campione) contro quel
+          tetto. Se sei sopra il 90% per un po', più slot non aiuterebbero
+          — anzi diluirebbero la banda — quindi riduce. Se sei sotto il
+          50% e ci sono torrent in coda con fonti reali (peer/seed) non
+          sfruttate, aumenta per lasciarli competere per la banda libera.
+        - Se non hai un tetto (banda illimitata): non c'è nulla da saturare,
+          quindi l'unico segnale utile è la disponibilità di fonti in coda
+          — aumenta se ce ne sono, non tocca altrimenti (non riduce mai in
+          assenza di segnale di sovraccarico, che qui non può esistere).
+
+        Cambia al massimo un valore ogni 5 minuti (cooldown) e solo dopo
+        almeno 3 campioni nella finestra mobile, per non rincorrere singoli
+        picchi/cali momentanei."""
+        if not cls.session_available():
+            return
+        try:
+            cfg = cls._load_full_cfg()
+        except Exception:
+            return
+        if str(cfg.get('libtorrent_dynamic_queue', 'no')).lower() not in ('yes', 'true', '1'):
+            return
+        try:
+            dq_min = max(1, int(cfg.get('libtorrent_dynamic_queue_min', 1)))
+            dq_max = max(dq_min, int(cfg.get('libtorrent_dynamic_queue_max', 10)))
+        except Exception:
+            dq_min, dq_max = 1, 10
+
+        s = cls._session
+        try:
+            settings = s.get_settings()
+        except Exception:
+            return
+        ceiling = int(settings.get('download_rate_limit', 0) or 0)
+        current = int(settings.get('active_downloads', dq_min) or dq_min)
+
+        now = time.time()
+        COOLDOWN = 300
+        if now - cls._dq_last_change < COOLDOWN:
+            return
+
+        aggregate_rate = 0
+        queued_with_sources = 0
+        for h in s.get_torrents():
+            try:
+                st = h.status()
+                if not st.has_metadata or st.is_seeding or st.is_finished:
+                    continue
+                if st.paused:
+                    if int(getattr(st, 'num_peers', 0)) + int(getattr(st, 'num_seeds', 0)) > 0:
+                        queued_with_sources += 1
+                else:
+                    aggregate_rate += getattr(st, 'download_payload_rate', getattr(st, 'download_rate', 0))
+            except Exception:
+                pass
+
+        new_value = current
+        if ceiling > 0:
+            cls._dq_rate_samples.append((now, aggregate_rate))
+            cls._dq_rate_samples[:] = [(t, r) for t, r in cls._dq_rate_samples if now - t <= 600]
+            if len(cls._dq_rate_samples) < 3:
+                return
+            avg_rate = sum(r for _, r in cls._dq_rate_samples) / len(cls._dq_rate_samples)
+            ratio = avg_rate / ceiling
+            if ratio >= 0.9 and current > dq_min:
+                new_value = current - 1
+            elif ratio <= 0.5 and queued_with_sources > 0 and current < dq_max:
+                new_value = current + 1
+        else:
+            if queued_with_sources > 0 and current < dq_max:
+                new_value = current + 1
+
+        if new_value != current:
+            try:
+                s.apply_settings({'active_downloads': int(new_value)})
+            except Exception:
+                ss = s.get_settings()
+                ss['active_downloads'] = int(new_value)
+                s.apply_settings(ss)
+            logger.info(
+                f"📊 Coda dinamica: active_downloads {current} → {new_value} "
+                f"(tetto={ceiling}B/s, rate medio={int(aggregate_rate)}B/s, in coda con fonti={queued_with_sources})"
+            )
+            cls._dq_last_change = now
 
     @classmethod
     def _check_stalled_downloads(cls, stall_timeout_secs: int = None):
@@ -1579,6 +1784,7 @@ class LibtorrentClient:
         STALL_INTERVAL   = 300    # controlla download stallati/in errore ogni 5min
         PROMOTE_INTERVAL = 30     # promuove magnet senza metadata fuori dalla coda ogni 30s
         PRIORITY_INTERVAL = 60    # riordina la coda per vicinanza al completamento ogni 60s
+        DYNQUEUE_INTERVAL = 90    # regola active_downloads in base a banda/fonti ogni 90s
         last_auto_save   = time.time()
         last_sched_check = time.time()
         last_filter_chk  = time.time()
@@ -1586,6 +1792,7 @@ class LibtorrentClient:
         last_stall_chk   = time.time()
         last_promote_chk = time.time()
         last_priority_chk = time.time()
+        last_dynqueue_chk = time.time()
 
         while cls._running:
             try:
@@ -1612,6 +1819,9 @@ class LibtorrentClient:
                 if now - last_priority_chk > PRIORITY_INTERVAL:
                     cls._prioritize_near_completion()
                     last_priority_chk = now
+                if now - last_dynqueue_chk > DYNQUEUE_INTERVAL:
+                    cls._adjust_dynamic_queue()
+                    last_dynqueue_chk = now
 
                 if cls._session:
                     cls._session.post_torrent_updates()

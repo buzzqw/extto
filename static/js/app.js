@@ -1968,6 +1968,9 @@ const app = {
             libtorrent_active_limit: v('lt-active-limit'),
             libtorrent_slow_dl_threshold: v('lt-slow-dl'),
             libtorrent_slow_ul_threshold: v('lt-slow-ul'),
+            libtorrent_dynamic_queue: tg('lt-dynamic-queue'),
+            libtorrent_dynamic_queue_min: v('lt-dynamic-queue-min') || '1',
+            libtorrent_dynamic_queue_max: v('lt-dynamic-queue-max') || '10',
             libtorrent_preallocate: tg('lt-preallocate'),
             libtorrent_disable_cow:        tg('lt-disable-cow'),
             libtorrent_cache_size:         v('lt-cache-size')     || '0',
@@ -3487,6 +3490,9 @@ const app = {
         set('lt-active-limit',     get('active_limit', '5'));
         set('lt-slow-dl',          get('slow_dl_threshold', '2'));
         set('lt-slow-ul',          get('slow_ul_threshold', '2'));
+        this._setToggle('lt-dynamic-queue', get('dynamic_queue', 'no'));
+        set('lt-dynamic-queue-min', get('dynamic_queue_min', '1'));
+        set('lt-dynamic-queue-max', get('dynamic_queue_max', '10'));
         this._setToggle('lt-preallocate', get('preallocate', 'no'));
         this._setToggle('lt-disable-cow', get('disable_copy_on_write', 'no'));
 
@@ -3681,6 +3687,9 @@ const app = {
             libtorrent_active_limit:       v('lt-active-limit'),
             libtorrent_slow_dl_threshold:  v('lt-slow-dl'),
             libtorrent_slow_ul_threshold:  v('lt-slow-ul'),
+            libtorrent_dynamic_queue:      tg('lt-dynamic-queue'),
+            libtorrent_dynamic_queue_min:  v('lt-dynamic-queue-min') || '1',
+            libtorrent_dynamic_queue_max:  v('lt-dynamic-queue-max') || '10',
             libtorrent_preallocate:        tg('lt-preallocate'),
             libtorrent_disable_cow:        tg('lt-disable-cow'),
             libtorrent_encryption:         v('lt-encryption'),
