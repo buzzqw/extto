@@ -44,6 +44,7 @@ class LibtorrentClient:
     _ui_state_prev: dict = {}         # snapshot UI precedente per change-detection
     _metadata_wait_start: dict = {}   # ih → time() dell'ultimo reannounce (retry timer)
     _metadata_first_seen: dict = {}   # ih → time() quando downloading_metadata è iniziato (per giveup)
+    _metadata_last_logged: dict = {}  # ih → time() dell'ultimo warning "stuck" loggato (throttle log, reannounce resta ogni 10min)
     _stall_wait_start: dict = {}      # ih → time() da cui il download risulta a 0 rate/0 peer
     _active_since: dict = {}          # ih → time() da cui è uscito dalla pausa (slot minimo anti-thrashing)
     _dq_rate_samples: list = []       # [(time(), aggregate_rate_bytes_s)] finestra mobile 10min
@@ -1195,7 +1196,13 @@ class LibtorrentClient:
         active_limit) sono esclusi: non hanno mai avuto peer/DHT, quindi il
         tempo passato in coda non deve contare per il giveup — altrimenti un
         torrent con tanti altri scarichi in corso verrebbe blocklistato e
-        cancellato solo perché non ha ancora avuto il suo turno."""
+        cancellato solo perché non ha ancora avuto il suo turno.
+
+        Il reannounce resta ogni timeout_secs (10min, per non perdere tempo
+        prima di riprovare), ma il warning di log viene emesso al massimo
+        ogni 6h per torrent (`_metadata_last_logged`) — altrimenti un magnet
+        legittimamente lento a risolvere i metadata (tracker/DHT scarichi,
+        non un errore) spamma il log ogni 10min per ore."""
         if not cls.session_available():
             return
         if giveup_secs is None:
@@ -1227,9 +1234,12 @@ class LibtorrentClient:
                         cls._handle_download_failure(h, 'dead_magnet')
                         continue
                     if (now - first_seen) > timeout_secs:
-                        logger.warning(
-                            f"⚠️ Metadata stuck >10min for '{h.name() or ih[:12]}' — reannouncing"
-                        )
+                        last_logged = cls._metadata_last_logged.get(ih, 0)
+                        if (now - last_logged) >= 21600:  # log al massimo ogni 6h, il reannounce resta ogni timeout_secs
+                            logger.warning(
+                                f"⚠️ Metadata stuck >10min for '{h.name() or ih[:12]}' — reannouncing"
+                            )
+                            cls._metadata_last_logged[ih] = now
                         try:
                             h.force_reannounce()
                         except Exception:
@@ -1239,6 +1249,7 @@ class LibtorrentClient:
                 else:
                     cls._metadata_wait_start.pop(ih, None)
                     cls._metadata_first_seen.pop(ih, None)
+                    cls._metadata_last_logged.pop(ih, None)
             except Exception:
                 pass
 
