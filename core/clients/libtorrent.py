@@ -1500,9 +1500,13 @@ class LibtorrentClient:
           aumenta solo se ci sono fonti in coda, non riduce mai (nessun
           segnale di sovraccarico possibile).
         - `active_seeds`: se c'è almeno un download prioritario in corso
-          (tier 0, rate>0 — stesso segnale di `_allocate_torrent_resources`),
-          scende a 1 (il seeding può aspettare); altrimenti torna al valore
-          statico configurato. Richiede che lo stato sia stabile da almeno
+          (tier 0, rate>0 — stesso segnale di `_allocate_torrent_resources`)
+          OPPURE almeno un download già con metadata ma ancora in coda
+          (paused, in attesa di uno slot: non può mai avere rate>0 finché
+          non gli viene fatto spazio — senza questo secondo segnale i seed
+          inattivi non verrebbero mai ridotti, deadlock), scende a 1 (il
+          seeding può aspettare); altrimenti torna al valore statico
+          configurato. Richiede che lo stato sia stabile da almeno
           2 controlli (~180s) prima di cambiare, per non fermare/riavviare i
           seed ad ogni giro.
         - `active_limit`: sempre ricalcolato come
@@ -1549,6 +1553,7 @@ class LibtorrentClient:
 
         aggregate_rate = 0
         queued_with_sources = 0
+        queued_count = 0
         has_priority_download = False
         for h in s.get_torrents():
             try:
@@ -1556,6 +1561,7 @@ class LibtorrentClient:
                 if not st.has_metadata or st.is_seeding or st.is_finished:
                     continue
                 if st.paused:
+                    queued_count += 1
                     if int(getattr(st, 'num_peers', 0)) + int(getattr(st, 'num_seeds', 0)) > 0:
                         queued_with_sources += 1
                 else:
@@ -1565,6 +1571,17 @@ class LibtorrentClient:
                         has_priority_download = True
             except Exception:
                 pass
+
+        # Un download in coda (paused, auto_managed) non ha mai peer/DHT — è
+        # bloccato PRIMA di poter dimostrare di avere rate>0, quindi da solo
+        # `has_priority_download` sopra resta sempre False finché active_seeds
+        # non gli lascia spazio: deadlock (i seed inattivi non vengono mai
+        # ridotti perché "nessun download prioritario", ma nessun download può
+        # diventare prioritario finché i seed non vengono ridotti). La sola
+        # presenza di torrent in coda con metadata già pronto è già segnale
+        # sufficiente per liberare active_seeds, senza aspettare che parta.
+        if queued_count > 0:
+            has_priority_download = True
 
         # --- active_downloads: solo se il cooldown di 5min è scaduto ---
         new_dl = current_dl
@@ -1613,7 +1630,7 @@ class LibtorrentClient:
                 f"📊 Auto-gestione: active_downloads {current_dl}→{new_dl}, "
                 f"active_seeds {current_seeds}→{new_seeds}, active_limit {current_limit}→{new_limit} "
                 f"(tetto={ceiling}B/s, rate medio={int(aggregate_rate)}B/s, in coda con fonti={queued_with_sources}, "
-                f"download prioritario={has_priority_download})"
+                f"in coda totali={queued_count}, download prioritario={has_priority_download})"
             )
             if new_dl != current_dl:
                 cls._dq_last_change = now
