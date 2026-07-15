@@ -52,6 +52,9 @@ class LibtorrentClient:
     _dq_was_enabled: bool = False     # True se libtorrent_dynamic_queue era attivo all'ultimo giro
     _dq_seed_state: bool = None       # has_priority_download all'ultimo giro (per lo stability check su active_seeds)
     _dq_seed_state_since: float = 0.0 # time() da cui _dq_seed_state non cambia
+    _pinned_ih: str = None             # ih (lowercase) del torrent fissato in cima alla coda, o None
+    _pinned_forced_active: bool = False # True se auto_managed è stato disattivato per forzare uno slot al torrent pinnato
+    _stall_listen_forced: set = set()  # ih di torrent con metadata ma 0 fonti, forzati "in ascolto" fuori da active_downloads
 
     _ENC_MAP = {
         '0': 0, '1': 1, '2': 2,
@@ -542,6 +545,7 @@ class LibtorrentClient:
                 except Exception as e:
                     logger.warning(f'⚠️ alert_mask not set: {e}')
                 cls._load_state()
+                cls._load_pinned()
                 cls._alert_thread = threading.Thread(
                     target=cls._process_alerts, daemon=True, name='lt-alerts'
                 )
@@ -1288,6 +1292,73 @@ class LibtorrentClient:
                 pass
 
     @classmethod
+    def _promote_stalled_listening(cls):
+        """Estende la stessa idea di _promote_metadata_resolution ai torrent
+        che hanno già i metadata ma sono fermi a zero fonti (0 peer, 0 seed,
+        0 rate): con poche fonti disponibili in giro (magari condivise tra
+        molte release diverse), un torrent così non sta consumando banda
+        reale — costa solo un reannounce/DHT periodico, quasi gratis. Non ha
+        senso che resti escluso dall'ascolto solo perché active_downloads è
+        pieno di altri torrent altrettanto fermi: se il seed è raro e
+        intermittente, tenerlo in pausa rischia di far perdere proprio la
+        finestra in cui ricompare.
+
+        Bypassa active_downloads per questi torrent finché restano a zero
+        fonti (tracciati in _stall_listen_forced); appena uno trova un
+        segnale reale (peer/seed noto o rate>0) torna sotto il controllo
+        normale della coda (auto_managed ON), perché da quel momento compete
+        davvero per banda/risorse con gli altri — la protezione qui è solo
+        per chi non sta consumando nulla.
+
+        Il tracking in _stall_listen_forced evita di toccare torrent messi
+        in pausa manualmente dall'utente (auto_managed=False in quel caso,
+        non intercettato da questa funzione) o forzati attivi dal pin
+        (_pinned_forced_active, gestito separatamente)."""
+        if not cls.session_available():
+            return
+        live_ih = set()
+        for h in cls._session.get_torrents():
+            try:
+                s = h.status()
+                ih = cls._ih(h).lower()
+                live_ih.add(ih)
+                if not s.has_metadata:
+                    continue
+                if getattr(s, 'is_seeding', False) or getattr(s, 'is_finished', False):
+                    continue
+                if float(getattr(s, 'progress', 0)) >= 1.0:
+                    continue
+
+                dl_rate   = getattr(s, 'download_payload_rate', getattr(s, 'download_rate', 0))
+                num_peers = int(getattr(s, 'num_peers', 0))
+                num_seeds = int(getattr(s, 'num_seeds', 0))
+                has_signal = dl_rate > 0 or num_peers > 0 or num_seeds > 0
+
+                if ih in cls._stall_listen_forced:
+                    if has_signal:
+                        try:
+                            h.set_flags(cls._lt.torrent_flags.auto_managed)
+                        except AttributeError:
+                            h.auto_managed(True)
+                        cls._stall_listen_forced.discard(ih)
+                    continue
+
+                if not has_signal and getattr(s, 'auto_managed', False) and getattr(s, 'paused', False):
+                    try:
+                        h.unset_flags(cls._lt.torrent_flags.auto_managed)
+                    except AttributeError:
+                        h.auto_managed(False)
+                    h.resume()
+                    cls._stall_listen_forced.add(ih)
+            except Exception:
+                pass
+
+        # Pulizia: rimuove dal tracking i torrent non più presenti in sessione
+        for ih in list(cls._stall_listen_forced):
+            if ih not in live_ih:
+                cls._stall_listen_forced.discard(ih)
+
+    @classmethod
     def _prioritize_near_completion(cls):
         """Riordina la coda di libtorrent per dare priorità a chi finirà prima,
         non solo a chi è più completo.
@@ -1394,6 +1465,32 @@ class LibtorrentClient:
                 h.queue_position_top()
             except Exception:
                 pass
+
+        # --- Pin manuale: un torrent scelto dall'utente resta sempre in cima ---
+        # Va DOPO il riordino automatico sopra, cosi' il queue_position_top()
+        # qui sotto vince su badness e protezione anti-thrashing. Se il torrent
+        # pinnato non esiste piu' o ha finito, si auto-sblocca.
+        if cls._pinned_ih:
+            ph = cls._find(cls._pinned_ih)
+            if ph is None:
+                cls.unpin_torrent()
+            else:
+                try:
+                    ps = ph.status()
+                    if getattr(ps, 'is_seeding', False) or getattr(ps, 'is_finished', False) or float(getattr(ps, 'progress', 0)) >= 1.0:
+                        cls.unpin_torrent()
+                    else:
+                        ph.queue_position_top()
+                        if getattr(ps, 'auto_managed', False) and getattr(ps, 'paused', False):
+                            # In coda per active_downloads: forza uno slot subito
+                            try:
+                                ph.unset_flags(cls._lt.torrent_flags.auto_managed)
+                            except AttributeError:
+                                ph.auto_managed(False)
+                            ph.resume()
+                            cls._pinned_forced_active = True
+                except Exception:
+                    pass
 
         # --- Allocazione risorse per-torrent (solo con coda dinamica attiva) ---
         try:
@@ -1650,21 +1747,24 @@ class LibtorrentClient:
     def _check_stalled_downloads(cls, stall_timeout_secs: int = None):
         """Rileva download stallati (metadata già ricevuti, progress<100%,
         download_rate=0 e num_peers=0 in modo continuativo oltre
-        stall_timeout_secs, default @libtorrent_stall_timeout_min 1440min/24h)
+        stall_timeout_secs, default @libtorrent_stall_timeout_min 10080min/7gg)
         o con un errore irreversibile segnalato direttamente da libtorrent, e
         li tratta come falliti tramite _handle_download_failure — così il
         ciclo successivo (o lo stesso, vedi extto3.py best-in-cycle) può
         tentare una release diversa invece di restare bloccato per sempre.
 
-        Timeout lungo (24h) anche per i download a progress=0: con la banda
-        e i seed disponibili in Italia, un torrent con pochissime fonti può
-        restare a 0 peer/0 rate per ore senza essere morto — basta un timeout
-        più aggressivo a far perdere download altrimenti recuperabili."""
+        Timeout lungo (7 giorni di default) anche per i download a progress=0:
+        con poche fonti disponibili (magari le stesse per più release), un
+        torrent può restare a 0 peer/0 rate per giorni senza essere morto —
+        basta un timeout troppo aggressivo a far perdere download altrimenti
+        recuperabili. Il timer è continuativo: si azzera appena viene visto
+        anche un solo peer (vedi sotto), quindi non penalizza un torrent che
+        ha già dimostrato di avere fonti, solo quelli mai visti attivi."""
         if not cls.session_available():
             return
         if stall_timeout_secs is None:
             try:
-                stall_timeout_secs = int(float(cls._load_full_cfg().get('libtorrent_stall_timeout_min', 1440)) * 60)
+                stall_timeout_secs = int(float(cls._load_full_cfg().get('libtorrent_stall_timeout_min', 10080)) * 60)
             except Exception:
                 stall_timeout_secs = 86400
         now = time.time()
@@ -1889,6 +1989,7 @@ class LibtorrentClient:
                     last_stall_chk = now
                 if now - last_promote_chk > PROMOTE_INTERVAL:
                     cls._promote_metadata_resolution()
+                    cls._promote_stalled_listening()
                     last_promote_chk = now
                 if now - last_priority_chk > PRIORITY_INTERVAL:
                     cls._prioritize_near_completion()
@@ -2534,7 +2635,8 @@ class LibtorrentClient:
                         'seeding_time':   int(getattr(s, 'seeding_time', 0)),
                         'tracker':        str(getattr(s, 'current_tracker', '')),
                         'physical_file_found': physical_file,
-                        'is_infinite':    infinito
+                        'is_infinite':    infinito,
+                        'pinned':         bool(cls._pinned_ih and cls._ih(h).lower() == cls._pinned_ih)
                     })
                 except Exception:
                     continue # Se un torrent crasha, salta solo quello e non distrugge l'intera lista
@@ -2931,6 +3033,88 @@ class LibtorrentClient:
             with open(p, 'w') as f: json.dump(db_dict, f)
             cls._seed_limits_cache = {k.lower(): v for k, v in db_dict.items()} if isinstance(db_dict, dict) else {}
         except Exception: pass
+
+    # ------------------------------------------------------------------
+    # PIN IN CIMA ALLA CODA (priorità manuale)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _pinned_file_path(cls):
+        return os.path.join(cls.STATE_DIR, 'pinned.json')
+
+    @classmethod
+    def _load_pinned(cls):
+        """Ricarica da disco l'hash pinnato (se presente) all'avvio del servizio."""
+        p = cls._pinned_file_path()
+        try:
+            import json
+            if os.path.exists(p):
+                with open(p, 'r') as f:
+                    data = json.load(f)
+                cls._pinned_ih = (data.get('ih') or '').lower() or None
+        except Exception:
+            cls._pinned_ih = None
+
+    @classmethod
+    def _save_pinned(cls):
+        p = cls._pinned_file_path()
+        try:
+            import json
+            if not os.path.exists(cls.STATE_DIR):
+                os.makedirs(cls.STATE_DIR)
+            with open(p, 'w') as f:
+                json.dump({'ih': cls._pinned_ih or ''}, f)
+        except Exception:
+            pass
+
+    @classmethod
+    def _restore_pinned_auto_managed(cls, ih: str):
+        """Ripristina auto_managed=True sul torrent che era stato forzato attivo
+        per bypassare active_downloads mentre era pinnato in cima alla coda."""
+        if not cls.session_available():
+            return
+        try:
+            h = cls._find(ih)
+            if h is None:
+                return
+            try:
+                h.set_flags(cls._lt.torrent_flags.auto_managed)
+            except AttributeError:
+                h.auto_managed(True)
+        except Exception:
+            pass
+
+    @classmethod
+    def pin_torrent(cls, info_hash: str) -> bool:
+        """Fissa `info_hash` in cima alla coda di scarico: _prioritize_near_completion()
+        lo forza sempre in prima posizione ad ogni riordino (60s), scavalcando
+        punteggio automatico e protezione anti-thrashing, e gli forza uno slot
+        attivo subito se era in coda per active_downloads. Un solo torrent alla
+        volta può essere pinnato: pinnarne uno nuovo sblocca il precedente."""
+        ih = (info_hash or '').lower().strip()
+        if not ih:
+            return False
+        if cls._pinned_ih and cls._pinned_ih != ih:
+            cls._restore_pinned_auto_managed(cls._pinned_ih)
+        cls._pinned_ih = ih
+        cls._pinned_forced_active = False
+        cls._save_pinned()
+        return True
+
+    @classmethod
+    def unpin_torrent(cls) -> bool:
+        """Rilascia il torrent attualmente pinnato, ripristinando la gestione
+        automatica della coda per quel torrent."""
+        if cls._pinned_ih:
+            cls._restore_pinned_auto_managed(cls._pinned_ih)
+        cls._pinned_ih = None
+        cls._pinned_forced_active = False
+        cls._save_pinned()
+        return True
+
+    @classmethod
+    def get_pinned(cls) -> str:
+        return cls._pinned_ih or ''
 
     @classmethod
     def set_torrent_limits(cls, info_hash: str, dl_limit: int, ul_limit: int, seed_ratio: float = -1.0, seed_days: float = -1.0) -> bool:

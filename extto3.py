@@ -665,6 +665,21 @@ def web_task():
                     self._json_response({'ok': ok})
                     return
 
+                if self.path == '/api/torrents/pin':
+                    payload = self._read_json_body()
+                    hash_val = payload.get('hash', '').strip()
+                    if len(hash_val) == 16 or RqbitClient.is_known(hash_val):
+                        self._json_response({'ok': False, 'error': 'Disponibile solo con libtorrent'})
+                        return
+                    ok = LibtorrentClient.pin_torrent(hash_val)
+                    self._json_response({'ok': ok})
+                    return
+
+                if self.path == '/api/torrents/unpin':
+                    ok = LibtorrentClient.unpin_torrent()
+                    self._json_response({'ok': ok})
+                    return
+
                 if self.path == '/api/torrents/recheck':
                     payload = self._read_json_body()
                     hash_val = payload.get('hash', '').strip()

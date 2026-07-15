@@ -1966,6 +1966,7 @@ const app = {
             libtorrent_active_downloads: v('lt-active-downloads'),
             libtorrent_active_seeds: v('lt-active-seeds'),
             libtorrent_active_limit: v('lt-active-limit'),
+            libtorrent_stall_timeout_min: String(Math.round((parseFloat(v('lt-stall-timeout-days')) || 7) * 1440)),
             libtorrent_slow_dl_threshold: v('lt-slow-dl'),
             libtorrent_slow_ul_threshold: v('lt-slow-ul'),
             libtorrent_dynamic_queue: tg('lt-dynamic-queue'),
@@ -3488,6 +3489,7 @@ const app = {
         set('lt-active-downloads', get('active_downloads', '3'));
         set('lt-active-seeds',     get('active_seeds', '3'));
         set('lt-active-limit',     get('active_limit', '5'));
+        set('lt-stall-timeout-days', (parseFloat(get('stall_timeout_min', '10080')) / 1440).toFixed(1));
         set('lt-slow-dl',          get('slow_dl_threshold', '2'));
         set('lt-slow-ul',          get('slow_ul_threshold', '2'));
         this._setToggle('lt-dynamic-queue', get('dynamic_queue', 'no'));
@@ -3697,6 +3699,7 @@ const app = {
             libtorrent_active_downloads:   v('lt-active-downloads'),
             libtorrent_active_seeds:       v('lt-active-seeds'),
             libtorrent_active_limit:       v('lt-active-limit'),
+            libtorrent_stall_timeout_min:  String(Math.round((parseFloat(v('lt-stall-timeout-days')) || 7) * 1440)),
             libtorrent_slow_dl_threshold:  v('lt-slow-dl'),
             libtorrent_slow_ul_threshold:  v('lt-slow-ul'),
             libtorrent_dynamic_queue:      tg('lt-dynamic-queue'),
@@ -6162,6 +6165,24 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         await this.loadTorrents();
     },
 
+    async togglePinTorrent(hash, isPinned) {
+        try {
+            const url = isPinned ? `${API_BASE}/api/torrents/unpin` : `${API_BASE}/api/torrents/pin`;
+            const res = await fetch(url, {
+                method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({hash})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                this.showToast(isPinned ? t('Priorità rimossa') : t('Torrent messo in cima alla coda'), 'success');
+            } else {
+                this.showToast(data.error || t('Errore durante l\'operazione'), 'error');
+            }
+            await this.loadTorrents();
+        } catch(e) {
+            this.showToast(t('Errore di rete con il server'), 'error');
+        }
+    },
+
     removeTorrent(hash, name) {
         this._removeTorrentHash = hash;
         document.getElementById('remove-torrent-name').textContent    = name;
@@ -6753,6 +6774,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     <div class="torrent-actions" style="display:flex; gap:3px; justify-content:center;">
                         <button class="btn btn-small btn-primary" onclick="app.showTorrentDetails('${torr.hash}')" title="Dettagli Torrent"><i class="fa-solid fa-circle-info"></i></button>
                         <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${torr.hash}', this)" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
+                        ${!isDone ? `<button class="btn btn-small ${torr.pinned ? 'btn-warning' : 'btn-secondary'}" onclick="app.togglePinTorrent('${torr.hash}', ${torr.pinned ? 'true' : 'false'})" title="${torr.pinned ? t('In cima alla coda: clicca per rimuovere la priorità') : t('Metti in cima alla coda (priorità assoluta)')}"><i class="fa-solid fa-thumbtack"></i></button>` : ''}
                         ${!isDone ? `<button class="btn btn-small btn-secondary" onclick="app.markTorrentFailed('${torr.hash}', '${(torr.name || '').replace(/'/g, "\\'")}')" title="${t('Segna come fallito (blocklist e riprova con un\'altra release)')}"><i class="fa-solid fa-ban"></i></button>` : ''}
                         ${torr.paused
                             ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${torr.hash}')"><i class="fa-solid fa-play"></i></button>`
