@@ -6771,14 +6771,14 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${torr.num_seeds || 0}S/${torr.num_peers || 0}P</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.85rem; font-weight:600; color:var(--text-primary);">${ratioHtml}</div>
                     
-                    <div class="torrent-actions" style="display:flex; gap:3px; justify-content:center;">
+                    <div class="torrent-actions" style="display:flex; gap:3px; justify-content:flex-end;">
                         <button class="btn btn-small btn-primary" onclick="app.showTorrentDetails('${torr.hash}')" title="Dettagli Torrent"><i class="fa-solid fa-circle-info"></i></button>
                         <button class="btn btn-small btn-secondary" onclick="app.recheckTorrent('${torr.hash}', this)" title="Forza Recheck"><i class="fa-solid fa-stethoscope"></i></button>
                         ${!isDone ? `<button class="btn btn-small ${torr.pinned ? 'btn-warning' : 'btn-secondary'}" onclick="app.togglePinTorrent('${torr.hash}', ${torr.pinned ? 'true' : 'false'})" title="${torr.pinned ? t('In cima alla coda: clicca per rimuovere la priorità') : t('Metti in cima alla coda (priorità assoluta)')}"><i class="fa-solid fa-thumbtack"></i></button>` : ''}
                         ${!isDone ? `<button class="btn btn-small btn-secondary" onclick="app.markTorrentFailed('${torr.hash}', '${(torr.name || '').replace(/'/g, "\\'")}')" title="${t('Segna come fallito (blocklist e riprova con un\'altra release)')}"><i class="fa-solid fa-ban"></i></button>` : ''}
                         ${torr.paused
-                            ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${torr.hash}')"><i class="fa-solid fa-play"></i></button>`
-                            : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${torr.hash}')"><i class="fa-solid fa-pause"></i></button>`
+                            ? `<button class="btn btn-small btn-secondary" onclick="app.resumeTorrent('${torr.hash}')" title="${t('Riprendi')}"><i class="fa-solid fa-play"></i></button>`
+                            : `<button class="btn btn-small btn-secondary" onclick="app.pauseTorrent('${torr.hash}')" title="${t('Pausa')}"><i class="fa-solid fa-pause"></i></button>`
                         }
                         <div style="position:relative;display:inline-flex;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px var(--danger);flex-shrink:0;min-width:max-content;" class="single-remove-wrap">
                             <button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 10px;flex-shrink:0;" onclick="app.removeTorrentSmart('${torr.hash}', ${isDone})" title="${trashTitle}" ${disableTrash}><i class="fa-solid fa-trash"></i></button><div style="width:1px;background:rgba(255,255,255,.2);align-self:stretch;flex-shrink:0;"></div><button class="btn btn-small btn-danger" style="border-radius:0;border:none;box-shadow:none;padding:0 8px;flex-shrink:0;" title="Scegli modalità di rimozione" onclick="app._toggleSingleRemoveDropdown(this, '${torr.hash}', ${isDone})" ${disableTrash}><i class="fa-solid fa-chevron-down" style="font-size:.75em;"></i></button>

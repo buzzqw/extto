@@ -1284,7 +1284,7 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 .torrent-table .table-row,
 .torrent-table .table-header {
     display: grid;
-    grid-template-columns: minmax(150px, 2.5fr) 170px 150px 90px 90px 70px 70px 60px 140px;
+    grid-template-columns: minmax(150px, 2fr) 170px 150px 90px 90px 70px 70px 60px 270px;
     align-items: center; gap: 8px; padding: 0.65rem 1.25rem;
 }
 
@@ -1407,7 +1407,7 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 /* Responsive torrent */
 @media (max-width: 1200px) {
     .torrent-table .table-row, .torrent-table .table-header {
-        grid-template-columns: minmax(0, 1fr) 170px 150px 82px 82px 70px 140px;
+        grid-template-columns: minmax(0, 1fr) 170px 150px 82px 82px 70px 270px;
     }
     .torrent-table .table-row > :nth-child(7),
     .torrent-table .table-row > :nth-child(8),
@@ -1417,7 +1417,7 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 
 @media (max-width: 900px) {
     .torrent-table .table-row, .torrent-table .table-header {
-        grid-template-columns: minmax(0, 1fr) 165px 130px 140px;
+        grid-template-columns: minmax(0, 1fr) 165px 130px 270px;
     }
     .torrent-table .table-row > :nth-child(4),
     .torrent-table .table-row > :nth-child(5),
@@ -1433,8 +1433,8 @@ textarea.form-input { resize: vertical; font-family: var(--font-mono); font-size
 
 /* Fix scroll torrent list */
 #torrent-list .table-row {
-    grid-template-columns: minmax(0, 1fr) 140px 150px 82px 82px 70px 80px 70px 185px;
-    gap: 12px;
+    grid-template-columns: minmax(150px, 2fr) 170px 150px 90px 90px 70px 70px 60px 270px;
+    gap: 8px;
 }
 
 /* ============================================================================
