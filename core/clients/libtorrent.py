@@ -371,8 +371,28 @@ class LibtorrentClient:
                                     pass
                             logger.debug(f"↩️  Restored (skip_checking) seeded torrent: {ih[:12]}")
 
-                        session.add_torrent(params)
+                        _rh = session.add_torrent(params)
                         count += 1
+
+                        # --- Ripara torrent rimasti "forzati" da un riavvio precedente ---
+                        # auto_managed=False + paused=False è la firma di una forzatura
+                        # temporanea (_promote_metadata_resolution, _promote_stalled_listening,
+                        # pin) mai ripristinata: i set in memoria che tracciano queste
+                        # forzature ripartono vuoti ad ogni riavvio, quindi nessun codice
+                        # saprebbe più rimetterlo sotto il controllo normale della coda.
+                        # Un torrent messo in pausa manualmente dall'utente ha invece sempre
+                        # paused=True insieme ad auto_managed=False (vedi pause_torrent),
+                        # quindi non viene toccato qui.
+                        try:
+                            _rst = _rh.status()
+                            if not getattr(_rst, 'paused', False) and not getattr(_rst, 'auto_managed', True):
+                                try:
+                                    _rh.set_flags(lt.torrent_flags.auto_managed)
+                                except AttributeError:
+                                    _rh.auto_managed(True)
+                                logger.info(f"🔓 Torrent '{_rh.name() or ih[:12]}' era rimasto forzato da un riavvio precedente: ripristinato in coda normale")
+                        except Exception as _rf:
+                            logger.debug(f"restore auto_managed after load {ih[:8]}: {_rf}")
                     except Exception as e:
                         logger.warning(f"⚠️ Corrupted resume data for {filename}: {e}")
                 except Exception as e:
