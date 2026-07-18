@@ -3343,6 +3343,20 @@ const app = {
                 _ck('websearch-torrentz2',    'torrentz2');
                 _ck('websearch-torrentscsv',  'torrentscsv');
             }
+            // Popola subito anche i campi Jackett/Prowlarr/FlareSolverr — stesso motivo:
+            // altrimenti restano vuoti finché il tab Integrazioni non viene aperto e un
+            // salvataggio da un'altra scheda li sovrascrive a stringa vuota nel DB.
+            {
+                const _set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                const _setCb = (id, val) => { const el = document.getElementById(id); if (el) el.checked = (val === undefined || val === 'yes' || val === true); };
+                _set('indexer-jackett-url',    s.jackett_url);
+                _set('indexer-jackett-api',    s.jackett_api);
+                _setCb('indexer-jackett-archive', s.jackett_save_to_archive);
+                _set('indexer-prowlarr-url',   s.prowlarr_url);
+                _set('indexer-prowlarr-api',   s.prowlarr_api);
+                _setCb('indexer-prowlarr-archive', s.prowlarr_save_to_archive);
+                _set('indexer-flare-url',      s.flaresolverr_url);
+            }
             this.renderUrlsAndFilters(config);
             this.renderBrowserHandlers();
             // Carica esempio formato rinomina dopo che il DOM è pronto
