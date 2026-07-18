@@ -7703,7 +7703,7 @@ def search_missing_series_api(series_id):
         try:
             from core.config import Config
             from core.engine import Engine
-            from core.models import Parser
+            from core.models import Parser, normalize_series_name, _series_name_matches
             import requests
 
             cfg = Config()
@@ -7781,11 +7781,12 @@ def search_missing_series_api(series_id):
                     base_q = search_name
                     if lang_req and lang_req not in ('custom', 'none', 'any', '*'):
                         base_q += f" {lang_req}"
-                    j_res.extend(eng._jackett_search(base_q, {}, season=s_num, ep=e_num))
+                    j_res.extend(eng._jackett_search(base_q, {}, season=s_num))
                     if len(names_to_search) > 1:
                         time.sleep(2)
 
                 if not j_res:
+                    log_maintenance(f"   ⚠️  Jackett/Prowlarr: 0 risultati per '{ep_str}'.")
                     _ed2k_en = str(_cdb.get_setting('gap_fill_ed2k', 'no')).lower() in ('yes','true','1')
                     if _ed2k_en:
                         try:
@@ -7821,7 +7822,7 @@ def search_missing_series_api(series_id):
                     
                     if ep_p and ep_p['season'] == s_num and ep_p['episode'] == e_num:
                         match = cfg.find_series_match(ep_p['name'], ep_p['season'])
-                        if not match or match['name'] != series_name: continue
+                        if not match or not _series_name_matches(normalize_series_name(match['name']), normalize_series_name(series_name)): continue
 
                         # Controllo manuale della qualità per non dipendere dal DB del motore
                         min_rank = cfg._min_res_from_qual_req(qual_req)
