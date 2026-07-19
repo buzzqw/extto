@@ -272,6 +272,14 @@ const app = {
                 if (view) this.switchView(view);
             });
         });
+        // Stat cards on dashboard: tappable to jump to related view
+        document.querySelectorAll('.stat-card[data-stat-view]').forEach(card => {
+            card.addEventListener('click', () => {
+                const view = card.dataset.statView;
+                if (view) this.switchView(view);
+            });
+            card.style.cursor = 'pointer';
+        });
         // Quick bar visibility: mostra solo su dashboard
         this._updateQuickBar();
     },
@@ -2354,8 +2362,8 @@ const app = {
 
                 html += `
                 <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1rem; overflow: hidden; opacity: ${opacity}; transition: opacity 0.3s;">
-                    <div style="padding: 1rem 1.5rem; background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: space-between; user-select: none;">
-                        <div style="display:flex; align-items:center; gap: 15px;">
+                    <div class="season-accordion-header">
+                        <div class="season-info">
                             
                             <div onclick="app.toggleSeason(${this.currentSeriesId}, ${season.season})" title="${isMonitored ? 'Ignora Stagione (Spegni Ricerca)' : 'Monitora Stagione (Accendi Ricerca)'}" style="cursor:pointer; padding:5px;">
                                 <i class="${bookmarkIcon}" style="color:${bookmarkColor}; font-size:1.4rem; transition: color 0.2s;"></i>
@@ -2369,8 +2377,8 @@ const app = {
                     </div>
                     
                     <div id="${sId}" style="display: ${season.season === data.seasons[0].season && isMonitored ? 'block' : 'none'};">
-                        <div style="display:grid; grid-template-columns: 50px minmax(0, 1fr) 110px 85px 90px 190px; gap: 15px; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); text-transform: uppercase;">
-                            <div>${t('EP')}</div><div>${t('Titolo')}</div><div style="text-align:right;">${t('Stato')}</div><div style="text-align:right;">${t('Dim.')}</div><div style="text-align:right;">${t('Aggiunto al client')}</div><div style="text-align:center;">${t('Azioni')}</div>
+                        <div class="episodes-table-header">
+                            <div>${t('EP')}</div><div>${t('Titolo')}</div><div>${t('Stato')}</div><div>${t('Dim.')}</div><div>${t('Aggiunto al client')}</div><div>${t('Azioni')}</div>
                         </div>`;
                 
                 // Righe Episodi
@@ -2413,7 +2421,7 @@ const app = {
 
                     const dlDate = ep.downloaded_at ? this.formatDate(ep.downloaded_at) : '';
                     html += `
-                        <div class="table-row" style="display:grid; grid-template-columns: 50px minmax(0, 1fr) 110px 85px 90px 190px; gap: 15px; padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); align-items:center;">
+                        <div class="table-row episode-row">
                             <div style="font-weight:bold;">${ep.episode}</div>
                             <div style="display:flex; flex-direction:column; overflow:hidden; min-width:0; padding-right:10px;">
                                 <span style="font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${this.escapeHtml(displayTitle)}">${this.escapeHtml(displayTitle)}</span>
@@ -2460,7 +2468,7 @@ const app = {
                                     <i class="fa-solid fa-download"></i> Scarica
                                   </button>`
                                 : '';
-                            return `<div style="display:grid;grid-template-columns:70px minmax(0,1fr) 140px 90px 90px;gap:8px;align-items:center;padding:.55rem 1rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem;">
+                            return `<div class="feed-match-row">
                                 <div style="font-family:monospace;color:var(--text-secondary);font-weight:bold;">${epStr}</div>
                                 <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);" title="${this.escapeHtml(m.title)}">${this.escapeHtml(m.title)}</div>
                                 <div style="text-align:right;"><span style="color:${color};"><i class="fa-solid ${icon}"></i> ${label}</span></div>
@@ -2469,7 +2477,7 @@ const app = {
                             </div>`;
                         }).join('');
                         lfContainer.innerHTML = `
-                            <div style="display:grid;grid-template-columns:70px minmax(0,1fr) 140px 90px 90px;gap:8px;padding:.4rem 1rem;font-size:0.75rem;font-weight:bold;color:var(--text-secondary);text-transform:uppercase;border-bottom:1px solid var(--border);">
+                            <div class="feed-matches-header">
                                 <div>${t('Episodio')}</div><div>${t('Titolo')}</div>
                                 <div style="text-align:right;" title="Esito del filtraggio automatico">Esito <i class="fa-solid fa-circle-question" style="opacity:.6;"></i></div>
                                 <div style="text-align:right;">Data</div><div></div>
@@ -5897,8 +5905,12 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
     _updateQuickBar() {
         const bar = document.getElementById('mobile-quick-bar');
         if (!bar) return;
-        // Visibile su tutte le view su mobile (gestito via CSS per dashboard),
-        // nascondiamo solo se il drawer è aperto
+        const showOn = ['dashboard', 'torrent', 'series', 'movies', 'comics', 'archive', 'amule', 'discovery'];
+        if (showOn.includes(currentView)) {
+            bar.style.display = '';
+        } else {
+            bar.style.display = 'none';
+        }
     },
 
     _updateDrawerActive(view) {

@@ -149,19 +149,19 @@
         <div class="content">
             <div id="view-dashboard" class="view active">
                 <div class="stats-grid">
-                    <div class="stat-card" data-i18n-title="Numero totale di serie TV inserite per il monitoraggio." title="Numero totale di serie TV inserite per il monitoraggio.">
+                    <div class="stat-card" data-stat-view="series" data-i18n-title="Numero totale di serie TV inserite per il monitoraggio." title="Numero totale di serie TV inserite per il monitoraggio.">
                         <div class="stat-icon"><i class="fa-solid fa-tv"></i></div>
                         <div class="stat-info"><div class="stat-value" id="stat-series">0</div><div class="stat-label" data-i18n="Serie TV configurate">Serie TV configurate</div></div>
                     </div>
-                    <div class="stat-card" data-i18n-title="Numero totale di film inseriti per la ricerca." title="Numero totale di film inseriti per la ricerca.">
+                    <div class="stat-card" data-stat-view="movies" data-i18n-title="Numero totale di film inseriti per la ricerca." title="Numero totale di film inseriti per la ricerca.">
                         <div class="stat-icon"><i class="fa-solid fa-film"></i></div>
                         <div class="stat-info"><div class="stat-value" id="stat-movies">0</div><div class="stat-label" data-i18n="Film configurati">Film configurati</div></div>
                     </div>
-                    <div class="stat-card" data-i18n-title="Totale complessivo dei file multimediali trovati e scaricati con successo." title="Totale complessivo dei file multimediali trovati e scaricati con successo.">
+                    <div class="stat-card" data-stat-view="archive" data-i18n-title="Totale complessivo dei file multimediali trovati e scaricati con successo." title="Totale complessivo dei file multimediali trovati e scaricati con successo.">
                         <div class="stat-icon"><i class="fa-solid fa-download"></i></div>
                         <div class="stat-info"><div class="stat-value" id="stat-downloads">0</div><div class="stat-label" data-i18n="File scaricati">File scaricati</div></div>
                     </div>
-                    <div class="stat-card" data-i18n-title="Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente." title="Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente.">
+                    <div class="stat-card" data-stat-view="archive" data-i18n-title="Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente." title="Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente.">
                         <div class="stat-icon"><i class="fa-solid fa-hard-drive"></i></div>
                         <div class="stat-info">
                             <div class="stat-value" id="stat-archive">0</div>
@@ -2883,7 +2883,7 @@ sudo mount /mnt/ramdisk</div>
                             <span class="badge badge-info" id="extto-path" style="font-family: monospace; display:none;">---</span>
                         </div>
                         <p id="extto-plot" style="opacity: 0.8; font-size: 0.95rem; line-height: 1.6; max-width: 800px; margin-bottom: 15px;"><span data-i18n="Recupero trama da TMDB in corso...">Recupero trama da TMDB in corso...</span></p>
-                        <div style="display:flex; gap:10px; margin-top: 10px; flex-wrap:wrap;">
+                        <div class="extto-action-buttons" style="display:flex; gap:10px; margin-top: 10px; flex-wrap:wrap;">
                             <button class="btn btn-primary btn-small" onclick="app.bulkRenameEpisodes()" data-i18n-title="Rinomina tutti i file fisici usando i titoli ufficiali" title="Rinomina tutti i file fisici usando i titoli ufficiali"><i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="Rinomina puntate">Rinomina puntate</span></button>
                             <button class="btn btn-warning btn-small" onclick="app.searchMissingForSeries()" data-i18n-title="Avvia una scansione per tutti gli episodi non ancora scaricati di questa serie" title="Avvia una scansione per tutti gli episodi non ancora scaricati di questa serie"><i class="fa-solid fa-radar"></i> <span data-i18n="Cerca mancanti">Cerca mancanti</span></button>
                             <button id="extto-edit-btn" class="btn btn-secondary btn-small" onclick="app.toggleSeriesEditPanel()" data-i18n-title="Modifica le impostazioni di questa serie" title="Modifica le impostazioni di questa serie"><i class="fa-solid fa-pen"></i> <span data-i18n="Modifica Serie">Modifica Serie</span></button>
