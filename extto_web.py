@@ -7118,15 +7118,31 @@ def proxy_torrents(subpath):
         if request.method == 'GET':
             resp = requests.get(target_url, timeout=5)
         elif request.method == 'POST':
-            resp = requests.post(
-                target_url, 
-                json=request.get_json(),
-                headers={'Content-Type': 'application/json'},
-                timeout=5
-            )
+            post_json = request.get_json()
+            # Operazioni di scrittura (es. remove) possono capitare mentre l'engine
+            # è impegnato (lock DB, post-processing del torrent appena completato) o
+            # subito dopo un riavvio (porta ancora in bind / sessione libtorrent in
+            # fase di ripristino, connessione rifiutata per un istante): timeout più
+            # largo + un retry con una breve pausa, invece di gridare "Engine busy"
+            # subito quando basterebbe aspettare che l'engine finisca da solo.
+            try:
+                resp = requests.post(
+                    target_url,
+                    json=post_json,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=15
+                )
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                time.sleep(2)
+                resp = requests.post(
+                    target_url,
+                    json=post_json,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=15
+                )
         else:
             return {'error': 'Method not allowed'}, 405
-        
+
         return resp.content, resp.status_code, {
             'Content-Type': resp.headers.get('Content-Type', 'application/json'),
             'Access-Control-Allow-Origin': '*'
