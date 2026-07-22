@@ -22,6 +22,7 @@ Miglioramenti rispetto a extto_ui.py:
 """
 
 import argparse
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -59,7 +60,7 @@ TORRENT_STATES = {
     "seeding": "SEED", "downloading": "DL", "paused": "PAUSA",
     "checking": "CHECK", "error": "ERR", "queued": "CODA",
     "finished": "FINE", "stalledDL": "STALL", "finished_t": "FINE_T",
-    "allocating": "ALLOC", "downloading_metadata": "META",
+    "seeding_t": "SEED_T", "allocating": "ALLOC", "downloading_metadata": "META",
 }
 
 
@@ -527,13 +528,7 @@ class ScoreModal(ModalScreen):
         with Container(id="mdl-large"):
             yield Label("Calcolatore e Punteggi (Scoring)", classes="mtitle")
             with ScrollableContainer(id="mdl-scroll"):
-                yield Label("1. Moltiplicatore e Bonus", classes="msection")
-                with Horizontal(classes="score-row"):
-                    yield Label("Mult. Risoluzione:", classes="mlabel")
-                    yield Input(str(self.scores.get('res_mult', 10000)), id="s-res-mult", classes="minp")
-                with Horizontal(classes="score-row"):
-                    yield Label("Bonus ITA:", classes="mlabel")
-                    yield Input(str(self.scores.get('bonus_ita', 500)), id="s-bonus-ita", classes="minp")
+                yield Label("1. Bonus", classes="msection")
                 with Horizontal(classes="score-row"):
                     yield Label("Bonus Dolby Vision:", classes="mlabel")
                     yield Input(str(self.scores.get('bonus_dv', 300)), id="s-bonus-dv", classes="minp")
@@ -547,9 +542,9 @@ class ScoreModal(ModalScreen):
                     yield Label("Bonus Repack:", classes="mlabel")
                     yield Input(str(self.scores.get('bonus_repack', 50)), id="s-bonus-repack", classes="minp")
 
-                if 'res_map' in self.scores:
+                if 'res_pref' in self.scores:
                     yield Label("2. Rank Risoluzioni", classes="msection")
-                    for k, v in sorted(self.scores['res_map'].items(), key=lambda x: x[1]):
+                    for k, v in sorted(self.scores['res_pref'].items(), key=lambda x: x[1]):
                         with Horizontal(classes="score-row"):
                             yield Label(f"{k}:", classes="mlabel")
                             yield Input(str(v), id=f"sm-res-{k}", classes="minp-short")
@@ -601,15 +596,13 @@ class ScoreModal(ModalScreen):
     @on(Button.Pressed, "#mdl-ok")
     def do_ok(self):
         try:
-            self.scores['res_mult']    = int(self.query_one("#s-res-mult").value)
-            self.scores['bonus_ita']   = int(self.query_one("#s-bonus-ita").value)
             self.scores['bonus_dv']    = int(self.query_one("#s-bonus-dv").value)
             self.scores['bonus_real']  = int(self.query_one("#s-bonus-real").value)
             self.scores['bonus_proper']= int(self.query_one("#s-bonus-proper").value)
             self.scores['bonus_repack']= int(self.query_one("#s-bonus-repack").value)
 
             for inp in self.query(Input):
-                if inp.id.startswith("sm-res-"): self.scores['res_map'][inp.id[7:]] = int(inp.value)
+                if inp.id.startswith("sm-res-"): self.scores['res_pref'][inp.id[7:]] = int(inp.value)
                 if inp.id.startswith("sm-src-"): self.scores['source_pref'][inp.id[7:]] = int(inp.value)
                 if inp.id.startswith("sm-cod-"): self.scores['codec_pref'][inp.id[7:]] = int(inp.value)
                 if inp.id.startswith("sm-aud-"): self.scores['audio_pref'][inp.id[7:]] = int(inp.value)
@@ -757,6 +750,8 @@ class ExttoTUI(App):
         super().__init__(**kw)
         self.api = api
         self._series    = []
+        self._series_stats = {}
+        self._series_comp  = {}
         self._movies    = []
         self._movies_db = {}
         self._sel_sid   = None
@@ -765,6 +760,8 @@ class ExttoTUI(App):
         self._sel_mid   = None
         self._log_auto  = True
         self._backend_ok = True
+        self._last_lc   = {}
+        self._last_sys  = {}
 
     # ── compose ───────────────────────────────────────────────────────────────
 
@@ -901,12 +898,13 @@ class ExttoTUI(App):
         self.query_one("#dt-health-serv", DataTable).add_columns("Servizio", "Stato")
         self.query_one("#dt-health-err",  DataTable).add_columns("Ultime righe di errore nel log")
 
-        self._load_dash()
+        self._refresh_dash_full()
         self._load_series()
         self._load_movies()
         self._load_torrents()
         self._load_archive()
-        # Un unico timer: aggiorna dashboard+torrents+log ogni 5s
+        # Un unico timer: aggiorna statusbar (sempre) + dashboard/torrent/log
+        # (solo quando il tab relativo e' visibile) ogni 5s
         self.set_interval(5, self._auto_refresh)
 
     # ── navigazione shortcut tab ──────────────────────────────────────────────
@@ -920,9 +918,11 @@ class ExttoTUI(App):
     # ── refresh ───────────────────────────────────────────────────────────────
 
     def _auto_refresh(self):
-        self._load_dash()
+        self._load_statusbar()
         try:
             tab = self.query_one(TabbedContent).active
+            if tab == "tab-dash":
+                self._load_dash()
             if tab in ("tab-torrents", "tab-dash"):
                 self._load_torrents()
             if tab == "tab-log":
@@ -936,7 +936,7 @@ class ExttoTUI(App):
         except NoMatches:
             return
         {
-            "tab-dash":     self._load_dash,
+            "tab-dash":     self._refresh_dash_full,
             "tab-series":   self._load_series,
             "tab-movies":   self._load_movies,
             "tab-torrents": self._load_torrents,
@@ -949,21 +949,49 @@ class ExttoTUI(App):
     # ── workers: Dashboard ────────────────────────────────────────────────────
 
     @work(thread=True)
-    def _load_dash(self):
+    def _load_statusbar(self):
+        """Aggiorna solo la barra di stato in alto (ciclo/sistema), 2 chiamate
+        leggere. Gira ogni 5s indipendentemente dal tab attivo, cosi l'orologio
+        del prossimo ciclo e le metriche di sistema restano sempre aggiornate
+        senza dover interrogare anche stats()/recent() (usate solo dal tab
+        Dashboard) su ogni tick."""
         try:
-            st   = self.api.stats()
             lc   = self.api.last_cycle()
             sys_ = self.api.syscfg()
-            rec  = self.api.recent()
-            self.call_from_thread(self._upd_dash, st, lc, sys_, rec)
-            if not self._backend_ok:
-                self._backend_ok = True
-                self.call_from_thread(self._upd_conn_status, True)
+            self._last_lc, self._last_sys = lc, sys_
+            self.call_from_thread(self._upd_statusbar, lc, sys_)
+            self._report_conn_ok()
         except Exception as e:
-            self.call_from_thread(self.notify, f"Dashboard: {e}", severity="error")
-            if self._backend_ok:
-                self._backend_ok = False
-                self.call_from_thread(self._upd_conn_status, False)
+            self._report_conn_error(f"Connessione: {e}")
+
+    @work(thread=True)
+    def _load_dash(self):
+        try:
+            st  = self.api.stats()
+            rec = self.api.recent()
+            self.call_from_thread(self._upd_dash, st, self._last_lc, self._last_sys, rec)
+            self._report_conn_ok()
+        except Exception as e:
+            self._report_conn_error(f"Dashboard: {e}")
+
+    def _refresh_dash_full(self):
+        self._load_statusbar()
+        self._load_dash()
+
+    def _report_conn_ok(self):
+        """Segnala connessione OK e avvisa solo al cambio di stato (evita spam)."""
+        if not self._backend_ok:
+            self._backend_ok = True
+            self.call_from_thread(self._upd_conn_status, True)
+
+    def _report_conn_error(self, msg):
+        """Segnala errore di connessione: notifica solo alla PRIMA caduta, non
+        ad ogni tentativo (senza questo, con backend offline il polling ogni 5s
+        genera un toast di errore infinito)."""
+        if self._backend_ok:
+            self._backend_ok = False
+            self.call_from_thread(self._upd_conn_status, False)
+            self.call_from_thread(self.notify, msg, severity="error")
 
     def _upd_conn_status(self, ok: bool):
         try:
@@ -979,7 +1007,7 @@ class ExttoTUI(App):
         except NoMatches:
             pass
 
-    def _upd_dash(self, st, lc, sys_, rec):
+    def _upd_statusbar(self, lc, sys_):
         last = lc.get("generated_at", "")
         intv = lc.get("refresh_interval", 7200)
         nr   = next_run(last, intv)
@@ -992,6 +1020,18 @@ class ExttoTUI(App):
             self.query_one("#sb-next",  Label).update(f"| Prox: {nr}")
             self.query_one("#sb-sys",   Label).update(f"| CPU:{cpu}% RAM:{ram}MB")
             self.query_one("#sb-disk",  Label).update(f"| Disco:{disk}% Up:{up}")
+        except NoMatches:
+            pass
+
+    def _upd_dash(self, st, lc, sys_, rec):
+        last = lc.get("generated_at", "")
+        intv = lc.get("refresh_interval", 7200)
+        nr   = next_run(last, intv)
+        cpu  = sys_.get("cpu",    "?") if isinstance(sys_, dict) else "?"
+        ram  = sys_.get("ram_mb", "?") if isinstance(sys_, dict) else "?"
+        disk = sys_.get("disk",   "?") if isinstance(sys_, dict) else "?"
+        up   = sys_.get("uptime", "?") if isinstance(sys_, dict) else "?"
+        try:
             self.query_one("#d-cycle", Static).update(
                 f"Ultimo:     {fmts(last)}\nProssimo:   {nr}\nIntervallo: {intv // 60}min"
             )
@@ -1032,7 +1072,15 @@ class ExttoTUI(App):
             self.call_from_thread(self.notify, f"Serie: {e}", severity="error")
 
     def _upd_series(self, data, stats, comp):
-        self._series = data
+        self._series       = data
+        self._series_stats = stats
+        self._series_comp  = comp
+        self._render_series_table()
+
+    def _render_series_table(self):
+        """Ridisegna dt-series applicando il filtro corrente. Usata sia dopo il
+        caricamento dati sia durante la digitazione nel campo Filtra, cosi la
+        colonna Stato resta sempre popolata in entrambi i casi."""
         try:
             q = ""
             try:
@@ -1042,7 +1090,7 @@ class ExttoTUI(App):
 
             t = self.query_one("#dt-series", DataTable)
             t.clear()
-            for s in data:
+            for s in self._series:
                 try:
                     sid  = s.get("id")
                     name = s.get("name") or "?"
@@ -1053,8 +1101,8 @@ class ExttoTUI(App):
                     l_s  = s.get("last_season")
                     l_e  = s.get("last_episode")
                     lu   = f"S{int(l_s):02d}E{int(l_e):02d}" if l_s is not None and l_e is not None else "—"
-                    st   = stats.get(str(sid), {})
-                    if comp.get(s.get("name", "")):
+                    st   = self._series_stats.get(str(sid), {})
+                    if self._series_comp.get(name):
                         stato = "Completa"
                     elif st.get("is_ended"):
                         stato = "Conclusa"
@@ -1183,12 +1231,13 @@ class ExttoTUI(App):
         try:
             data = self.api.torrents()
             if isinstance(data, dict) and "error" in data:
-                self.call_from_thread(self.notify, f"Backend: {data['error']}", severity="error")
+                self._report_conn_error(f"Backend: {data['error']}")
                 self.call_from_thread(self._upd_torrents, [])
                 return
             self.call_from_thread(self._upd_torrents, data)
+            self._report_conn_ok()
         except Exception as e:
-            self.call_from_thread(self.notify, f"Connessione: {e}", severity="error")
+            self._report_conn_error(f"Connessione: {e}")
             self.call_from_thread(self._upd_torrents, [])
 
     def _upd_torrents(self, data):
@@ -1264,8 +1313,9 @@ class ExttoTUI(App):
         try:
             data = self.api.logs(300)
             self.call_from_thread(self._upd_log, data.get("logs", []))
+            self._report_conn_ok()
         except Exception as e:
-            self.call_from_thread(self.notify, f"Log: {e}", severity="error")
+            self._report_conn_error(f"Log: {e}")
 
     def _upd_log(self, lines):
         try:
@@ -1470,7 +1520,7 @@ class ExttoTUI(App):
             elif tab_attiva == "tab-sources":
                 self._load_sources()
             elif tab_attiva == "tab-dash":
-                self._load_dash()
+                self._refresh_dash_full()
             elif tab_attiva == "tab-health":
                 self._load_health()
         except NoMatches:
@@ -1481,26 +1531,7 @@ class ExttoTUI(App):
     @on(Input.Changed, "#series-filter")
     def series_filter_changed(self, event: Input.Changed):
         """Rifiltra la tabella serie in tempo reale mentre si digita."""
-        q = event.value.strip().lower()
-        try:
-            t = self.query_one("#dt-series", DataTable)
-            t.clear()
-            for s in self._series:
-                try:
-                    name = s.get("name") or "?"
-                    if q and q not in name.lower():
-                        continue
-                    sid  = s.get("id")
-                    eps  = s.get("episodes_count", 0)
-                    q_   = qual(s.get("quality_score"))
-                    l_s  = s.get("last_season")
-                    l_e  = s.get("last_episode")
-                    lu   = f"S{int(l_s):02d}E{int(l_e):02d}" if l_s is not None and l_e is not None else "—"
-                    t.add_row(str(sid), name[:36], str(eps), q_, lu, "")
-                except Exception:
-                    continue
-        except NoMatches:
-            pass
+        self._render_series_table()
 
     # ── bottoni ───────────────────────────────────────────────────────────────
 
@@ -1878,6 +1909,16 @@ def main():
         sys.exit(1)
 
     ExttoTUI(api=api).run()
+
+    # A questo punto Textual ha gia' ripristinato il terminale. Se un tab
+    # (es. "Sorgenti", timeout=30s) ha lasciato un worker a thread bloccato
+    # dentro una requests.get() sincrona, l'atexit handler di
+    # concurrent.futures.thread aspetterebbe il join di quel thread prima
+    # di terminare il processo (shell "appesa" fino a 30s). os._exit salta
+    # quell'attesa: non c'e' stato locale da salvare, extto_ui.py e' solo
+    # un client HTTP di visualizzazione.
+    sys.stdout.flush()
+    os._exit(0)
 
 
 if __name__ == "__main__":
