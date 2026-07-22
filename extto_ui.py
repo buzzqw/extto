@@ -1908,7 +1908,10 @@ def main():
         print("Verifica che extto_web.py sia in esecuzione.")
         sys.exit(1)
 
-    ExttoTUI(api=api).run()
+    try:
+        ExttoTUI(api=api).run()
+    except KeyboardInterrupt:
+        pass
 
     # A questo punto Textual ha gia' ripristinato il terminale. Se un tab
     # (es. "Sorgenti", timeout=30s) ha lasciato un worker a thread bloccato
