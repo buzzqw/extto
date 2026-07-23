@@ -5714,7 +5714,7 @@ def send_magnet():
                 session = requests.Session()
                 r = session.post(login_url, data={'username': qb_user, 'password': qb_pass}, timeout=5)
                 if _qbt_ok(r):
-                    add_data = {'urls': magnet, 'paused': 'true'}
+                    add_data = {'urls': magnet, 'paused': 'true', 'stopped': 'true'}
                     if save_path: add_data['savepath'] = save_path
                     r = session.post(f"{qb_url}/api/v2/torrents/add", data=add_data, timeout=5)
                     if _qbt_ok(r):
@@ -5845,7 +5845,7 @@ def upload_torrent():
                 if _qbt_ok(r):
                     add_url = f"{qb_url}/api/v2/torrents/add"
                     files = {'torrents': (filename, torrent_bytes, 'application/x-bittorrent')}
-                    add_data = {'paused': 'true'}
+                    add_data = {'paused': 'true', 'stopped': 'true'}
                     if save_path: add_data['savepath'] = save_path
                     r = session.post(add_url, files=files, data=add_data, timeout=5)
                     if _qbt_ok(r):
@@ -8156,7 +8156,7 @@ def _comics_send_magnet(magnet: str, save_path: str = '') -> bool:
             sess = requests.Session()
             r = sess.post(f"{qb_url}/api/v2/auth/login", data={'username': qb_user, 'password': qb_pass}, timeout=5)
             if _qbt_ok(r):
-                data = {'urls': magnet, 'paused': 'true'}
+                data = {'urls': magnet, 'paused': 'true', 'stopped': 'true'}
                 if target_path: data['savepath'] = target_path
                 r = sess.post(f"{qb_url}/api/v2/torrents/add", data=data, timeout=5)
                 if _qbt_ok(r):
