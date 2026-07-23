@@ -63,6 +63,19 @@ TORRENT_STATES = {
     "seeding_t": "SEED_T", "allocating": "ALLOC", "downloading_metadata": "META",
 }
 
+TSTATE_COLORS = {
+    "DL":      "#3dd68c", "SEED":    "#5b8dee", "PAUSA":   "#f5a623",
+    "CHECK":   "#a78bfa", "ERR":     "#ee4444", "CODA":    "#8899aa",
+    "FINE":    "#3cc8c8", "STALL":   "#f0853c", "META":    "#f5a623",
+    "FINE_T":  "#3cc8c8", "SEED_T":  "#5b8dee", "ALLOC":   "#8899aa",
+    "SALVATO": "#a78bfa",
+}
+
+QUALITY_COLORS = {
+    5000: "#c084fc", 4000: "#a78bfa", 3000: "#3dd68c",
+    2000: "#5b8dee", 1000: "#f5a623", 500: "#f0853c", 0: "#8899aa",
+}
+
 
 def qual(score):
     if score is None:
@@ -71,6 +84,15 @@ def qual(score):
         if score >= t:
             return QUALITY_MAP[t]
     return "?"
+
+
+def qual_colored(score):
+    """Resa qualita' con markup Rich colorato per risoluzione."""
+    label = qual(score)
+    for t in sorted(QUALITY_COLORS, reverse=True):
+        if score is not None and score >= t:
+            return f"[{QUALITY_COLORS[t]}]{label}[/]"
+    return label
 
 
 def fmts(s):
@@ -128,11 +150,17 @@ def next_run(last_ts, interval_s):
         return "?"
 
 
-def pbar(pct):
-    """Barra di progresso con caratteri Unicode."""
+def pbar(pct, width=20):
+    """Barra di progresso con gradiente rosso→giallo→verde."""
     pct = max(0, min(100, int(pct if pct > 1 else pct * 100)))
-    n = pct // 5
-    return f"[{'█' * n}{'░' * (20 - n)}] {pct:3d}%"
+    n = max(0, min(width, round(pct / 100 * width)))
+    if pct < 30:
+        bar = f"[#ee4444]{'█' * n}[/][#3a3a3a]{'░' * (width - n)}[/]"
+    elif pct < 70:
+        bar = f"[#f5a623]{'█' * n}[/][#3a3a3a]{'░' * (width - n)}[/]"
+    else:
+        bar = f"[#3dd68c]{'█' * n}[/][#3a3a3a]{'░' * (width - n)}[/]"
+    return f"{bar} {pct:3d}%"
 
 
 # ─── API ─────────────────────────────────────────────────────────────────────
@@ -240,69 +268,76 @@ class API:
 # ─── CSS ─────────────────────────────────────────────────────────────────────
 
 CSS = """
-* { scrollbar-color: #333 #0a0a0a; scrollbar-size: 1 1; }
-Screen  { background: #0a0a0a; color: #c0c0c0; }
-Header  { background: #001428; color: #00aaff; height: 1; }
-Footer  { background: #001428; color: #555;    height: 1; }
+* { scrollbar-color: #2a2a3a #0c0d14; scrollbar-size: 1 1; }
+Screen  { background: #0c0d14; color: #c8cddc; }
+Header  { background: #10142a; color: #7da8f0; height: 1; }
+Footer  { background: #10142a; color: #4a5070; height: 1; }
 
 #statusbar {
     height: 1;
-    background: #001428;
+    background: #10142a;
     padding: 0 1;
     layout: horizontal;
+    border-bottom: solid #1a1e36;
 }
-#statusbar Label { padding: 0 2; color: #888; }
-#sb-cycle { color: #00ff88; }
-#sb-conn-ok  { color: #00ff88; }
-#sb-conn-err { color: #ff5555; }
+#statusbar Label     { padding: 0 2; color: #6a7090; }
+#sb-cycle            { color: #3dd68c; }
+#sb-conn-ok          { color: #3dd68c; }
+#sb-conn-err         { color: #ee4444; }
 
 TabbedContent { height: 1fr; }
 TabPane       { padding: 0; height: 1fr; }
 
 .toolbar {
     height: auto;
-    background: #0f0f0f;
+    background: #111422;
     padding: 0 1;
-    border-bottom: solid #1e1e1e;
+    border-bottom: solid #1e2238;
     layout: horizontal;
     align: left middle;
 }
 .toolbar Button {
     min-width: 14;
     margin: 0 1;
-    background: #141414;
-    border: solid #2a2a2a;
-    color: #999;
+    background: #181c2c;
+    border: solid #252a40;
+    color: #8892b0;
 }
-.toolbar Button:hover  { background: #222; color: #eee; }
-.toolbar Button.ok     { color: #00cc66; border: solid #1a4a2a; }
-.toolbar Button.warn   { color: #ffaa00; border: solid #4a3a00; }
-.toolbar Button.danger { color: #ff5555; border: solid #4a1515; }
-.toolbar Label         { color: #555; padding: 0 1; }
+.toolbar Button:hover      { background: #1e2440; color: #c8cddc; border: solid #3a4470; }
+.toolbar Button.ok         { color: #3dd68c; border: solid #1a4a3a; }
+.toolbar Button.warn       { color: #f5a623; border: solid #4a3a20; }
+.toolbar Button.danger     { color: #ee4444; border: solid #4a2020; }
+.toolbar Label             { color: #4a5070; padding: 0 1; }
 .toolbar Input {
     width: 26;
-    background: #0f0f0f;
-    border: solid #2a2a2a;
-    color: #ccc;
+    background: #0e101a;
+    border: solid #252a40;
+    color: #c8cddc;
+}
+.toolbar Input:focus { border: solid #5b8dee; }
+
+.toolbar-sep {
+    width: 1; height: 3; background: #252a40; margin: 0 2;
 }
 
 DataTable {
     height: 1fr;
-    background: #0a0a0a;
+    background: #0c0d14;
     border: none;
 }
 DataTable > .datatable--header {
-    background: #001428;
-    color: #00aaff;
+    background: #10142a;
+    color: #7da8f0;
     text-style: bold;
 }
 DataTable > .datatable--cursor {
-    background: #002244;
+    background: #1a2a50;
     color: #ffffff;
     text-style: bold;
 }
-DataTable > .datatable--even-row { background: #0c0c0c; }
-DataTable > .datatable--odd-row  { background: #0a0a0a; }
+DataTable > .datatable--even-row { background: #0f1122; }
+DataTable > .datatable--odd-row  { background: #0c0d14; }
+DataTable > .datatable--hover    { background: #141830; }
 
 /* Serie */
 #series-outer  { height: 1fr; }
@@ -310,44 +345,44 @@ DataTable > .datatable--odd-row  { background: #0a0a0a; }
 #series-left   { width: 1fr; height: 1fr; }
 #series-right  {
     width: 44;
-    border-left: solid #1e1e1e;
+    border-left: solid #1e2238;
     padding: 1 2;
-    background: #0c0c0c;
+    background: #0f1122;
     overflow-y: auto;
     height: 1fr;
 }
-#ep-section    { height: 7; border-top: solid #1e1e1e; }
+#ep-section    { height: 7; border-top: solid #1e2238; }
 #ep-toolbar {
     height: auto;
-    background: #0f0f0f;
+    background: #111422;
     padding: 0 1;
-    border-bottom: solid #1e1e1e;
+    border-bottom: solid #1e2238;
     layout: horizontal;
     align: left middle;
 }
 #ep-toolbar Button {
     min-width: 16;
     margin: 0 1;
-    background: #141414;
-    border: solid #2a2a2a;
-    color: #999;
+    background: #181c2c;
+    border: solid #252a40;
+    color: #8892b0;
 }
-#ep-toolbar Button:hover  { background: #222; color: #eee; }
-#ep-toolbar Button.warn   { color: #ffaa00; }
-#ep-toolbar Button.danger { color: #ff5555; }
-#ep-label { color: #555; padding: 0 1; }
+#ep-toolbar Button:hover  { background: #1e2440; color: #c8cddc; }
+#ep-toolbar Button.warn   { color: #f5a623; }
+#ep-toolbar Button.danger { color: #ee4444; }
+#ep-label { color: #4a5070; padding: 0 1; }
 
-.det-title { color: #00ff88; text-style: bold; margin-bottom: 1; }
-.det-body  { color: #aaa; }
+.det-title { color: #3dd68c; text-style: bold; margin-bottom: 1; }
+.det-body  { color: #8892b0; }
 
 /* Film */
 #movies-split { height: 1fr; layout: horizontal; }
 #movies-left  { width: 1fr; height: 1fr; }
 #movies-right {
     width: 44;
-    border-left: solid #1e1e1e;
+    border-left: solid #1e2238;
     padding: 1 2;
-    background: #0c0c0c;
+    background: #0f1122;
     overflow-y: auto;
     height: 1fr;
 }
@@ -355,54 +390,56 @@ DataTable > .datatable--odd-row  { background: #0a0a0a; }
 /* Log */
 #log-scroll {
     height: 1fr;
-    background: #050505;
+    background: #080a12;
     padding: 0 1;
     overflow-y: auto;
 }
-#log-text { color: #777; }
+#log-text { color: #6a7090; }
 
 /* Archivio */
 #arch-toolbar {
     height: auto;
-    background: #0f0f0f;
+    background: #111422;
     padding: 0 1;
-    border-bottom: solid #1e1e1e;
+    border-bottom: solid #1e2238;
     layout: horizontal;
     align: left middle;
 }
-#arch-toolbar Label { color: #555; padding: 0 1; }
+#arch-toolbar Label { color: #4a5070; padding: 0 1; }
 #arch-toolbar Input {
     width: 38;
-    background: #0f0f0f;
-    border: solid #2a2a2a;
-    color: #ccc;
+    background: #0e101a;
+    border: solid #252a40;
+    color: #c8cddc;
 }
 #arch-toolbar Button {
     margin: 0 1;
-    background: #141414;
-    border: solid #2a2a2a;
-    color: #999;
+    background: #181c2c;
+    border: solid #252a40;
+    color: #8892b0;
 }
-#arch-count { color: #444; padding: 0 2; }
+#arch-toolbar Button:hover { background: #1e2440; color: #c8cddc; }
+#arch-count { color: #3a4060; padding: 0 2; }
 
 /* Dashboard */
 #dash-section { height: 1fr; layout: horizontal; }
 #dash-left {
-    width: 38;
+    width: 36;
     padding: 1 2;
-    border-right: solid #1e1e1e;
+    border-right: solid #1e2238;
     overflow-y: auto;
 }
 #dash-right { width: 1fr; padding: 1 1; }
-.dash-hdr { color: #00aaff; text-style: bold; margin-top: 1; }
-.dash-val { color: #00ff88; }
+.dash-hdr { color: #7da8f0; text-style: bold; margin-top: 1; }
+.dash-val { color: #3dd68c; }
+.dash-muted { color: #8892b0; }
 
 /* Salute */
 .health-section-label {
-    color: #00aaff;
+    color: #7da8f0;
     text-style: bold;
     padding: 1 1 0 1;
-    border-top: solid #1e1e1e;
+    border-top: solid #1e2238;
 }
 #dt-health-disk { height: auto; max-height: 8; }
 #dt-health-idx  { height: auto; max-height: 8; }
@@ -412,39 +449,41 @@ DataTable > .datatable--odd-row  { background: #0a0a0a; }
 /* Modal */
 ModalScreen { align: center middle; }
 #mdl {
-    background: #0d0d18;
-    border: solid #223;
+    background: #10142a;
+    border: solid #252a40;
     padding: 2 4;
     width: 64;
     height: auto;
     max-height: 28;
 }
+#mdl Label { color: #8892b0; margin-bottom: 1; }
+#mdl Input {
+    width: 100%;
+    background: #0c0d14;
+    border: solid #252a40;
+    color: #c8cddc;
+    margin-bottom: 1;
+}
+#mdl Input:focus { border: solid #5b8dee; }
+
 .mtitle {
-    color: #00aaff;
+    color: #7da8f0;
     text-style: bold;
     text-align: center;
     margin-bottom: 2;
-}
-#mdl Label  { color: #aaa; margin-bottom: 1; }
-#mdl Input  {
-    width: 100%;
-    background: #0a0a0a;
-    border: solid #223;
-    color: #ccc;
-    margin-bottom: 1;
 }
 #mdl-btns { height: 3; align: center middle; margin-top: 1; }
 #mdl-btns Button { margin: 0 2; min-width: 12; }
 
 #mdl-large {
-    background: #0d0d18;
-    border: solid #223;
+    background: #10142a;
+    border: solid #252a40;
     padding: 1 2;
     width: 80;
     height: 40;
 }
-.msection { color: #00ff88; text-style: bold; margin: 1 0; border-bottom: solid #1e1e1e; }
-.mlabel { width: 30; color: #aaa; }
+.msection { color: #3dd68c; text-style: bold; margin: 1 0; border-bottom: solid #1e2238; }
+.mlabel { width: 30; color: #8892b0; }
 .minp { width: 15; }
 .minp-short { width: 10; }
 .score-row { height: 3; align: left middle; }
@@ -777,6 +816,8 @@ class ExttoTUI(App):
         self._backend_ok = True
         self._last_lc   = {}
         self._last_sys  = {}
+        self._torrent_data = []
+        self._torrent_filter = ""
 
     # ── compose ───────────────────────────────────────────────────────────────
 
@@ -853,6 +894,8 @@ class ExttoTUI(App):
                         yield Button("Velocità",           id="b-speed")
                         yield Button("Interfaccia",        id="b-iface")
                         yield Button("Aggiorna",           id="b-ref-t")
+                        yield Label("Filtra:")
+                        yield Input(placeholder="nome o stato...", id="torrent-filter")
                     yield DataTable(id="dt-torr", cursor_type="row")
 
             with TabPane("Log \\[5]", id="tab-log"):
@@ -958,7 +1001,6 @@ class ExttoTUI(App):
             "tab-log":      self._load_log,
             "tab-health":   self._load_health,
             "tab-archive":  lambda: self._load_archive(),
-            "tab-sources":  self._load_sources,
         }.get(tab, lambda: None)()
 
     # ── workers: Dashboard ────────────────────────────────────────────────────
@@ -1112,18 +1154,19 @@ class ExttoTUI(App):
                     if q and q not in name.lower():
                         continue
                     eps  = s.get("episodes_count", 0)
-                    q_   = qual(s.get("quality_score"))
+                    score = s.get("quality_score")
+                    q_   = qual_colored(score) if score is not None else "?"
                     l_s  = s.get("last_season")
                     l_e  = s.get("last_episode")
                     lu   = f"S{int(l_s):02d}E{int(l_e):02d}" if l_s is not None and l_e is not None else "—"
                     st   = self._series_stats.get(str(sid), {})
                     if self._series_comp.get(name):
-                        stato = "Completa"
+                        stato, st_clr = "Completa", "[#3dd68c]"
                     elif st.get("is_ended"):
-                        stato = "Conclusa"
+                        stato, st_clr = "Conclusa", "[#5b8dee]"
                     else:
-                        stato = "Attiva"
-                    t.add_row(str(sid), name[:36], str(eps), q_, lu, stato)
+                        stato, st_clr = "Attiva",    "[#f5a623]"
+                    t.add_row(str(sid), name[:36], str(eps), q_, lu, f"{st_clr}{stato}[/]")
                 except Exception:
                     continue
         except NoMatches:
@@ -1159,12 +1202,14 @@ class ExttoTUI(App):
             t = self.query_one("#dt-eps", DataTable)
             t.clear()
             for ep in sorted(data, key=lambda x: (x.get("season", 0), x.get("episode", 0))):
+                score = ep.get("quality_score")
+                q_disp = qual_colored(score) if score is not None else "?"
                 t.add_row(
                     str(ep.get("id", "")),
                     f"S{ep.get('season', 0):02d}",
                     f"E{ep.get('episode', 0):02d}",
                     (ep.get("title") or "")[:30],
-                    qual(ep.get("quality_score")),
+                    q_disp,
                     fmts(ep.get("downloaded_at")),
                 )
             self.query_one("#ep-label", Label).update(
@@ -1197,7 +1242,7 @@ class ExttoTUI(App):
             for i, m in enumerate(data):
                 key       = m.get("name", "").lower()
                 db_rec    = self._movies_db.get(key)
-                scaricato = "✓" if db_rec else "—"
+                scaricato = "[#3dd68c]✓[/]" if db_rec else "[#4a5070]—[/]"
                 t.add_row(
                     str(i),
                     m.get("name", "?")[:38],
@@ -1264,7 +1309,13 @@ class ExttoTUI(App):
             lst = []
         if isinstance(lst, dict):
             lst = list(lst.values())
+        self._torrent_data = lst
+        self._render_torrent_table()
 
+    def _render_torrent_table(self):
+        """Ridisegna dt-torr applicando il filtro corrente."""
+        lst = self._torrent_data
+        q = self._torrent_filter.lower()
         try:
             t = self.query_one("#dt-torr", DataTable)
             t.clear()
@@ -1288,6 +1339,12 @@ class ExttoTUI(App):
                         final_states = ("SEED", "FINE", "FINE_T")
                         if state not in final_states:
                             state = "SALVATO"
+
+                    if q and q not in str(name_raw).lower() and q not in state.lower():
+                        continue
+
+                    clr = TSTATE_COLORS.get(state, "#8899aa")
+                    state_colored = f"[bold {clr}]{state}[/]"
 
                     dl_rate  = tor.get("download_rate", tor.get("rateDownload", 0)) or 0
                     ul_rate  = tor.get("upload_rate",   tor.get("rateUpload",   0)) or 0
@@ -1319,9 +1376,16 @@ class ExttoTUI(App):
                     else:
                         eta = "—"
 
-                    t.add_row(name, state, pbar(prog), dl_s, ul_s, size, ratio, seed_s, eta)
+                    t.add_row(name, state_colored, pbar(prog), dl_s, ul_s, size, ratio, seed_s, eta)
                 except Exception:
                     continue
+
+            try:
+                cnt = t.row_count
+                flt = f"  {cnt} torrent" if cnt == 1 else f"  {cnt} torrent"
+                self.query_one("#torrent-filter", Input).placeholder = f"{'filtro attivo' if q else 'nome o stato...'} ({flt})"
+            except NoMatches:
+                pass
         except NoMatches:
             pass
 
@@ -1410,7 +1474,7 @@ class ExttoTUI(App):
 
     @work(thread=True)
     def _load_health(self):
-        self.call_from_thread(self.notify, "Caricamento stato sistema...")
+        self.call_from_thread(self.notify, "Caricamento stato sistema...", timeout=3)
         try:
             data = self.api.health()
             self.call_from_thread(self._upd_health, data)
@@ -1514,12 +1578,25 @@ class ExttoTUI(App):
                 pass
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        """Invio su dt-series o dt-movies esegue azione primaria (mostra dettaglio)."""
+        """Invio su dt-series, dt-movies o dt-torr esegue azione primaria (mostra dettaglio)."""
         tid = event.data_table.id
         if tid == "dt-series" and self._sel_sid:
             self._show_series_det(self._sel_sid)
         elif tid == "dt-movies" and self._sel_mid is not None:
             self._show_movie_det(self._sel_mid)
+        elif tid == "dt-torr":
+            try:
+                row = event.data_table.get_row(event.row_key)
+                if row:
+                    name, stato, progbar, dl_s, ul_s, size, ratio, seed_s, eta = row
+                    self.notify(
+                        f"[b]{name}[/b]\n"
+                        f"Stato: {stato}  |  Progr: {progbar}\n"
+                        f"⬇ {dl_s}  ⬆ {ul_s}  |  {size}  |  R:{ratio}  |  ETA: {eta}",
+                        timeout=8
+                    )
+            except Exception:
+                pass
 
     # ── cambio tab ────────────────────────────────────────────────────────────
 
@@ -1536,8 +1613,6 @@ class ExttoTUI(App):
                 self._load_movies()
             elif tab_attiva == "tab-archive":
                 self._load_archive()
-            elif tab_attiva == "tab-sources":
-                self._load_sources()
             elif tab_attiva == "tab-dash":
                 self._refresh_dash_full()
             elif tab_attiva == "tab-health":
@@ -1551,6 +1626,12 @@ class ExttoTUI(App):
     def series_filter_changed(self, event: Input.Changed):
         """Rifiltra la tabella serie in tempo reale mentre si digita."""
         self._render_series_table()
+
+    @on(Input.Changed, "#torrent-filter")
+    def torrent_filter_changed(self, event: Input.Changed):
+        """Rifiltra la tabella torrent in tempo reale mentre si digita."""
+        self._torrent_filter = event.value
+        self._render_torrent_table()
 
     # ── bottoni ───────────────────────────────────────────────────────────────
 
