@@ -97,6 +97,21 @@ def spd(bps):
     return "—" if not bps else sz(bps) + "/s"
 
 
+def dur(seconds):
+    """Durata leggibile (es. 2g 5h, 3h15m, 42m) per il tempo di seeding."""
+    seconds = int(seconds or 0)
+    if seconds <= 0:
+        return "—"
+    d, r = divmod(seconds, 86400)
+    h, r = divmod(r, 3600)
+    m, _ = divmod(r, 60)
+    if d:
+        return f"{d}g {h}h"
+    if h:
+        return f"{h}h{m:02d}m"
+    return f"{m}m"
+
+
 def next_run(last_ts, interval_s):
     if not last_ts:
         return "?"
@@ -890,7 +905,7 @@ class ExttoTUI(App):
         self.query_one("#dt-series", DataTable).add_columns("ID", "Nome", "Ep", "Qual", "Ultimo", "Stato")
         self.query_one("#dt-eps",    DataTable).add_columns("ID", "St", "Ep", "Titolo", "Qual", "Scaricato")
         self.query_one("#dt-movies", DataTable).add_columns("ID", "Titolo", "Anno", "Qual", "Lingua", "Scaricato")
-        self.query_one("#dt-torr",   DataTable).add_columns("Nome", "Stato", "Progresso", "DL", "UL", "Size", "Ratio", "ETA")
+        self.query_one("#dt-torr",   DataTable).add_columns("Nome", "Stato", "Progresso", "DL", "UL", "Size", "Ratio", "Seed", "ETA")
         self.query_one("#dt-arch",   DataTable).add_columns("ID", "Titolo", "Aggiunto")
         self.query_one("#dt-src",    DataTable).add_columns("Nome", "URL", "Stato", "Ping")
         self.query_one("#dt-health-disk", DataTable).add_columns("Disco", "Spazio", "Stato")
@@ -1281,15 +1296,19 @@ class ExttoTUI(App):
                     ul_s     = spd(ul_rate)
                     size     = sz(tot_size)
 
-                    raw_ratio = tor.get('ratio') or tor.get('uploadRatio')
+                    raw_ratio = tor.get('ratio')
                     if raw_ratio is None:
-                        d_done = tor.get('total_done', 0) or 0
-                        u_done = tor.get('total_uploaded', 0) or 0
+                        raw_ratio = tor.get('uploadRatio')
+                    if raw_ratio is None:
+                        d_done = tor.get('downloaded', tor.get('total_done', 0)) or 0
+                        u_done = tor.get('uploaded', tor.get('total_uploaded', 0)) or 0
                         raw_ratio = (u_done / d_done) if d_done > 0 else 0.0
                     try:
                         ratio = f"{float(raw_ratio):.2f}"
                     except (ValueError, TypeError):
                         ratio = "0.00"
+
+                    seed_s = dur(tor.get("seeding_time", 0))
 
                     eta_v = tor.get("eta", -1)
                     if file_on_disk:
@@ -1300,7 +1319,7 @@ class ExttoTUI(App):
                     else:
                         eta = "—"
 
-                    t.add_row(name, state, pbar(prog), dl_s, ul_s, size, ratio, eta)
+                    t.add_row(name, state, pbar(prog), dl_s, ul_s, size, ratio, seed_s, eta)
                 except Exception:
                     continue
         except NoMatches:
