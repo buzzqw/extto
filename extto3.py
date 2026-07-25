@@ -1407,6 +1407,7 @@ def main():
     except Exception:
         last_comics_check = 0.0
     last_completion_check = 0  # <--- AGGIUNGI QUESTA
+    last_rename_verify   = 0  # <--- Lazy rename verify (ogni 12 ore)
     last_disk_alert     = 0  # <--- Timer Spazio Disco
     last_load_alert     = 0  # <--- Timer Sovraccarico CPU
     _first_cycle        = True  # Flag primo ciclo: forza fumetti subito
@@ -3134,7 +3135,18 @@ def main():
             except Exception as e:
                 logger.warning(f"⚠️ Series completion check error: {e}")
         # -------------------------------------------------------------
-        
+
+        # --- LAZY RENAME VERIFY ---
+        rename_vfy_interval = int(getattr(cfg, 'rename_verify_interval', 43200))
+        if rename_vfy_interval > 0 and (time.time() - last_rename_verify) >= rename_vfy_interval:
+            last_rename_verify = time.time()
+            try:
+                from core.renamer import run_lazy_rename_verify
+                run_lazy_rename_verify(db, cfg, limit=5)
+            except Exception as _rve:
+                logger.debug(f"lazy_rename_verify error: {_rve}")
+        # -------------------------
+
         stats.report(cfg)
 
         # 5. Ciclo Fumetti (getcomics.org)

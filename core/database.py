@@ -106,6 +106,8 @@ class Database:
         except: pass
         try: c.execute("ALTER TABLE episodes ADD COLUMN original_title TEXT"); self.conn.commit()
         except: pass
+        try: c.execute("ALTER TABLE episodes ADD COLUMN rename_verified INTEGER DEFAULT 0"); self.conn.commit()
+        except: pass
 
         # Feed matches: release che hanno passato il check lingua ma non altri criteri,
         # oppure release scaricate. Si mantengono i top-5 per quality_score per episodio.
@@ -361,6 +363,8 @@ class Database:
         c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series_id, season, episode)')
         # Indice su archive_path: usato da _best_quality_in_path
         c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_archive_path ON episodes(archive_path)')
+        # Indice su rename_verified: usato da lazy rename verify
+        c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_rename_verified ON episodes(rename_verified)')
         # Indici aggiuntivi: pending_downloads e magnet_hash
         c.execute('CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_downloads(status, series_id, season, episode)')
         c.execute('CREATE INDEX IF NOT EXISTS idx_episodes_magnet ON episodes(magnet_hash)')
@@ -1981,6 +1985,32 @@ class Database:
                             'episode': ep
                         })
         return all_missing
+
+    # ------------------------------------------------------------------
+    # LAZY RENAME VERIFY
+    # ------------------------------------------------------------------
+
+    def get_unverified_episodes(self, limit: int = 5) -> List[Dict]:
+        c = self.conn.cursor()
+        c.execute("""
+            SELECT e.id, e.series_id, e.season, e.episode, e.archive_path,
+                   e.magnet_hash, s.name as series_name, s.tmdb_id
+            FROM episodes e
+            JOIN series s ON e.series_id = s.id
+            WHERE e.rename_verified = 0
+              AND e.downloaded_at IS NOT NULL
+              AND e.archive_path IS NOT NULL
+              AND e.archive_path != ''
+              AND s.enabled = 1
+            ORDER BY e.id ASC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for row in c.fetchall()]
+
+    def mark_episode_verified(self, episode_id: int) -> None:
+        c = self.conn.cursor()
+        c.execute("UPDATE episodes SET rename_verified=1 WHERE id=?", (episode_id,))
+        self.conn.commit()
 
     # ------------------------------------------------------------------
     # METRICS HISTORY

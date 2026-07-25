@@ -453,3 +453,216 @@ def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool
     if renamed > 0 and renamed_movie_fname:
         return os.path.join(save_path, renamed_movie_fname)
     return None
+
+
+def _looks_renamed(fname: str, series_name: str, season: int, episode: int) -> bool:
+    from .models import Parser, normalize_series_name, _series_name_matches
+
+    ep = Parser.parse_series_episode(fname)
+    if not ep:
+        return False
+    if ep['season'] != season or ep['episode'] != episode:
+        return False
+    if not _series_name_matches(normalize_series_name(ep['name']),
+                                normalize_series_name(series_name)):
+        return False
+
+    base = os.path.splitext(fname)[0]
+    norm_base   = normalize_series_name(base)
+    norm_series = normalize_series_name(series_name)
+
+    if not norm_base.startswith(norm_series):
+        if not norm_base.startswith(norm_series.split()[0] if norm_series.split() else norm_series):
+            return False
+
+    dot_count = base.count('.')
+    if dot_count >= 5:
+        return False
+
+    segments = base.replace('-', ' ').split()
+    if segments:
+        last = segments[-1]
+        if len(last) <= 5 and last.isupper() and last.isalpha():
+            return False
+
+    return True
+
+
+def run_lazy_rename_verify(db, cfg, limit: int = 5):
+    if not hasattr(cfg, 'get'):
+        _get = lambda k, d=None: getattr(cfg, k, d) if hasattr(cfg, k) else d
+    else:
+        _get = cfg.get
+
+    if str(_get('rename_episodes', 'no')).lower() not in ('yes', 'true', '1'):
+        return {'verified': 0, 'renamed': 0, 'skipped': 0}
+    api_key = _get('tmdb_api_key', '').strip()
+    if not api_key:
+        return {'verified': 0, 'renamed': 0, 'skipped': 0}
+
+    rename_fmt = str(_get('rename_format', 'base')).strip().lower()
+    rename_template = str(_get('rename_template', '')).strip()
+
+    from .models import Parser, normalize_series_name, _series_name_matches
+    from .tmdb import TMDBClient
+    tmdb_lang = str(_get('tmdb_language', 'it-IT')).strip()
+    tmdb_cache = int(_get('tmdb_cache_days', 7))
+    tmdb = TMDBClient(api_key, cache_days=tmdb_cache, language=tmdb_lang)
+
+    verified = 0
+    renamed = 0
+    skipped = 0
+    processed = 0
+    seen_ids = set()
+
+    while processed < limit:
+        batch = db.get_unverified_episodes(limit * 3)
+        if not batch:
+            break
+
+        fresh = [ep for ep in batch if ep['id'] not in seen_ids]
+        if not fresh:
+            break
+
+        for ep_row in fresh:
+            seen_ids.add(ep_row['id'])
+            ep_id = ep_row['id']
+            s_name = ep_row['series_name']
+            s_season = ep_row['season']
+            s_episode = ep_row['episode']
+            archive_path = ep_row['archive_path']
+            ep_label = f"{s_name} S{s_season:02d}E{s_episode:02d}"
+
+            if not archive_path or not os.path.isdir(archive_path):
+                skipped += 1
+                continue
+
+            found_file = None
+            scan_dir = archive_path
+            try:
+                for sub in [archive_path,
+                            os.path.join(archive_path, f"Stagione {s_season}"),
+                            os.path.join(archive_path, f"Season {s_season}")]:
+                    if not os.path.isdir(sub):
+                        continue
+                    try:
+                        for fname in os.listdir(sub):
+                            ext = os.path.splitext(fname)[1].lower()
+                            if ext not in _VIDEO_EXTS:
+                                continue
+                            ep_p = Parser.parse_series_episode(fname)
+                            if not ep_p:
+                                continue
+                            if ep_p['season'] != s_season or ep_p['episode'] != s_episode:
+                                continue
+                            if not _series_name_matches(normalize_series_name(ep_p['name']),
+                                                        normalize_series_name(s_name)):
+                                continue
+                            found_file = fname
+                            scan_dir = sub
+                            break
+                    except Exception:
+                        pass
+                    if found_file:
+                        break
+            except Exception as e:
+                logger.debug(f"lazy_rename_verify: scan error {ep_label}: {e}")
+
+            if not found_file:
+                skipped += 1
+                continue
+
+            processed += 1
+
+            if _looks_renamed(found_file, s_name, s_season, s_episode):
+                db.mark_episode_verified(ep_id)
+                verified += 1
+                if processed >= limit:
+                    break
+                continue
+
+            try:
+                tmdb_id = ep_row.get('tmdb_id')
+                if not tmdb_id:
+                    tmdb_id = tmdb.get_tmdb_id_for_series(db, s_name) or tmdb.resolve_series_id(s_name)
+                ep_title = tmdb.fetch_episode_title(tmdb_id, s_season, s_episode) if tmdb_id else None
+                if not ep_title:
+                    ep_title = f"Episodio {s_episode}"
+
+                year = _get_series_year(tmdb, tmdb_id) if rename_fmt != 'base' else None
+
+                tags = {}
+                if rename_fmt != 'base':
+                    try:
+                        from .mediainfo_helper import get_media_tags
+                        tags = get_media_tags(os.path.join(scan_dir, found_file)) or {}
+                    except Exception:
+                        pass
+
+                ext = os.path.splitext(found_file)[1].lower()
+                new_name = _build_filename(s_name, s_season, s_episode, ep_title, ext,
+                                           fmt=rename_fmt, year=year, tags=tags,
+                                           template_str=rename_template)
+
+                src = os.path.join(scan_dir, found_file)
+                dst = os.path.join(scan_dir, new_name)
+
+                if src == dst:
+                    db.mark_episode_verified(ep_id)
+                    verified += 1
+                    if processed >= limit:
+                        break
+                    continue
+
+                if os.path.exists(dst):
+                    try:
+                        q_src = Parser.parse_quality(found_file)
+                        q_dst = Parser.parse_quality(new_name)
+                        if q_src.score() > q_dst.score():
+                            from .cleaner import _handle_duplicate
+                            _handle_duplicate(dst, _get('trash_path', ''),
+                                              _get('cleanup_action', 'move'),
+                                              "rename verify (inferior)")
+                        else:
+                            from .cleaner import _handle_duplicate
+                            _handle_duplicate(src, _get('trash_path', ''),
+                                              _get('cleanup_action', 'move'),
+                                              "rename verify (new inferior)")
+                    except Exception as e_dst:
+                        logger.debug(f"lazy_rename conflict {ep_label}: {e_dst}")
+                    db.mark_episode_verified(ep_id)
+                    verified += 1
+                    if processed >= limit:
+                        break
+                    continue
+
+                os.rename(src, dst)
+                logger.info(f"  ✏️  {ep_label}: '{found_file}' → '{new_name}'")
+                renamed += 1
+            except OSError:
+                try:
+                    shutil.move(src, dst)
+                    logger.info(f"  ✏️  {ep_label}: '{found_file}' → '{new_name}'")
+                    renamed += 1
+                except Exception as e_mv:
+                    logger.debug(f"lazy_rename move error {ep_label}: {e_mv}")
+            except Exception as e_ren:
+                logger.debug(f"lazy_rename error {ep_label}: {e_ren}")
+
+            db.mark_episode_verified(ep_id)
+            verified += 1
+            if processed >= limit:
+                break
+
+    if processed == 0:
+        logger.info("🔍 Controllo rinomina: nessun episodio da rinominare")
+    else:
+        already_ok = verified - renamed
+        parts = [f"{processed} episodi analizzati"]
+        if renamed > 0:
+            parts.append(f"{renamed} rinominati")
+        if already_ok > 0:
+            parts.append(f"{already_ok} gia' a posto")
+        logger.info("🔍 " + ", ".join(parts))
+
+    return {'verified': verified, 'renamed': renamed, 'skipped': skipped}

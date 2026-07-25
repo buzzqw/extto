@@ -104,6 +104,7 @@ class Config:
         self.move_episodes           = False
         self.web_port                = 5000
         self.comics_check_interval   = 86400   # 1 giorno
+        self.rename_verify_interval = 43200   # 12 ore (lazy rename verify)
         self.min_free_space_gb       = 10.0
 
         self._load()
@@ -297,6 +298,10 @@ class Config:
             self.comics_check_interval = int(str(raw.get('comics_check_interval', 86400)).split('#')[0].strip())
         except Exception:
             self.comics_check_interval = 86400
+        try:
+            self.rename_verify_interval = int(str(raw.get('rename_verify_interval', 43200)).split('#')[0].strip())
+        except Exception:
+            self.rename_verify_interval = 43200
         try:
             self.min_free_space_gb = float(str(raw.get('min_free_space_gb', 10)).split('#')[0].strip())
         except Exception:

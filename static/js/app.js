@@ -4190,6 +4190,8 @@ const app = {
                      d:'Dopo il download rinomina i file nel formato scelto sotto, usando i titoli ufficiali TMDB. Richiede tmdb_api_key configurata. Funziona solo con il client libtorrent integrato.'},
                     {k:'rename_format',      l:'Formato Rinomina',          t:'custom',
                      d:'Scegli lo stile del nome file. Standard e Completo richiedono pymediainfo installato sul server.'},
+                    {k:'rename_verify_interval', l:'Verifica Rinomina (ore)', t:'number',
+                     d:"Ogni quante ore EXTTO controlla che le puntate gia' scaricate abbiano il nome corretto secondo il formato scelto. Analizza 5 episodi per volta in modalita' 'lazy' (senza chiamate TMDB se il file e' gia' a posto). 0 = disabilita. Default: 12 ore."},
                     {k:'move_episodes',      l:'Sposta Episodi (NAS)',      t:'select', o:['yes','no'],
                      d:"A fine download sposta automaticamente i file nel 'Percorso Archivio' se lo hai configurato per quella serie. Funziona solo con il client libtorrent integrato."},
                     {k:'archive_root',       l:'Radice Archivio (NAS)',     t:'path',
