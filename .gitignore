@@ -20,3 +20,7 @@ extto_mappa.md
 extto_briefing.md
 CLAUDE.md
 .claude/
+rqbit-linux-amd64
+extto_ui-base.py
+extto_ui2.py
+core/clients/amule/amule-extto.service
