@@ -455,40 +455,136 @@ def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool
     return None
 
 
-def _looks_renamed(fname: str, series_name: str, season: int, episode: int) -> bool:
-    from .models import Parser, normalize_series_name, _series_name_matches
+_TEMPLATE_PLACEHOLDER_RE = re.compile(
+    r'\{(Serie|Anno|Stagione|Episodio|Titolo|Risoluzione|VideoCodec|Audio|AudioCodec|Canali|HDR|Lingue)\}'
+)
+# Placeholder "tag" che possono legittimamente risultare vuoti (HDR solo per
+# contenuti HDR, Anno se TMDB non lo trova) — in quel caso _build_filename
+# rimuove il blocco [{...}]/({...}) PER INTERO, quindi qui l'intero blocco
+# (parentesi comprese) va reso opzionale, non solo il contenuto.
+# Gli altri tag (Risoluzione/VideoCodec/Audio/AudioCodec/Canali/Lingue) sono
+# sempre valorizzati da mediainfo su un file analizzato correttamente: se il
+# loro blocco manca, il file NON è ancora nel formato giusto — vanno quindi
+# tenuti obbligatori (solo il contenuto è jolly, le parentesi restano fisse).
+_WRAPPED_PLACEHOLDER_RE = re.compile(r'([\[(])\{(HDR|Anno)\}([\])])')
+_TEMPLATE_WILDCARDS = {
+    'Anno':         r'(?:\(\d{4}\))?',
+    'Titolo':       r'.+',
+    'Risoluzione':  r'.*',
+    'VideoCodec':   r'.*',
+    'Audio':        r'.*',
+    'AudioCodec':   r'.*',
+    'Canali':       r'.*',
+    'HDR':          r'.*',
+    'Lingue':       r'.*',
+}
 
-    ep = Parser.parse_series_episode(fname)
-    if not ep:
-        return False
-    if ep['season'] != season or ep['episode'] != episode:
-        return False
-    if not _series_name_matches(normalize_series_name(ep['name']),
-                                normalize_series_name(series_name)):
-        return False
 
+def _pattern_regex(series_name: str, season: int, episode: int,
+                    fmt: str, template_str: str = "") -> Optional['re.Pattern']:
+    """Regex del pattern di rinomina EFFETTIVAMENTE configurato (base/standard/
+    completo/custom), usata per verificare se un file segue GIA' quel formato
+    senza dover interrogare TMDB per il titolo esatto.
+
+    Deliberatamente più permissiva del nome esatto (il titolo/i tag possono
+    variare), ma richiede la struttura letterale " - SxxExx - " subito dopo
+    il nome serie sanificato — struttura che una release scene (punteggiata o
+    con tag gruppo) non produce mai per caso.
+    """
+    s_name = re.escape(_sanitize(series_name))
+    if not s_name:
+        return None
+
+    if fmt == 'custom' and template_str:
+        # Prima passata: blocchi tag avvolti singolarmente tra [] o () — l'intero
+        # blocco (parentesi comprese) è opzionale, perché _build_filename lo
+        # rimuove del tutto quando il valore è vuoto (es. nessun tag HDR).
+        wrapped_spans = []
+        for m in _WRAPPED_PLACEHOLDER_RE.finditer(template_str):
+            open_c, close_c = re.escape(m.group(1)), re.escape(m.group(3))
+            wrapped_spans.append((m.start(), m.end(), f'(?:{open_c}.*?{close_c})?'))
+
+        subs = dict(_TEMPLATE_WILDCARDS)
+        subs['Serie']     = s_name
+        subs['Stagione']  = re.escape(f"S{season:02d}")
+        subs['Episodio']  = re.escape(f"E{episode:02d}")
+
+        parts = []
+        last = 0
+        wi = 0
+        for m in _TEMPLATE_PLACEHOLDER_RE.finditer(template_str):
+            # Se questo placeholder fa parte di un blocco già gestito dalla
+            # prima passata (wrapped_spans), saltalo qui: verrà emesso una
+            # sola volta quando si raggiunge lo start del blocco.
+            in_wrapped = wi < len(wrapped_spans) and wrapped_spans[wi][0] <= m.start() < wrapped_spans[wi][1]
+            if in_wrapped:
+                w_start, w_end, w_rx = wrapped_spans[wi]
+                if last < w_start:
+                    parts.append(re.escape(template_str[last:w_start]))
+                parts.append(w_rx)
+                last = w_end
+                wi += 1
+                continue
+            parts.append(re.escape(template_str[last:m.start()]))
+            parts.append(subs[m.group(1)])
+            last = m.end()
+        parts.append(re.escape(template_str[last:]))
+        body = ''.join(parts)
+    else:
+        # base / standard / completo condividono lo stesso "cuore":
+        # "{Serie}[ (Anno)] - SxxExx - {resto}"
+        ep_str = re.escape(f"S{season:02d}E{episode:02d}")
+        body = rf"{s_name}(?: \(\d{{4}}\))? - {ep_str} - .+"
+
+    try:
+        return re.compile(r'^' + body + r'\.\w+$', re.IGNORECASE)
+    except re.error as e:
+        logger.debug(f"_pattern_regex: regex invalida ({e})")
+        return None
+
+
+def _looks_renamed(fname: str, series_name: str, season: int, episode: int,
+                   fmt: str = 'base', template_str: str = "") -> bool:
+    pattern = _pattern_regex(series_name, season, episode, fmt, template_str)
+    if pattern is None:
+        return False
+    return bool(pattern.match(fname))
+
+
+def _extract_existing_title(fname: str, season: int, episode: int) -> Optional[str]:
+    """Se il file ha già un titolo "vero" incorporato nel nome (es. da un
+    rename precedente), lo estrae per poterlo riusare quando TMDB non
+    risponde — evita di sovrascrivere un titolo buono con il fallback
+    generico "Episodio N" solo perché TMDB ha un buco/404 per quell'episodio.
+    """
     base = os.path.splitext(fname)[0]
-    norm_base   = normalize_series_name(base)
-    norm_series = normalize_series_name(series_name)
-
-    if not norm_base.startswith(norm_series):
-        if not norm_base.startswith(norm_series.split()[0] if norm_series.split() else norm_series):
-            return False
-
-    dot_count = base.count('.')
-    if dot_count >= 5:
-        return False
-
-    segments = base.replace('-', ' ').split()
-    if segments:
-        last = segments[-1]
-        if len(last) <= 5 and last.isupper() and last.isalpha():
-            return False
-
-    return True
+    m = re.search(rf"S{season:02d}E{episode:02d}\s*-\s*(.+)$", base, re.IGNORECASE)
+    if not m:
+        return None
+    title = m.group(1)
+    # rimuove i tag finali tra parentesi/quadre (qualità/audio/lingua), anche
+    # concatenati senza spazio, con un eventuale trattino residuo davanti
+    title = re.sub(r'(\s*-)?(\s*[\[(][^\[\]()]*[\])])+\s*$', '', title).strip()
+    if not title or title.lower().startswith('episodio'):
+        return None
+    return title
 
 
 def run_lazy_rename_verify(db, cfg, limit: int = 5):
+    """Verifica lazy dei nomi file già scaricati.
+
+    Due fasi con costi molto diversi:
+    - Fase 1 (economica: solo filesystem + regex, NIENTE TMDB): controlla fino
+      a QUICK_SCAN_CAP episodi non ancora verificati per vedere se il nome file
+      rispetta GIA' il pattern configurato. Quelli a posto vengono marcati
+      verificati subito, senza consumare il budget di rinomina — altrimenti,
+      con episodi vecchi già rinominati correttamente in cima alla coda (id
+      ASC), il budget si esaurirebbe sempre su quelli e non si arriverebbe mai
+      a controllare gli episodi realmente sospetti.
+    - Fase 2 (costosa: TMDB + rename su disco): solo per gli episodi che la
+      Fase 1 ha segnalato come NON conformi al pattern. Throttled a `limit`
+      per ciclo, com'è giusto che sia per un'operazione che tocca file reali.
+    """
     if not hasattr(cfg, 'get'):
         _get = lambda k, d=None: getattr(cfg, k, d) if hasattr(cfg, k) else d
     else:
@@ -504,19 +600,43 @@ def run_lazy_rename_verify(db, cfg, limit: int = 5):
     rename_template = str(_get('rename_template', '')).strip()
 
     from .models import Parser, normalize_series_name, _series_name_matches
-    from .tmdb import TMDBClient
-    tmdb_lang = str(_get('tmdb_language', 'it-IT')).strip()
-    tmdb_cache = int(_get('tmdb_cache_days', 7))
-    tmdb = TMDBClient(api_key, cache_days=tmdb_cache, language=tmdb_lang)
 
-    verified = 0
-    renamed = 0
-    skipped = 0
-    processed = 0
+    QUICK_SCAN_CAP = 200  # tetto episodi/ciclo per il check strutturale (nessuna chiamata TMDB)
+
+    verified = 0        # già a posto secondo il pattern configurato — nessun limite
+    renamed = 0          # rinomine effettive (throttled a `limit`)
+    skipped = 0          # file non trovato su disco
+    quick_checked = 0
     seen_ids = set()
+    needs_rename = []    # (ep_row, found_file, scan_dir) che non rispettano il pattern
 
-    while processed < limit:
-        batch = db.get_unverified_episodes(limit * 3)
+    def _find_file(archive_path, s_name, s_season, s_episode):
+        for sub in [archive_path,
+                    os.path.join(archive_path, f"Stagione {s_season}"),
+                    os.path.join(archive_path, f"Season {s_season}")]:
+            if not os.path.isdir(sub):
+                continue
+            try:
+                for fname in os.listdir(sub):
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext not in _VIDEO_EXTS:
+                        continue
+                    ep_p = Parser.parse_series_episode(fname)
+                    if not ep_p:
+                        continue
+                    if ep_p['season'] != s_season or ep_p['episode'] != s_episode:
+                        continue
+                    if not _series_name_matches(normalize_series_name(ep_p['name']),
+                                                normalize_series_name(s_name)):
+                        continue
+                    return fname, sub
+            except Exception:
+                pass
+        return None, None
+
+    # --- Fase 1: check strutturale economico, fino a QUICK_SCAN_CAP episodi ---
+    while quick_checked < QUICK_SCAN_CAP and len(needs_rename) < limit:
+        batch = db.get_unverified_episodes(QUICK_SCAN_CAP * 2)
         if not batch:
             break
 
@@ -526,60 +646,46 @@ def run_lazy_rename_verify(db, cfg, limit: int = 5):
 
         for ep_row in fresh:
             seen_ids.add(ep_row['id'])
+            if quick_checked >= QUICK_SCAN_CAP or len(needs_rename) >= limit:
+                break
+
             ep_id = ep_row['id']
             s_name = ep_row['series_name']
             s_season = ep_row['season']
             s_episode = ep_row['episode']
             archive_path = ep_row['archive_path']
-            ep_label = f"{s_name} S{s_season:02d}E{s_episode:02d}"
 
             if not archive_path or not os.path.isdir(archive_path):
                 skipped += 1
                 continue
 
-            found_file = None
-            scan_dir = archive_path
-            try:
-                for sub in [archive_path,
-                            os.path.join(archive_path, f"Stagione {s_season}"),
-                            os.path.join(archive_path, f"Season {s_season}")]:
-                    if not os.path.isdir(sub):
-                        continue
-                    try:
-                        for fname in os.listdir(sub):
-                            ext = os.path.splitext(fname)[1].lower()
-                            if ext not in _VIDEO_EXTS:
-                                continue
-                            ep_p = Parser.parse_series_episode(fname)
-                            if not ep_p:
-                                continue
-                            if ep_p['season'] != s_season or ep_p['episode'] != s_episode:
-                                continue
-                            if not _series_name_matches(normalize_series_name(ep_p['name']),
-                                                        normalize_series_name(s_name)):
-                                continue
-                            found_file = fname
-                            scan_dir = sub
-                            break
-                    except Exception:
-                        pass
-                    if found_file:
-                        break
-            except Exception as e:
-                logger.debug(f"lazy_rename_verify: scan error {ep_label}: {e}")
-
+            found_file, scan_dir = _find_file(archive_path, s_name, s_season, s_episode)
             if not found_file:
                 skipped += 1
                 continue
 
-            processed += 1
+            quick_checked += 1
 
-            if _looks_renamed(found_file, s_name, s_season, s_episode):
+            if _looks_renamed(found_file, s_name, s_season, s_episode, rename_fmt, rename_template):
                 db.mark_episode_verified(ep_id)
                 verified += 1
-                if processed >= limit:
-                    break
                 continue
+
+            needs_rename.append((ep_row, found_file, scan_dir))
+
+    # --- Fase 2: rinomine vere e proprie (TMDB + disco), throttled a `limit` ---
+    if needs_rename:
+        from .tmdb import TMDBClient
+        tmdb_lang = str(_get('tmdb_language', 'it-IT')).strip()
+        tmdb_cache = int(_get('tmdb_cache_days', 7))
+        tmdb = TMDBClient(api_key, cache_days=tmdb_cache, language=tmdb_lang)
+
+        for ep_row, found_file, scan_dir in needs_rename[:limit]:
+            ep_id = ep_row['id']
+            s_name = ep_row['series_name']
+            s_season = ep_row['season']
+            s_episode = ep_row['episode']
+            ep_label = f"{s_name} S{s_season:02d}E{s_episode:02d}"
 
             try:
                 tmdb_id = ep_row.get('tmdb_id')
@@ -587,7 +693,11 @@ def run_lazy_rename_verify(db, cfg, limit: int = 5):
                     tmdb_id = tmdb.get_tmdb_id_for_series(db, s_name) or tmdb.resolve_series_id(s_name)
                 ep_title = tmdb.fetch_episode_title(tmdb_id, s_season, s_episode) if tmdb_id else None
                 if not ep_title:
-                    ep_title = f"Episodio {s_episode}"
+                    # TMDB non ha risposto (404/rate-limit/episodio non ancora
+                    # in catalogo): se il file ha già un titolo vero, riusalo
+                    # invece di sovrascriverlo col fallback generico.
+                    ep_title = _extract_existing_title(found_file, s_season, s_episode) \
+                               or f"Episodio {s_episode}"
 
                 year = _get_series_year(tmdb, tmdb_id) if rename_fmt != 'base' else None
 
@@ -610,21 +720,18 @@ def run_lazy_rename_verify(db, cfg, limit: int = 5):
                 if src == dst:
                     db.mark_episode_verified(ep_id)
                     verified += 1
-                    if processed >= limit:
-                        break
                     continue
 
                 if os.path.exists(dst):
                     try:
                         q_src = Parser.parse_quality(found_file)
                         q_dst = Parser.parse_quality(new_name)
+                        from .cleaner import _handle_duplicate
                         if q_src.score() > q_dst.score():
-                            from .cleaner import _handle_duplicate
                             _handle_duplicate(dst, _get('trash_path', ''),
                                               _get('cleanup_action', 'move'),
                                               "rename verify (inferior)")
                         else:
-                            from .cleaner import _handle_duplicate
                             _handle_duplicate(src, _get('trash_path', ''),
                                               _get('cleanup_action', 'move'),
                                               "rename verify (new inferior)")
@@ -632,33 +739,26 @@ def run_lazy_rename_verify(db, cfg, limit: int = 5):
                         logger.debug(f"lazy_rename conflict {ep_label}: {e_dst}")
                     db.mark_episode_verified(ep_id)
                     verified += 1
-                    if processed >= limit:
-                        break
                     continue
 
-                os.rename(src, dst)
+                try:
+                    os.rename(src, dst)
+                except OSError:
+                    shutil.move(src, dst)
                 logger.info(f"  ✏️  {ep_label}: '{found_file}' → '{new_name}'")
                 renamed += 1
-            except OSError:
-                try:
-                    shutil.move(src, dst)
-                    logger.info(f"  ✏️  {ep_label}: '{found_file}' → '{new_name}'")
-                    renamed += 1
-                except Exception as e_mv:
-                    logger.debug(f"lazy_rename move error {ep_label}: {e_mv}")
+                verified += 1
+                db.mark_episode_verified(ep_id)
             except Exception as e_ren:
+                # Non marcare verificato: un fallimento reale (TMDB, permessi, ecc.)
+                # deve essere ritentato al prossimo ciclo, non nascosto per sempre.
                 logger.debug(f"lazy_rename error {ep_label}: {e_ren}")
 
-            db.mark_episode_verified(ep_id)
-            verified += 1
-            if processed >= limit:
-                break
-
-    if processed == 0:
-        logger.info("🔍 Controllo rinomina: nessun episodio da rinominare")
+    if quick_checked == 0:
+        logger.info("🔍 Controllo rinomina: nessun episodio da verificare")
     else:
         already_ok = verified - renamed
-        parts = [f"{processed} episodi analizzati"]
+        parts = [f"{quick_checked} episodi verificati"]
         if renamed > 0:
             parts.append(f"{renamed} rinominati")
         if already_ok > 0:

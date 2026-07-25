@@ -299,7 +299,10 @@ class Config:
         except Exception:
             self.comics_check_interval = 86400
         try:
-            self.rename_verify_interval = int(str(raw.get('rename_verify_interval', 43200)).split('#')[0].strip())
+            # Il campo UI è in ORE ("Verifica Rinomina (ore)"); qui si converte in secondi
+            # per il confronto con time.time() in extto3.py.
+            _rvi_hours = float(str(raw.get('rename_verify_interval', 12)).split('#')[0].strip())
+            self.rename_verify_interval = int(_rvi_hours * 3600)
         except Exception:
             self.rename_verify_interval = 43200
         try:
