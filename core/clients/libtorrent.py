@@ -2277,12 +2277,21 @@ class LibtorrentClient:
                                                     _active_time_secs=_h_time)
                                     _sp_name_cp = _h_name
                                     _sp_nas_cp  = nas_path
+                                    _sp_ih_cp   = _ih_key
                                     def _do_season_pack(_a=_sp_args, _k=_sp_kw,
-                                                        _sn=_sp_name_cp, _np=_sp_nas_cp):
+                                                        _sn=_sp_name_cp, _np=_sp_nas_cp,
+                                                        _ih=_sp_ih_cp):
                                         try:
-                                            cls._handle_season_pack(*_a, **_k)
+                                            _copied = cls._handle_season_pack(*_a, **_k)
                                             cls._trigger_folder_scan(_sn)
                                             cls._trigger_mediaserver_refresh(_sn, _np)
+                                            # Segna il pack come copiato sul NAS: alla rimozione
+                                            # (raggiunto ratio/tempo di seed), il client sa che
+                                            # può cancellare anche i file in libtorrent_dir invece
+                                            # di lasciarli lì all'infinito (era già tutto duplicato
+                                            # sul NAS da _handle_season_pack).
+                                            if _copied and _copied > 0:
+                                                cls._mark_pack_copied(_ih)
                                         except Exception as _se:
                                             logger.error(f"❌ Season pack post-processing error: {_se}")
                                     if cls._pp_executor:
@@ -2953,6 +2962,47 @@ class LibtorrentClient:
                 logger.error(f"❌ Torrent recheck error: {e}")
         return False
         
+    @classmethod
+    def _mark_pack_copied(cls, info_hash: str) -> None:
+        """Segna nel DB che un season pack e' gia' stato copiato sul NAS."""
+        if not info_hash:
+            return
+        try:
+            import sqlite3 as _sq3
+            from ..constants import DB_FILE as _DBF
+            with _sq3.connect(_DBF, timeout=5) as _c:
+                try:
+                    _c.execute("ALTER TABLE torrent_meta ADD COLUMN pack_copied INTEGER DEFAULT 0")
+                except Exception:
+                    pass  # Colonna già esistente
+                _c.execute("""
+                    INSERT INTO torrent_meta (hash, pack_copied, updated_at)
+                    VALUES (?, 1, strftime('%s','now'))
+                    ON CONFLICT(hash) DO UPDATE SET
+                        pack_copied=1, updated_at=excluded.updated_at
+                """, (info_hash.lower(),))
+        except Exception as e:
+            logger.debug(f"_mark_pack_copied: {e}")
+
+    @classmethod
+    def is_pack_copied(cls, info_hash: str) -> bool:
+        """True se il torrent e' un season pack gia' copiato sul NAS
+        (_handle_season_pack completato con successo): a rimozione avvenuta
+        i file residui in libtorrent_dir sono un duplicato ridondante e
+        possono essere cancellati in sicurezza."""
+        if not info_hash:
+            return False
+        try:
+            import sqlite3 as _sq3
+            from ..constants import DB_FILE as _DBF
+            with _sq3.connect(_DBF, timeout=5) as _c:
+                row = _c.execute(
+                    "SELECT pack_copied FROM torrent_meta WHERE hash=?", (info_hash.lower(),)
+                ).fetchone()
+                return bool(row and row[0])
+        except Exception:
+            return False
+
     @classmethod
     def remove_torrent(cls, info_hash: str, delete_files: bool = False) -> bool:
         h = cls._find(info_hash)

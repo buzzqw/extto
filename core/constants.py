@@ -42,6 +42,33 @@ file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(mes
 logger.addHandler(file_handler)
 logger.propagate = False  # evita duplicazione verso root logger
 
+def rotate_log_if_needed(max_bytes: int = 5 * 1024 * 1024, backup_count: int = 5) -> None:
+    """Ruota extto.log quando supera max_bytes.
+
+    extto.log e' scritto da due processi (extto3.py + extto_web.py), entrambi
+    con un proprio WatchedFileHandler. Se ognuno decidesse per conto suo QUANDO
+    ruotare (com'era con RotatingFileHandler prima del fix di giugno) i due
+    ruoterebbero indipendentemente e si corromperebbero a vicenda. Per questo
+    va chiamata SOLO dal processo engine (extto3.py) a fine ciclo: è l'unica
+    autorità che decide la rotazione. extto_web.py non la chiama mai — il suo
+    WatchedFileHandler rileva da solo il file rinominato sotto i piedi e
+    riapre quello nuovo al prossimo log, senza bisogno di saperlo in anticipo.
+    """
+    try:
+        if not os.path.exists(LOG_FILE) or os.path.getsize(LOG_FILE) < max_bytes:
+            return
+        for i in range(backup_count - 1, 0, -1):
+            src = f"{LOG_FILE}.{i}"
+            dst = f"{LOG_FILE}.{i + 1}"
+            if os.path.exists(src):
+                os.replace(src, dst)
+        os.replace(LOG_FILE, f"{LOG_FILE}.1")
+        oldest = f"{LOG_FILE}.{backup_count + 1}"
+        if os.path.exists(oldest):
+            os.remove(oldest)
+    except Exception as e:
+        logger.error(f"log rotation error: {e}")
+
 def set_log_level(level_name: str):
     """Imposta il livello di log globale per console e file."""
     lv = level_name.upper()

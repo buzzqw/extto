@@ -1991,16 +1991,22 @@ class Database:
     # ------------------------------------------------------------------
 
     def get_unverified_episodes(self, limit: int = 5) -> List[Dict]:
+        # e.archive_path e' spesso NULL su episodi storici (mai popolato a
+        # inserimento) anche se il file esiste regolarmente sul disco: si
+        # ripiega sull'archive_path configurato a livello di serie, la stessa
+        # fonte che check_series() usa per l'auto-detect. Senza il fallback
+        # questi episodi restano invisibili al lazy rename verify per sempre.
         c = self.conn.cursor()
         c.execute("""
-            SELECT e.id, e.series_id, e.season, e.episode, e.archive_path,
+            SELECT e.id, e.series_id, e.season, e.episode,
+                   COALESCE(NULLIF(e.archive_path, ''), s.archive_path) AS archive_path,
                    e.magnet_hash, s.name as series_name, s.tmdb_id
             FROM episodes e
             JOIN series s ON e.series_id = s.id
             WHERE e.rename_verified = 0
               AND e.downloaded_at IS NOT NULL
-              AND e.archive_path IS NOT NULL
-              AND e.archive_path != ''
+              AND COALESCE(NULLIF(e.archive_path, ''), s.archive_path) IS NOT NULL
+              AND COALESCE(NULLIF(e.archive_path, ''), s.archive_path) != ''
               AND s.enabled = 1
             ORDER BY e.id ASC
             LIMIT ?

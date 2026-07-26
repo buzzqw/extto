@@ -820,7 +820,12 @@ def web_task():
                         except Exception: pass
                         # ------------------------------------------
 
-                        LibtorrentClient.remove_torrent(t['hash'], delete_files=False)
+                        # Season pack già copiato sul NAS da _handle_season_pack(): i file
+                        # rimasti in libtorrent_dir sono un duplicato, non l'unica copia.
+                        # Raggiunto il target di seed possono essere cancellati per davvero,
+                        # non solo tolti dalla sessione libtorrent.
+                        _del_files = LibtorrentClient.is_pack_copied(t['hash'])
+                        LibtorrentClient.remove_torrent(t['hash'], delete_files=_del_files)
                         removed.append(t['name'])
 
                     # ---> PULIZIA FILE .torrent ORFANI DA extto_torrents_state/ <---
@@ -3303,11 +3308,18 @@ def main():
             except Exception as e:
                 logger.debug(f"trigger file remove: {e}")
         
+        # --- Rotazione extto.log (solo l'engine decide quando, vedi docstring) ---
+        try:
+            from core.constants import rotate_log_if_needed
+            rotate_log_if_needed()
+        except Exception as e:
+            logger.debug(f"log rotation check: {e}")
+
         # --- NUOVO: CONTROLLO SALUTE E NOTIFICHE (Disco e Sovraccarico) ---
         try:
             import psutil
             import shutil
-            
+
             # 1. Controllo Spazio Disco (nella cartella dei download)
             dl_dir = cfg.qbt.get('libtorrent_dir', '/downloads')
             if os.path.exists(dl_dir):
