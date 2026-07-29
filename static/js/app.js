@@ -251,6 +251,12 @@ const app = {
                 this.updateNextRunTimer();
             }
         }, 30000);
+
+        // Salute: pannello lento (ping indexer + scansione dischi). Precarichiamo
+        // in background all'avvio e poi ogni ora, così aprendo la tab i dati
+        // sono già pronti invece di aspettare la fetch dal vivo.
+        setTimeout(() => this.loadHealth(true), 5000);
+        this._healthInterval = setInterval(() => this.loadHealth(true), 3600000);
     },
     
     // ========================================================================
@@ -485,11 +491,27 @@ const app = {
         } catch (err) { console.error(err); }
     },
 
-    async loadHealth() {
+    async loadHealth(forceFetch = false) {
+        const now = Date.now();
+        // Pannello lento (ping indexer, scansione dischi): se abbiamo già un dato
+        // fresco (< 1h) lo mostriamo subito invece di rifare la fetch al volo.
+        if (!forceFetch && this._healthCache && this._healthLastLoad && (now - this._healthLastLoad < 3600000)) {
+            this._renderHealth(this._healthCache);
+            return;
+        }
         try {
-            const resp = await fetch(`${API_BASE}/api/health?_t=` + Date.now());
+            const resp = await fetch(`${API_BASE}/api/health?_t=` + now);
             const data = await resp.json();
-            
+            this._healthCache = data;
+            this._healthLastLoad = now;
+            this._renderHealth(data);
+        } catch (err) {
+            console.error('Errore caricamento health:', err);
+        }
+    },
+
+    _renderHealth(data) {
+        try {
             // Resource Cards
             if (data.system) {
                 const sys = data.system;
@@ -608,7 +630,7 @@ const app = {
             });
 
         } catch (err) {
-            console.error('Errore caricamento health:', err);
+            console.error('Errore rendering health:', err);
         }
     },
 
