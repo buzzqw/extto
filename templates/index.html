@@ -151,24 +151,37 @@
                 <div class="stats-grid">
                     <div class="stat-card" data-stat-view="series" data-i18n-title="Numero totale di serie TV inserite per il monitoraggio." title="Numero totale di serie TV inserite per il monitoraggio.">
                         <div class="stat-icon"><i class="fa-solid fa-tv"></i></div>
-                        <div class="stat-info"><div class="stat-value" id="stat-series">0</div><div class="stat-label" data-i18n="Serie TV configurate">Serie TV configurate</div></div>
+                        <div class="stat-info" style="flex:1; min-width:0;">
+                            <div class="stat-value" id="stat-series">0</div>
+                            <div class="stat-label" data-i18n="Serie TV configurate">Serie TV configurate</div>
+                            <div class="dash-kpi-sub"><strong id="stat-series-sub-n">--</strong> <span data-i18n="abilitate">abilitate</span></div>
+                        </div>
                     </div>
                     <div class="stat-card" data-stat-view="movies" data-i18n-title="Numero totale di film inseriti per la ricerca." title="Numero totale di film inseriti per la ricerca.">
-                        <div class="stat-icon"><i class="fa-solid fa-film"></i></div>
-                        <div class="stat-info"><div class="stat-value" id="stat-movies">0</div><div class="stat-label" data-i18n="Film configurati">Film configurati</div></div>
+                        <div class="stat-icon" style="background:rgba(56,189,248,0.15); color:var(--info);"><i class="fa-solid fa-film"></i></div>
+                        <div class="stat-info" style="flex:1; min-width:0;">
+                            <div class="stat-value" id="stat-movies">0</div>
+                            <div class="stat-label" data-i18n="Film configurati">Film configurati</div>
+                            <div class="dash-kpi-sub"><strong id="stat-movies-sub-n">--</strong> <span data-i18n="scaricati">scaricati</span></div>
+                        </div>
                     </div>
-                    <div class="stat-card" data-stat-view="archive" data-i18n-title="Totale complessivo dei file multimediali trovati e scaricati con successo." title="Totale complessivo dei file multimediali trovati e scaricati con successo.">
-                        <div class="stat-icon"><i class="fa-solid fa-download"></i></div>
-                        <div class="stat-info"><div class="stat-value" id="stat-downloads">0</div><div class="stat-label" data-i18n="File scaricati">File scaricati</div></div>
-                    </div>
-                    <div class="stat-card" data-stat-view="archive" data-i18n-title="Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente." title="Dimensione reale occupata dai download nella tua cartella di destinazione e spazio rimanente.">
-                        <div class="stat-icon"><i class="fa-solid fa-hard-drive"></i></div>
-                        <div class="stat-info">
-                            <div class="stat-value" id="stat-archive">0</div>
-                            <div class="stat-label" data-i18n="Magnet in Archivio">Magnet in Archivio</div>
-                            <div id="stat-disk-free" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; font-weight: 500;">
-                                <i class="fa-solid fa-server" style="font-size: 0.7rem; margin-right: 3px;"></i> <span data-i18n="Spazio libero:">Spazio libero:</span> <span id="disk-free-value">-- GB</span>
+                    <div class="stat-card" data-stat-view="archive" data-i18n-title="Totale complessivo dei file multimediali trovati e scaricati con successo. Il badge mostra i nuovi arrivi negli ultimi 7 giorni." title="Totale complessivo dei file multimediali trovati e scaricati con successo. Il badge mostra i nuovi arrivi negli ultimi 7 giorni.">
+                        <div class="stat-icon" style="background:rgba(34,197,94,0.15); color:var(--success);"><i class="fa-solid fa-download"></i></div>
+                        <div class="stat-info" style="flex:1; min-width:0;">
+                            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.5rem;">
+                                <div class="stat-value" id="stat-downloads">0</div>
+                                <span class="dash-kpi-delta flat" id="stat-downloads-delta"></span>
                             </div>
+                            <div class="stat-label" data-i18n="File scaricati">File scaricati</div>
+                            <div class="dash-kpi-spark" id="stat-downloads-spark"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-stat-view="archive" data-i18n-title="Spazio libero nella cartella di download e totale magnet in archivio." title="Spazio libero nella cartella di download e totale magnet in archivio.">
+                        <div class="stat-icon" style="background:rgba(245,158,11,0.15); color:var(--warning);"><i class="fa-solid fa-hard-drive"></i></div>
+                        <div class="stat-info" style="flex:1; min-width:0;">
+                            <div class="stat-value" id="disk-free-value">-- GB</div>
+                            <div class="stat-label" data-i18n="Spazio libero">Spazio libero</div>
+                            <div class="dash-kpi-sub"><strong id="stat-archive-sub-n">--</strong> <span data-i18n="magnet in archivio">magnet in archivio</span></div>
                         </div>
                     </div>
                 </div>
@@ -194,24 +207,49 @@
                         <i class="fa-solid fa-book-open-reader"></i><span class="btn-run-label"><span data-i18n="Fumetti"> Fumetti</span></span>
                     </button>
                 </div>
-                <div class="dashboard-grid">
-                    <div class="dashboard-card" data-i18n-title="Riepilogo rapido dello stato dei file di configurazione" title="Riepilogo rapido dello stato dei file di configurazione">
-                        <h3><i class="fa-solid fa-chart-simple"></i> <span data-i18n="Statistiche Attive">Statistiche Attive</span></h3>
-                        <div class="stat-list">
-    <div class="stat-row"><span data-i18n="Serie configurate:">Serie configurate:</span><strong id="stat-series-configured">0</strong></div>
-    <div class="stat-row"><span data-i18n="Serie abilitate:">Serie abilitate:</span><strong id="stat-series-enabled">0</strong></div>
-    <div class="stat-row" data-i18n-title="Rapporto tra film presenti in lista e quelli già scaricati" title="Rapporto tra film presenti in lista e quelli già scaricati"><span data-i18n="Film (Config / Scaricati):">Film (Config / Scaricati):</span><strong id="stat-movies-ratio">0 / 0</strong></div>
-    <div class="stat-row"><span data-i18n="Fumetti monitorati:">Fumetti monitorati:</span><strong id="stat-comics-configured">0</strong></div>
-    <div class="stat-row"><span data-i18n="Fumetti scaricati (Totali):">Fumetti scaricati (Totali):</span><strong id="stat-comics-downloads">0</strong></div>
-    <div class="stat-row"><span data-i18n="Ultima attività:">Ultima attività:</span><strong id="stat-last-activity">N/A</strong></div>
-</div>
+
+                <div class="dash-main-row">
+                    <div class="dashboard-card">
+                        <h3 style="justify-content:space-between; border-bottom:none; margin-bottom:0.5rem; padding-bottom:0;">
+                            <span><i class="fa-solid fa-server"></i> <span data-i18n="Rete e Download attivi">Rete e Download attivi</span></span>
+                        </h3>
+                        <div class="dash-net-legend">
+                            <div class="dash-net-li"><span class="dash-net-k"><i style="background:#3b82f6"></i>CPU</span><span class="dash-net-v" id="dash-leg-cpu">--%</span></div>
+                            <div class="dash-net-li"><span class="dash-net-k"><i style="background:#22c55e"></i>RAM</span><span class="dash-net-v" id="dash-leg-ram">--%</span></div>
+                            <div class="dash-net-li"><span class="dash-net-k"><i style="background:#ffffff"></i><span data-i18n="Download">Download</span></span><span class="dash-net-v" id="dash-leg-dl">-- MB/s</span></div>
+                            <div class="dash-net-li"><span class="dash-net-k"><i style="background:#f43f5e"></i><span data-i18n="Upload">Upload</span></span><span class="dash-net-v" id="dash-leg-ul">-- MB/s</span></div>
+                        </div>
+                        <div class="dash-net-chart-wrap"><canvas id="dashNetChart" data-i18n-title="Velocità di rete in tempo reale (ultimi minuti)" title="Velocità di rete in tempo reale (ultimi minuti)"></canvas></div>
+                        <div id="dash-downloads-list" class="dash-dl-list"></div>
                     </div>
+
+                    <div class="dash-side-col">
+                        <div class="dashboard-card">
+                            <h3><i class="fa-solid fa-chart-column"></i> <span data-i18n="Consumo banda">Consumo banda</span></h3>
+                            <div id="dash-bandwidth"></div>
+                        </div>
+                        <div class="dashboard-card">
+                            <h3><i class="fa-solid fa-hard-drive"></i> <span data-i18n="Spazio disco">Spazio disco</span></h3>
+                            <div id="dash-disks" class="dash-disk-grid"></div>
+                        </div>
+                        <div class="dashboard-card">
+                            <h3><i class="fa-solid fa-calendar-days"></i> <span data-i18n="Prossime uscite">Prossime uscite</span></h3>
+                            <div id="dash-upcoming"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dash-main-row" style="margin-top:1rem;">
                     <div class="dashboard-card">
                         <h3><i class="fa-solid fa-file-arrow-down"></i> <span data-i18n="Ultimi Download">Ultimi Download</span></h3>
                         <div id="dashboard-logs" data-i18n-title="Gli ultimi download avviati con successo" title="Gli ultimi download avviati con successo"></div>
                     </div>
+                    <div class="dashboard-card">
+                        <h3><i class="fa-solid fa-bolt"></i> <span data-i18n="Attività recente">Attività recente</span></h3>
+                        <div id="dash-activity"></div>
+                    </div>
                 </div>
-            </div>          
+            </div>
 
             <div id="view-discovery" class="view">
                 <div class="view-header" style="margin-bottom:.75rem;">

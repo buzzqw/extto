@@ -249,6 +249,7 @@ const app = {
             if (currentView === 'dashboard') {
                 this.loadStats();
                 this.updateNextRunTimer();
+                this._loadDashboardDownloads();
             }
         }, 30000);
 
@@ -440,55 +441,327 @@ const app = {
         await this.loadStats();
         await this.updateNextRunTimer();
         this.loadRecentDownloads();
+        this._loadDashboardUpcoming();
+        this._loadDashboardDownloads();
+        this._loadDashboardDisks();
+        this._drawDashboardNetChart();
     },
-    
+
     async loadStats() {
         try {
             const res = await fetch(`${API_BASE}/api/stats?_t=` + Date.now());
             const stats = await res.json();
-            
+
             document.getElementById('stat-series').textContent = stats.series_configured || 0;
+            const seriesSubN = document.getElementById('stat-series-sub-n');
+            if (seriesSubN) seriesSubN.textContent = stats.series_enabled || 0;
+
             document.getElementById('stat-movies').textContent = stats.movies_configured || 0;
-            document.getElementById('stat-downloads').textContent = stats.downloads || stats.total || 0;
-            
-            document.getElementById('stat-archive').textContent = stats.archive_size || stats.total || 0;
-            
-            // Collega il valore dello spazio libero! (Cerca varie chiavi comuni)
-            const diskFree = stats.disk_free || stats.free_space || stats.disk_free_gb;
+            const moviesSubN = document.getElementById('stat-movies-sub-n');
+            if (moviesSubN) moviesSubN.textContent = stats.movies || 0;
+
+            document.getElementById('stat-downloads').textContent = stats.downloads || 0;
+
+            const diskFree = stats.disk_free_gb;
             if (diskFree !== undefined) {
                 document.getElementById('disk-free-value').textContent = `${diskFree} GB`;
             }
+            const archiveSubN = document.getElementById('stat-archive-sub-n');
+            if (archiveSubN) archiveSubN.textContent = stats.archive_size || 0;
 
-            // Statistiche di consumo nella Dashboard
-            if (stats.consumption) {
-                const cons = stats.consumption;
-                const archiveLabel = document.querySelector('#stat-archive').parentElement.querySelector('.stat-label');
-                if (archiveLabel) {
-                    archiveLabel.innerHTML = `${t('Consumo:')} <b>${cons.last_30_days_gb} GB</b> (30d)`;
-                }
+            this._renderDashboardBandwidth(stats.consumption || {});
+        } catch (err) { console.error(err); }
+    },
+
+    // ---- KPI "File scaricati": badge +N (7gg) e sparkline dai download reali ----
+    _renderDashboardDownloadsTrend(stats, events) {
+        const deltaEl = document.getElementById('stat-downloads-delta');
+        const dl7d = (stats && stats.downloads_7d) || 0;
+        if (deltaEl) {
+            deltaEl.textContent = dl7d > 0 ? `+${dl7d} (7gg)` : '(7gg) 0';
+            deltaEl.className = 'dash-kpi-delta ' + (dl7d > 0 ? 'up' : 'flat');
+        }
+
+        const sparkEl = document.getElementById('stat-downloads-spark');
+        if (!sparkEl) return;
+        const days = [];
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now); d.setDate(d.getDate() - i);
+            days.push(d.toISOString().slice(0, 10));
+        }
+        const counts = Object.fromEntries(days.map(d => [d, 0]));
+        (events || []).forEach(e => {
+            if (e.kind !== 'download' || !e.date) return;
+            const day = e.date.slice(0, 10);
+            if (day in counts) counts[day]++;
+        });
+        this._drawSparkline(sparkEl, days.map(d => counts[d]), '#22c55e');
+    },
+
+    // ---- Mini sparkline SVG generica (usata dalle KPI card) ----
+    _drawSparkline(el, data, color) {
+        const w = 100, h = 26, pad = 3;
+        const min = Math.min(...data), max = Math.max(...data);
+        const range = (max - min) || 1;
+        const pts = data.map((v, i) => {
+            const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+            const y = h - pad - ((v - min) / range) * (h - pad * 2);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+        const last = pts[pts.length - 1].split(',');
+        const areaPts = `M${pad},${h} L${pts.join(' L')} L${(w - pad).toFixed(1)},${h} Z`;
+        el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+            <path d="${areaPts}" fill="${color}" opacity="0.12"></path>
+            <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <circle cx="${last[0]}" cy="${last[1]}" r="2" fill="${color}"></circle>
+        </svg>`;
+    },
+
+    // ---- Consumo banda: barre 7gg da /api/stats.consumption.daily_7d ----
+    _renderDashboardBandwidth(cons) {
+        const el = document.getElementById('dash-bandwidth');
+        if (!el) return;
+        const daily = cons.daily_7d || [];
+        if (!daily.length) {
+            el.innerHTML = `<div class="dash-empty">${t('Nessun dato di consumo disponibile.')}</div>`;
+            return;
+        }
+        const maxGb = Math.max(...daily.map(d => d.gb), 0.1);
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const bars = daily.map(d => {
+            const dateObj = new Date(d.date + 'T00:00:00');
+            const lbl = dateObj.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+            const isToday = d.date === todayStr;
+            const heightPct = Math.max(3, (d.gb / maxGb) * 100);
+            return `<div class="dash-bw-bar${isToday ? ' today' : ''}" title="${d.date}: ${d.gb} GB">
+                <div class="bar" style="height:${heightPct}%"></div>
+                <span class="lbl">${this._esc(lbl)}</span>
+            </div>`;
+        }).join('');
+        el.innerHTML = `<div class="dash-bw-bars">${bars}</div>
+            <div class="dash-bw-foot">
+                <span>7${t('gg')}: <b>${cons.last_7_days_gb ?? 0} GB</b></span>
+                <span>30${t('gg')}: <b>${cons.last_30_days_gb ?? 0} GB</b></span>
+                <span>${t('totale')}: <b>${cons.total_gb ?? 0} GB</b></span>
+            </div>`;
+    },
+
+    // ---- Spazio disco: donut per mount, riusa la cache oraria di /api/health ----
+    async _loadDashboardDisks() {
+        await this.loadHealth();
+        const disks = (this._healthCache && this._healthCache.disk) || [];
+        const el = document.getElementById('dash-disks');
+        if (!el) return;
+        if (!disks.length) {
+            el.innerHTML = `<div class="dash-empty">${t('Nessun disco rilevato.')}</div>`;
+            return;
+        }
+        const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#38bdf8'];
+        el.innerHTML = disks.slice(0, 4).map((d, i) => {
+            const isTrash = d.trash_content_gb !== undefined;
+            if (isTrash) {
+                // Il Cestino è una sottocartella: la % di occupazione del disco intero
+                // è fuorviante. Mostriamo i GB occupati e, al massimo, quanto pesa
+                // sul totale dello spazio libero.
+                const pctOfFree = d.free_gb > 0 ? Math.min(100, (d.trash_content_gb / d.free_gb) * 100) : 0;
+                return `
+                    <div class="dash-disk-item">
+                        <div class="dash-donut-wrap">
+                            <div class="dash-donut" style="--pct:${pctOfFree}; --ring-color:${colors[i % colors.length]};"></div>
+                            <div class="dash-donut-pct" style="font-size:0.72rem;">${d.trash_content_gb} GB</div>
+                        </div>
+                        <div class="name">${this._esc(d.label)}</div>
+                        <div class="free">${pctOfFree.toFixed(0)}% ${this._esc(t('dello spazio libero'))}</div>
+                    </div>
+                `;
+            }
+            return `
+                <div class="dash-disk-item">
+                    <div class="dash-donut-wrap">
+                        <div class="dash-donut" style="--pct:${d.percent}; --ring-color:${d.status === 'warning' ? 'var(--danger)' : colors[i % colors.length]};"></div>
+                        <div class="dash-donut-pct">${d.percent}%</div>
+                    </div>
+                    <div class="name">${this._esc(d.label)}</div>
+                    <div class="free">${d.free_gb} GB ${this._esc(t('liberi'))}</div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    // ---- Prossime uscite: dal calendario episodi già esistente ----
+    async _loadDashboardUpcoming() {
+        const el = document.getElementById('dash-upcoming');
+        if (!el) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/series/calendar`);
+            const data = await res.json();
+            if (!Array.isArray(data) || data.length === 0) {
+                el.innerHTML = `<div class="dash-empty">${t('Nessun episodio in uscita nei prossimi giorni.')}</div>`;
+                return;
+            }
+            const todayStr = new Date().toDateString();
+            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toDateString();
+
+            el.innerHTML = data.slice(0, 6).map(item => {
+                const dateObj = new Date(item.air_date);
+                let chipClass = '', chipLabel;
+                if (dateObj.toDateString() === todayStr) { chipClass = 'today'; chipLabel = t('Oggi'); }
+                else if (dateObj.toDateString() === tomorrowStr) { chipClass = 'tomorrow'; chipLabel = t('Domani'); }
+                else chipLabel = dateObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+                const epStr = `S${String(item.season).padStart(2,'0')}E${String(item.episode).padStart(2,'0')}`;
+                return `<div class="dash-up-row">
+                    <span class="dash-up-chip ${chipClass}">${this._esc(chipLabel)}</span>
+                    <span class="dash-up-title" title="${this._esc(item.series_name)} — ${epStr}">${this._esc(item.series_name)} ${epStr}</span>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            el.innerHTML = `<div class="dash-empty">${t('Errore caricamento calendario.')}</div>`;
+        }
+    },
+
+    // ---- Download attivi: stessi endpoint della vista Torrent, top 5 ----
+    async _loadDashboardDownloads() {
+        const el = document.getElementById('dash-downloads-list');
+        if (!el) return;
+        try {
+            const [sRes, tRes] = await Promise.all([
+                fetch(`${API_BASE}/api/torrents/stats`).catch(() => null),
+                fetch(`${API_BASE}/api/torrents`).catch(() => null),
+            ]);
+            const s = sRes && sRes.ok ? await sRes.json() : { available: false };
+            if (!s.available) {
+                el.innerHTML = `<div class="dash-dl-empty">${t('Client torrent non disponibile.')}</div>`;
+                return;
+            }
+            const tData = tRes && tRes.ok ? await tRes.json() : [];
+            const torrents = Array.isArray(tData) ? tData : (tData.torrents || []);
+            if (!torrents.length) {
+                el.innerHTML = `<div class="dash-dl-empty">${t('Nessun download attivo.')}</div>`;
+                return;
             }
 
-            document.getElementById('stat-series-configured').textContent = stats.series_configured || 0;
-            document.getElementById('stat-series-enabled').textContent = stats.series_enabled || 0;
-            document.getElementById('stat-movies-ratio').textContent = `${stats.movies_configured || 0} / ${stats.movies || 0}`;
-            document.getElementById('stat-last-activity').textContent = stats.last_activity ? this.formatDate(stats.last_activity) : 'N/A';
+            const rank = (torr) => {
+                const st = (torr.state || '').toLowerCase();
+                const pct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
+                const isActive = pct > 0 && pct < 100 && !torr.paused && !st.includes('seeding') && !st.includes('finished');
+                const isSeed = st.includes('seeding') || st.includes('finished');
+                if (isActive) return 0;
+                if (isSeed) return 1;
+                return 2; // in coda / in pausa
+            };
+            const sorted = torrents.slice().sort((a, b) => rank(a) - rank(b)).slice(0, 5);
 
-            // Stats fumetti — da /api/comics (stesso endpoint usato dalla tab Monitorati)
-            try {
-                const cRes = await fetch(`${API_BASE}/api/comics`);
-                const cData = await cRes.json();
-                const comicsCount = (cData.success && cData.comics) ? cData.comics.length : 0;
-                const elC = document.getElementById('stat-comics-configured');
-                if (elC) elC.textContent = comicsCount;
-            } catch(_) {}
-            try {
-                const hRes = await fetch(`${API_BASE}/api/comics/history`);
-                const hData = await hRes.json();
-                const dlCount = (hData.success && hData.history) ? hData.history.length : 0;
-                const elD = document.getElementById('stat-comics-downloads');
-                if (elD) elD.textContent = dlCount;
-            } catch(_) {}
-        } catch (err) { console.error(err); }
+            el.innerHTML = sorted.map(torr => {
+                const st = (torr.state || '').toLowerCase();
+                const pct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
+                const isSeed = st.includes('seeding') || st.includes('finished');
+                const isActive = pct > 0 && pct < 100 && !torr.paused && !isSeed;
+                let cls = 'queued', icon = 'fa-clock', meta;
+                if (isActive) {
+                    cls = 'active'; icon = 'fa-arrow-down';
+                    meta = `<b>${this._fmtRate(torr.dl_rate)}</b>${pct.toFixed(0)}% &middot; ETA ${torr.eta > 0 ? this._fmtEta(torr.eta) : '—'}`;
+                } else if (isSeed) {
+                    cls = 'seed'; icon = 'fa-arrow-up';
+                    meta = `<b>${this._fmtRate(torr.ul_rate)}</b>${t('seeding')}`;
+                } else {
+                    meta = torr.paused ? t('in pausa') : t('in coda');
+                }
+                const barPct = isSeed ? 100 : pct;
+                return `<div class="dash-dl-row">
+                    <div class="dash-dl-icon ${cls}"><i class="fa-solid ${icon}"></i></div>
+                    <div class="dash-dl-main">
+                        <div class="dash-dl-name" title="${this._esc(torr.name || '')}">${this._esc(torr.name || '')}</div>
+                        <div class="dash-dl-bar ${cls}"><span style="width:${barPct}%"></span></div>
+                    </div>
+                    <div class="dash-dl-meta">${meta}</div>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            el.innerHTML = `<div class="dash-dl-empty">${t('Errore caricamento download.')}</div>`;
+        }
+    },
+
+    // ---- Attività recente: dagli stessi eventi di /api/recent-downloads ----
+    _renderDashboardActivity(events) {
+        const el = document.getElementById('dash-activity');
+        if (!el) return;
+        if (!events.length) {
+            el.innerHTML = `<div class="dash-empty">${t('Nessun evento recente.')}</div>`;
+            return;
+        }
+        const typeLabel = { episode: t('Serie TV'), pack: t('Season Pack'), movie: t('Film'), comic: t('Fumetto') };
+        el.innerHTML = events.slice(0, 6).map(e => {
+            const date = e.date ? this.formatDate(e.date) : '—';
+            if (e.kind === 'download') {
+                return `<div class="dash-act-row">
+                    <span class="dash-act-dot ok"></span>
+                    <div class="dash-act-body">
+                        <div class="dash-act-text">${this._esc(typeLabel[e.type] || e.type)}: <b>${this._esc(e.title)}</b></div>
+                        <div class="dash-act-time">${date}</div>
+                    </div>
+                </div>`;
+            }
+            const err = e.errors || 0;
+            const dot = err > 0 ? 'warn' : 'info';
+            const desc = err > 0
+                ? `${t('Ciclo motore')}: ${e.scraped || 0} ${t('trovati')}, ${err} ${t('errori')}`
+                : `${t('Ciclo motore')}: ${e.scraped || 0} ${t('trovati')}, ${e.downloads || 0} ${t('scaricati')}`;
+            return `<div class="dash-act-row">
+                <span class="dash-act-dot ${dot}"></span>
+                <div class="dash-act-body">
+                    <div class="dash-act-text">${desc}</div>
+                    <div class="dash-act-time">${date}</div>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    // ---- Grafico rete live in dashboard: riusa sysData già raccolto da fetchSystemStats ----
+    _drawDashboardNetChart() {
+        const canvas = document.getElementById('dashNetChart');
+        if (!canvas) return;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const w = rect.width, h = rect.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const dl = (sysData.dl || []).map(Number);
+        const ul = (sysData.ul || []).map(Number);
+        if (dl.length < 2) return;
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        for (let g = 1; g < 4; g++) {
+            const gy = (h / 4) * g;
+            ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+        }
+
+        const max = Math.max(...dl, ...ul, 1) * 1.15;
+        const plot = (series, color, fill) => {
+            ctx.beginPath();
+            series.forEach((v, i) => {
+                const x = (i / (series.length - 1)) * w;
+                const y = h - (v / max) * (h - 8) - 4;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.6;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            if (fill) {
+                ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+                ctx.fillStyle = fill; ctx.fill();
+            }
+        };
+        plot(dl, '#ffffff', 'rgba(255,255,255,0.06)');
+        plot(ul, '#f43f5e', null);
     },
 
     async loadHealth(forceFetch = false) {
@@ -775,7 +1048,7 @@ const app = {
                        <div style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;">${pat}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><i class="fa-solid ${meta.icon}" style="font-size:1.4rem;color:${meta.color};opacity:.5;"></i></div></div>`
                     : `${pat}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><i class="fa-solid ${meta.icon}" style="font-size:1.4rem;color:${meta.color};opacity:.5;"></i></div>`;
 
-                return `<div onclick="${navAction}" style="position:relative;display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);cursor:${navAction ? 'pointer' : 'default'};transition:transform .15s,border-color .15s;margin-bottom:6px;" onmouseenter="this.style.borderColor='${meta.color}55';this.style.background='var(--bg-hover)'" onmouseleave="this.style.borderColor='var(--border)';this.style.background='var(--bg-card)'">
+                return `<div onclick="${navAction}" style="position:relative;display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--bg-card);border:1px solid var(--border);cursor:${navAction ? 'pointer' : 'default'};transition:transform .15s,border-color .15s;" onmouseenter="this.style.borderColor='${meta.color}55';this.style.background='var(--bg-hover)'" onmouseleave="this.style.borderColor='var(--border)';this.style.background='var(--bg-card)'">
                     <!-- Poster laterale -->
                     <div style="position:relative;width:70px;min-height:95px;flex-shrink:0;overflow:hidden;background:var(--bg-input);">
                         ${posterHtml}
@@ -801,7 +1074,7 @@ const app = {
             const renderSection = (label, icon, items, emptyMsg) => {
                 let html = `<div style="font-size:.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid ${icon}"></i>${label}</div>`;
                 if (items && items.length > 0) {
-                    html += `<div style="margin-bottom:16px;">`;
+                    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px;margin-bottom:16px;">`;
                     items.forEach((item, i) => html += buildCard(item, i));
                     html += `</div>`;
                 } else {
@@ -813,6 +1086,9 @@ const app = {
             container.innerHTML =
                 renderSection(t('Aggiunti al Client'),         'fa-cloud-arrow-down', data.downloads, t('Nessun download recente.')) +
                 renderSection(t('Ultimi rilevamenti (Archivio)'), 'fa-radar',           data.found,     t('Nessuna release trovata di recente.'));
+
+            this._renderDashboardDownloadsTrend(data.stats || {}, data.events || []);
+            this._renderDashboardActivity(data.events || []);
 
         } catch (e) {
             console.error(e);
@@ -1346,6 +1622,18 @@ const app = {
                 if (sysData.labels.length > MAX_SYS_POINTS) {
                     Object.values(sysData).forEach(arr => arr.shift());
                 }
+
+                // Legenda + mini-grafico rete nella Dashboard: indipendenti da sysChartInst
+                // (che esiste solo dopo la prima visita alla vista "Grafici").
+                const dCpu = document.getElementById('dash-leg-cpu');
+                if (dCpu) dCpu.textContent = `${sysInfo.cpu ?? 0}%`;
+                const dRam = document.getElementById('dash-leg-ram');
+                if (dRam) dRam.textContent = `${sysInfo.ram ?? 0}%`;
+                const dDl = document.getElementById('dash-leg-dl');
+                if (dDl) dDl.textContent = `${dlSpeedMB.toFixed(2)} MB/s`;
+                const dUl = document.getElementById('dash-leg-ul');
+                if (dUl) dUl.textContent = `${ulSpeedMB.toFixed(2)} MB/s`;
+                if (currentView === 'dashboard') this._drawDashboardNetChart();
 
                if (sysChartInst) {
                     // Aggiorna la nuova legenda HTML fissa

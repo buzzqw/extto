@@ -2061,43 +2061,57 @@ class Database:
 
     # --- STATISTICHE DI CONSUMO ---
     def get_consumption_stats(self) -> Dict:
-        """Ritorna statistiche unificate (Serie + Film + Fumetti)."""
+        """Ritorna statistiche unificate (Serie + Film + Fumetti): totale, 30gg, 7gg
+        e andamento giornaliero degli ultimi 7 giorni (per il grafico a barre in dashboard)."""
         c = self.conn.cursor()
         total_b = 0
         b_30d = 0
-        
-        # 1. Somma Serie TV e Film
-        c.execute("SELECT SUM(size_bytes) FROM episodes")
-        total_b += (c.fetchone()[0] or 0)
-        c.execute("SELECT SUM(size_bytes) FROM movies")
-        total_b += (c.fetchone()[0] or 0)
-        
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        c.execute("SELECT SUM(size_bytes) FROM episodes WHERE downloaded_at > ?", (cutoff,))
-        b_30d += (c.fetchone()[0] or 0)
-        c.execute("SELECT SUM(size_bytes) FROM movies WHERE downloaded_at > ?", (cutoff,))
-        b_30d += (c.fetchone()[0] or 0)
+        b_7d = 0
 
-        # 2. Somma Fumetti (collegandosi al secondo database)
+        now = datetime.now(timezone.utc)
+        cutoff_30 = (now - timedelta(days=30)).isoformat()
+        cutoff_7 = (now - timedelta(days=7)).isoformat()
+
+        # Inizializza gli ultimi 7 giorni (più vecchio -> più recente) così il
+        # grafico ha sempre 7 punti anche nei giorni senza download.
+        daily = {(now - timedelta(days=i)).strftime('%Y-%m-%d'): 0 for i in range(6, -1, -1)}
+
+        def _accumulate(cursor, table: str, date_col: str):
+            nonlocal total_b, b_30d, b_7d
+            cursor.execute(f"SELECT SUM(size_bytes) FROM {table}")
+            total_b += (cursor.fetchone()[0] or 0)
+            cursor.execute(f"SELECT SUM(size_bytes) FROM {table} WHERE {date_col} > ?", (cutoff_30,))
+            b_30d += (cursor.fetchone()[0] or 0)
+            cursor.execute(f"SELECT SUM(size_bytes) FROM {table} WHERE {date_col} > ?", (cutoff_7,))
+            b_7d += (cursor.fetchone()[0] or 0)
+            cursor.execute(
+                f"SELECT substr({date_col}, 1, 10) d, SUM(size_bytes) FROM {table} "
+                f"WHERE {date_col} > ? GROUP BY d", (cutoff_7,)
+            )
+            for day, size in cursor.fetchall():
+                if day in daily:
+                    daily[day] += (size or 0)
+
+        # 1. Serie TV e Film
+        _accumulate(c, 'episodes', 'downloaded_at')
+        _accumulate(c, 'movies', 'downloaded_at')
+
+        # 2. Fumetti (collegandosi al secondo database)
         try:
             import sqlite3
             db_c_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'comics.db')
             if os.path.exists(db_c_path):
                 with sqlite3.connect(db_c_path) as conn_c:
                     cc = conn_c.cursor()
-                    cc.execute("SELECT SUM(size_bytes) FROM comics_history")
-                    total_b += (cc.fetchone()[0] or 0)
-                    cc.execute("SELECT SUM(size_bytes) FROM comics_weekly")
-                    total_b += (cc.fetchone()[0] or 0)
-                    cc.execute("SELECT SUM(size_bytes) FROM comics_history WHERE sent_at > ?", (cutoff,))
-                    b_30d += (cc.fetchone()[0] or 0)
-                    cc.execute("SELECT SUM(size_bytes) FROM comics_weekly WHERE sent_at > ?", (cutoff,))
-                    b_30d += (cc.fetchone()[0] or 0)
+                    _accumulate(cc, 'comics_history', 'sent_at')
+                    _accumulate(cc, 'comics_weekly', 'sent_at')
         except Exception: pass
 
         return {
             'total_gb': round(total_b / (1024**3), 2),
-            'last_30_days_gb': round(b_30d / (1024**3), 2)
+            'last_30_days_gb': round(b_30d / (1024**3), 2),
+            'last_7_days_gb': round(b_7d / (1024**3), 2),
+            'daily_7d': [{'date': d, 'gb': round(v / (1024**3), 2)} for d, v in daily.items()],
         }
 
 
