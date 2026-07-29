@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="dashboard.png" alt="EXTTO Dashboard" width="860"/>
+<img src="dashboard2.png" alt="EXTTO Dashboard" width="860"/>
 
 # EXTTO
 
