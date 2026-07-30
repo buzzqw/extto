@@ -663,8 +663,13 @@ const app = {
                     cls = 'active'; icon = 'fa-arrow-down';
                     meta = `<b>${this._fmtRate(torr.dl_rate)}</b>${pct.toFixed(0)}% &middot; ETA ${torr.eta > 0 ? this._fmtEta(torr.eta) : '—'}`;
                 } else if (isSeed) {
-                    cls = 'seed'; icon = 'fa-arrow-up';
-                    meta = `<b>${this._fmtRate(torr.ul_rate)}</b>${t('seeding')}`;
+                    if (torr.ul_rate > 0) {
+                        cls = 'seed'; icon = 'fa-arrow-up';
+                        meta = `<b>${this._fmtRate(torr.ul_rate)}</b>${t('seeding')}`;
+                    } else {
+                        cls = 'seed'; icon = 'fa-check';
+                        meta = t('Completo');
+                    }
                 } else {
                     meta = torr.paused ? t('in pausa') : t('in coda');
                 }
