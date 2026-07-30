@@ -642,27 +642,38 @@ const app = {
                 return;
             }
 
-            const rank = (torr) => {
+            // isDone copre tutti gli stati "terminale" possibili, non solo 'seeding'/'finished':
+            // extto_web.py assegna anche state='Terminato' (file già trovato su disco) o lascia
+            // paused=True su torrent completati — senza questi controlli finiscono nel ramo
+            // "in pausa"/"in coda" anche se sono al 100%. Stessa logica di _renderTorrents().
+            const _isDoneTorr = (torr) => {
                 const st = (torr.state || '').toLowerCase();
                 const pct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
-                const isActive = pct > 0 && pct < 100 && !torr.paused && !st.includes('seeding') && !st.includes('finished');
-                const isSeed = st.includes('seeding') || st.includes('finished');
+                const terminalState = st.includes('seeding') || st.includes('finished');
+                const total_s = torr.total_size || 0;
+                const down_s = torr.downloaded || 0;
+                return pct >= 100 || terminalState || torr.physical_file_found === true
+                    || (torr.paused && total_s > 0 && down_s >= total_s);
+            };
+            const rank = (torr) => {
+                const pct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
+                const isDone = _isDoneTorr(torr);
+                const isActive = pct > 0 && pct < 100 && !torr.paused && !isDone;
                 if (isActive) return 0;
-                if (isSeed) return 1;
+                if (isDone) return 1;
                 return 2; // in coda / in pausa
             };
             const sorted = torrents.slice().sort((a, b) => rank(a) - rank(b)).slice(0, 5);
 
             el.innerHTML = sorted.map(torr => {
-                const st = (torr.state || '').toLowerCase();
                 const pct = Math.min(100, Math.max(0, (torr.progress || 0) * 100));
-                const isSeed = st.includes('seeding') || st.includes('finished');
-                const isActive = pct > 0 && pct < 100 && !torr.paused && !isSeed;
+                const isDone = _isDoneTorr(torr);
+                const isActive = pct > 0 && pct < 100 && !torr.paused && !isDone;
                 let cls = 'queued', icon = 'fa-clock', meta;
                 if (isActive) {
                     cls = 'active'; icon = 'fa-arrow-down';
                     meta = `<b>${this._fmtRate(torr.dl_rate)}</b>${pct.toFixed(0)}% &middot; ETA ${torr.eta > 0 ? this._fmtEta(torr.eta) : '—'}`;
-                } else if (isSeed) {
+                } else if (isDone) {
                     if (torr.ul_rate > 0) {
                         cls = 'seed'; icon = 'fa-arrow-up';
                         meta = `<b>${this._fmtRate(torr.ul_rate)}</b>${t('seeding')}`;
@@ -673,7 +684,7 @@ const app = {
                 } else {
                     meta = torr.paused ? t('in pausa') : t('in coda');
                 }
-                const barPct = isSeed ? 100 : pct;
+                const barPct = isDone ? 100 : pct;
                 return `<div class="dash-dl-row">
                     <div class="dash-dl-icon ${cls}"><i class="fa-solid ${icon}"></i></div>
                     <div class="dash-dl-main">
