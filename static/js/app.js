@@ -677,6 +677,12 @@ const app = {
                     if (torr.ul_rate > 0) {
                         cls = 'seed'; icon = 'fa-arrow-up';
                         meta = `<b>${this._fmtRate(torr.ul_rate)}</b>${t('seeding')}`;
+                    } else if (torr.is_infinite) {
+                        // Seed illimitato (ratio/giorni=0): resta in seeding indefinitamente
+                        // per design, anche se in questo istante non ha upload attivo — non è
+                        // "Completo" nel senso di terminato/pronto per la rimozione.
+                        cls = 'seed'; icon = 'fa-infinity';
+                        meta = t('seeding');
                     } else {
                         cls = 'seed'; icon = 'fa-check';
                         meta = t('Completo');
