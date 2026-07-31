@@ -8481,6 +8481,15 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 </button>
             </div>
         </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:0.5rem;">
+            <label style="font-size:0.8rem;color:var(--danger);cursor:pointer;display:flex;align-items:center;gap:4px;"
+                title="${t('Ignora la selezione riga per riga: elimina TUTTI i record che corrispondono alla ricerca, anche quelli non mostrati oltre il limite di 500.')}">
+                <input type="checkbox" id="pkw-check-delete-all" data-total="${total}" onchange="app._pruneKwToggleDeleteAllMode(this.checked)"
+                    style="width:14px;height:14px;accent-color:var(--danger);">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size:.75em;"></i>
+                ${t('Elimina TUTTI i')} ${total} ${t('risultati trovati (non solo i mostrati)')}
+            </label>
+        </div>
         <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-main);">
         <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
         <thead style="position:sticky;top:0;background:var(--bg-secondary);z-index:2;">
@@ -8521,7 +8530,25 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         <div id="pkw-footer" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;"></div>`;
 
         resBox.innerHTML = html;
+        resBox.dataset.rawKeywords = (data.keywords || []).join(',');
+        resBox.dataset.total = total;
         this._pruneKwUpdateCount();
+    },
+
+    _pruneKwToggleDeleteAllMode(checked) {
+        document.querySelectorAll('.pkw-row-cb').forEach(cb => cb.disabled = checked);
+        const master = document.getElementById('pkw-check-all');
+        if (master) master.disabled = checked;
+        const btn = document.getElementById('pkw-btn-delete');
+        const lbl = document.getElementById('pkw-del-label');
+        const total = document.getElementById('pkw-check-delete-all')?.dataset.total || 0;
+        if (checked) {
+            if (btn) btn.disabled = false;
+            if (lbl) lbl.textContent = `${t('Elimina TUTTI i')} ${total}`;
+        } else {
+            if (lbl) lbl.textContent = t('Elimina selezionati');
+            this._pruneKwUpdateCount();
+        }
     },
 
     _pruneKwToggleAll(checked) {
@@ -8551,6 +8578,9 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
     },
 
     async pruneByKeywordDeleteSelected() {
+        const deleteAllMode = document.getElementById('pkw-check-delete-all')?.checked;
+        if (deleteAllMode) return this._pruneKwDeleteAllMatches();
+
         const checked = [...document.querySelectorAll('.pkw-row-cb:checked')];
         if (!checked.length) return;
         const ids            = checked.filter(cb => cb.dataset.db !== 'mfs').map(cb => parseInt(cb.dataset.id));
@@ -8579,6 +8609,45 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 this._pruneKwUpdateCount();
                 const footer = document.getElementById('pkw-footer');
                 if (footer) footer.innerHTML = `<span style="color:var(--success)">✅ ${t('Eliminati')} ${deleted} ${t('record')}.</span>`;
+                if (deleted > 500) {
+                    setTimeout(() => {
+                        if (confirm(t('Hai eliminato molti record. Vuoi eseguire un VACUUM ora per recuperare i Megabyte sul disco?'))) {
+                            this.runDbAction('VACUUM');
+                        } else { this.loadDbInfo(); }
+                    }, 800);
+                } else { this.loadDbInfo(); }
+            } else {
+                this.showToast(data.error || t('Errore eliminazione'), 'error');
+                if (btn) btn.disabled = false;
+            }
+        } catch(e) {
+            this.showToast(t('Errore di rete'), 'error');
+            if (btn) btn.disabled = false;
+        }
+    },
+
+    async _pruneKwDeleteAllMatches() {
+        const resBox  = document.getElementById('prune-keyword-result');
+        const keywords = resBox ? resBox.dataset.rawKeywords : '';
+        const total    = resBox ? parseInt(resBox.dataset.total || '0') : 0;
+        if (!keywords || !total) return;
+
+        if (!confirm(`${t('Eliminare definitivamente TUTTI i')} ${total} ${t('record trovati dall\'archivio (non solo quelli mostrati)?')}\n\n${t('L\'operazione non è reversibile.')}`)) return;
+
+        const btn = document.getElementById('pkw-btn-delete');
+        if (btn) btn.disabled = true;
+        this.showToast(t('Eliminazione in corso...'), 'info');
+
+        try {
+            const res  = await fetch(`${API_BASE}/api/db/prune-keyword-delete-all`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({keywords})
+            });
+            const data = await res.json();
+            if (data.success) {
+                const deleted = data.deleted || 0;
+                this.showToast(`${t('Eliminati')} ${deleted} ${t('record')}`, 'success');
+                resBox.innerHTML = `<span style="color:var(--success)">✅ ${t('Eliminati')} ${deleted} ${t('record')}.</span>`;
                 if (deleted > 500) {
                     setTimeout(() => {
                         if (confirm(t('Hai eliminato molti record. Vuoi eseguire un VACUUM ora per recuperare i Megabyte sul disco?'))) {

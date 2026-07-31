@@ -6602,6 +6602,75 @@ def _title_has_script(title: str, token: str) -> bool:
     return any(any(lo <= ord(c) <= hi for lo, hi in ranges) for c in title)
 
 
+def _parse_keyword_query(raw):
+    """Spezza la query utente in (script_tokens, exact_kws, regular_kws)."""
+    import re as _re
+    all_parts     = [k.strip() for k in _re.split(r'[,\s]+', raw) if k.strip()]
+    script_tokens = [p.lower() for p in all_parts if p.lower() in _SCRIPT_RANGES]
+    _all_kws      = [k for k in all_parts if k.lower() not in _SCRIPT_RANGES and len(k) >= 2]
+    # =keyword → word-boundary match (Python scan); plain keyword → LIKE substring
+    exact_kws     = [k[1:] for k in _all_kws if k.startswith('=') and len(k) >= 3]
+    regular_kws   = [k for k in _all_kws if not k.startswith('=')]
+    return script_tokens, exact_kws, regular_kws
+
+
+def _keyword_search_all(script_tokens, exact_kws, regular_kws):
+    """
+    Trova TUTTI i record (archive + movie_feed_seen) che matchano le keyword, senza limite.
+    Ritorna (archive_rows, mfs_rows) — ciascuna lista di dict {id, title, added_at, db}, ordinate DESC.
+    """
+    import re as _re
+
+    archive_rows = []
+    if os.path.exists(ARCHIVE_FILE):
+        with sqlite3.connect(ARCHIVE_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            if not script_tokens and not exact_kws:
+                conditions = ' OR '.join(['title LIKE ?' for _ in regular_kws])
+                params = [f'%{k}%' for k in regular_kws]
+                c.execute(
+                    f"SELECT id, title, added_at FROM archive WHERE {conditions} ORDER BY added_at DESC",
+                    params
+                )
+                archive_rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['added_at'], 'db': 'archive'} for r in c.fetchall()]
+            else:
+                c.execute("SELECT id, title, added_at FROM archive ORDER BY added_at DESC")
+                for r in c:
+                    title = r['title'] or ''
+                    t_low = title.lower()
+                    ok = any(kw.lower() in t_low for kw in regular_kws)
+                    ok = ok or any(_re.search(rf'\b{_re.escape(kw.lower())}\b', t_low) for kw in exact_kws)
+                    ok = ok or any(_title_has_script(title, tok) for tok in script_tokens)
+                    if ok:
+                        archive_rows.append({'id': r['id'], 'title': title, 'added_at': r['added_at'], 'db': 'archive'})
+
+    mfs_rows = []
+    try:
+        from core.database import Database as _CoreDB
+        with _CoreDB() as _cdb:
+            _c2 = _cdb.conn.cursor()
+            if not script_tokens and not exact_kws:
+                _cond = ' OR '.join(['(title LIKE ? OR name LIKE ?)' for _ in regular_kws])
+                _par  = [v for k in regular_kws for v in (f'%{k}%', f'%{k}%')]
+                _c2.execute(f"SELECT id, title, found_at FROM movie_feed_seen WHERE {_cond} ORDER BY found_at DESC", _par)
+                mfs_rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['found_at'], 'db': 'mfs'} for r in _c2.fetchall()]
+            else:
+                _c2.execute("SELECT id, title, found_at FROM movie_feed_seen ORDER BY found_at DESC")
+                for r in _c2:
+                    _t = r['title'] or ''
+                    _t_low = _t.lower()
+                    ok = any(kw.lower() in _t_low for kw in regular_kws)
+                    ok = ok or any(_re.search(rf'\b{_re.escape(kw.lower())}\b', _t_low) for kw in exact_kws)
+                    ok = ok or any(_title_has_script(_t, tok) for tok in script_tokens)
+                    if ok:
+                        mfs_rows.append({'id': r['id'], 'title': _t, 'added_at': r['found_at'], 'db': 'mfs'})
+    except Exception as _mfs_e:
+        log_maintenance(f"⚠️ keyword-search movie_feed_seen: {_mfs_e}")
+
+    return archive_rows, mfs_rows
+
+
 @app.route('/api/db/prune-keyword', methods=['POST'])
 def prune_archive_keyword():
     """
@@ -6619,80 +6688,19 @@ def prune_archive_keyword():
         if not raw:
             return jsonify({'success': False, 'error': 'Nessuna keyword specificata'})
 
-        import re as _re
-        all_parts     = [k.strip() for k in _re.split(r'[,\s]+', raw) if k.strip()]
-        script_tokens = [p.lower() for p in all_parts if p.lower() in _SCRIPT_RANGES]
-        _all_kws      = [k for k in all_parts if k.lower() not in _SCRIPT_RANGES and len(k) >= 2]
-        # =keyword → word-boundary match (Python scan); plain keyword → LIKE substring
-        exact_kws     = [k[1:] for k in _all_kws if k.startswith('=') and len(k) >= 3]
-        regular_kws   = [k for k in _all_kws if not k.startswith('=')]
-
+        script_tokens, exact_kws, regular_kws = _parse_keyword_query(raw)
         if not script_tokens and not exact_kws and not regular_kws:
             return jsonify({'success': False, 'error': 'Keyword troppo corte (minimo 2 caratteri)'})
 
         if not os.path.exists(ARCHIVE_FILE):
             return jsonify({'success': False, 'error': 'Archivio non trovato'})
 
-        with sqlite3.connect(ARCHIVE_FILE) as conn:
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
+        archive_rows, mfs_rows = _keyword_search_all(script_tokens, exact_kws, regular_kws)
+        total = len(archive_rows)
+        rows  = archive_rows[:limit]
+        mfs_rows_ret = mfs_rows[:limit]
 
-            if not script_tokens and not exact_kws:
-                # Fast path: solo SQL LIKE
-                conditions = ' OR '.join(['title LIKE ?' for _ in regular_kws])
-                params = [f'%{k}%' for k in regular_kws]
-                c.execute(f"SELECT COUNT(*) FROM archive WHERE {conditions}", params)
-                total = c.fetchone()[0]
-                c.execute(
-                    f"SELECT id, title, added_at FROM archive WHERE {conditions} ORDER BY added_at DESC LIMIT ?",
-                    params + [limit]
-                )
-                rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['added_at']} for r in c.fetchall()]
-            else:
-                # Scan Python: Unicode ranges o word-boundary (=keyword)
-                c.execute("SELECT id, title, added_at FROM archive ORDER BY added_at DESC")
-                matched = []
-                for r in c:
-                    title = r['title'] or ''
-                    t_low = title.lower()
-                    ok = any(kw.lower() in t_low for kw in regular_kws)
-                    ok = ok or any(_re.search(rf'\b{_re.escape(kw.lower())}\b', t_low) for kw in exact_kws)
-                    ok = ok or any(_title_has_script(title, tok) for tok in script_tokens)
-                    if ok:
-                        matched.append({'id': r['id'], 'title': title, 'added_at': r['added_at']})
-                total = len(matched)
-                rows  = matched[:limit]
-
-        # Aggiunge risultati da movie_feed_seen (extto_series.db)
-        try:
-            from core.database import Database as _CoreDB
-            with _CoreDB() as _cdb:
-                _c2 = _cdb.conn.cursor()
-                if not script_tokens and not exact_kws:
-                    _cond = ' OR '.join(['(title LIKE ? OR name LIKE ?)' for _ in regular_kws])
-                    _par  = [v for k in regular_kws for v in (f'%{k}%', f'%{k}%')]
-                    _c2.execute(f"SELECT id, title, found_at FROM movie_feed_seen WHERE {_cond} ORDER BY found_at DESC LIMIT ?", _par + [limit])
-                    mfs_rows = [{'id': r['id'], 'title': r['title'], 'added_at': r['found_at'], 'db': 'mfs'} for r in _c2.fetchall()]
-                else:
-                    _c2.execute("SELECT id, title, found_at FROM movie_feed_seen ORDER BY found_at DESC")
-                    mfs_rows = []
-                    for r in _c2:
-                        _t = r['title'] or ''
-                        _t_low = _t.lower()
-                        ok = any(kw.lower() in _t_low for kw in regular_kws)
-                        ok = ok or any(_re.search(rf'\b{_re.escape(kw.lower())}\b', _t_low) for kw in exact_kws)
-                        ok = ok or any(_title_has_script(_t, tok) for tok in script_tokens)
-                        if ok:
-                            mfs_rows.append({'id': r['id'], 'title': _t, 'added_at': r['found_at'], 'db': 'mfs'})
-                    mfs_rows = mfs_rows[:limit]
-        except Exception as _mfs_e:
-            log_maintenance(f"⚠️ keyword-search movie_feed_seen: {_mfs_e}")
-            mfs_rows = []
-
-        # Marca i record archivio con db='archive' e combina
-        for row in rows:
-            row['db'] = 'archive'
-        combined     = rows + mfs_rows
+        combined       = rows + mfs_rows_ret
         total_combined = total + len(mfs_rows)
 
         used_kws = regular_kws + ['=' + k for k in exact_kws] + script_tokens
@@ -6702,6 +6710,59 @@ def prune_archive_keyword():
 
     except Exception as e:
         log_maintenance(f"❌ Errore keyword-search: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/db/prune-keyword-delete-all', methods=['POST'])
+def prune_archive_keyword_delete_all():
+    """
+    Elimina TUTTI i record (archive + movie_feed_seen) che matchano le keyword,
+    non solo quelli mostrati/limitati in prune-keyword.
+    Body JSON:
+        keywords : str — stessa sintassi di /api/db/prune-keyword
+    """
+    try:
+        data = request.json or {}
+        raw  = str(data.get('keywords', '')).strip()
+        if not raw:
+            return jsonify({'success': False, 'error': 'Nessuna keyword specificata'})
+
+        script_tokens, exact_kws, regular_kws = _parse_keyword_query(raw)
+        if not script_tokens and not exact_kws and not regular_kws:
+            return jsonify({'success': False, 'error': 'Keyword troppo corte (minimo 2 caratteri)'})
+
+        archive_rows, mfs_rows = _keyword_search_all(script_tokens, exact_kws, regular_kws)
+        ids            = [r['id'] for r in archive_rows]
+        movie_feed_ids = [r['id'] for r in mfs_rows]
+
+        deleted = 0
+        if ids and os.path.exists(ARCHIVE_FILE):
+            placeholders = ','.join('?' * len(ids))
+            with sqlite3.connect(ARCHIVE_FILE) as conn:
+                c = conn.cursor()
+                c.execute(f"DELETE FROM archive WHERE id IN ({placeholders})", ids)
+                deleted = c.rowcount
+
+        mfs_deleted = 0
+        if movie_feed_ids:
+            try:
+                from core.database import Database as _CoreDB
+                with _CoreDB() as _cdb:
+                    _ph = ','.join('?' * len(movie_feed_ids))
+                    _cdb.conn.execute(f"DELETE FROM movie_feed_seen WHERE id IN ({_ph})", movie_feed_ids)
+                    mfs_deleted = _cdb.conn.execute("SELECT changes()").fetchone()[0]
+                    _cdb.conn.commit()
+            except Exception as _mfs_e:
+                log_maintenance(f"⚠️ prune-keyword-delete-all movie_feed_seen: {_mfs_e}")
+
+        total_deleted = deleted + mfs_deleted
+        used_kws = regular_kws + ['=' + k for k in exact_kws] + script_tokens
+        msg = f"Rimossi {deleted} dall'archivio, {mfs_deleted} dal feed film"
+        log_maintenance(f"✅ Prune-keyword-delete-all '{', '.join(used_kws)}': {msg}")
+        return jsonify({'success': True, 'deleted': total_deleted, 'message': msg})
+
+    except Exception as e:
+        log_maintenance(f"❌ Errore prune-keyword-delete-all: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
