@@ -21,7 +21,8 @@ from .constants import (
 )
 from .models import stats, Parser
 from .database import ArchiveDB, SmartCache, Database
-from .constants import CACHE_FILE
+from .constants import CACHE_FILE, CF_DOMAINS_FILE
+from .utils import safe_load_json, safe_save_json
 
 # Mappa ISO 639-2 → ISO 639-1 per subtitle queries
 _LANG3_TO_LANG2 = {
@@ -134,6 +135,11 @@ class Engine:
         self.archive  = ArchiveDB()
         self.cache    = SmartCache(CACHE_FILE)
         self.age_filter = {'days': 0, 'threshold': 0.8}
+        # Memoria persistente (tra cicli) dei domini che si sono rivelati dietro
+        # Cloudflare: {domain: last_confirmed_timestamp}. Popolata da _smart_get(),
+        # così il sistema impara da solo quali fonti richiedono FlareSolverr senza
+        # bisogno di configurarlo manualmente per-sorgente.
+        self._cf_domains = safe_load_json(CF_DOMAINS_FILE, {})
 
     def close(self):
         try:
@@ -508,6 +514,87 @@ class Engine:
         except Exception as e:
             logger.warning(f"⚠️ FlareSolverr error: {e}")
             return None
+
+    # Marker tipici di una pagina di challenge Cloudflare (JS/captcha) che una
+    # richiesta 'requests' pura non riesce a superare — usati da _smart_get()
+    # per decidere quando serve davvero FlareSolverr.
+    _CF_CHALLENGE_MARKERS = (
+        'checking your browser',
+        'cf-browser-verification',
+        'cf_chl_opt',
+        'cdn-cgi/challenge-platform',
+        'just a moment',
+        'attention required! | cloudflare',
+        'ddos protection by cloudflare',
+    )
+
+    def _is_cloudflare_block(self, status_code: int, html_text: str) -> bool:
+        """True se la risposta è una challenge Cloudflare invece del contenuto reale."""
+        if status_code in (403, 503):
+            return True
+        if not html_text:
+            return False
+        low = html_text[:4000].lower()
+        return any(marker in low for marker in self._CF_CHALLENGE_MARKERS)
+
+    # Per quanto tempo ricordare che un dominio richiede FlareSolverr prima di
+    # riprovare una richiesta diretta (si autocorregge se il sito si "libera").
+    _CF_DOMAIN_TTL = 6 * 3600  # 6h
+
+    def _domain_needs_flaresolverr(self, domain: str) -> bool:
+        ts = self._cf_domains.get(domain)
+        return bool(ts) and (time.time() - ts) < self._CF_DOMAIN_TTL
+
+    def _remember_cf_domain(self, domain: str):
+        self._cf_domains[domain] = time.time()
+        try:
+            safe_save_json(CF_DOMAINS_FILE, self._cf_domains)
+        except Exception as e:
+            logger.debug(f"Impossibile salvare {CF_DOMAINS_FILE}: {e}")
+
+    def _smart_get(self, url: str, timeout: int = 10, headers: dict = None):
+        """GET con pre-check Cloudflare, per fonti 'regolari' (RSS/HTML scraping)
+        oltre a ext.to: prova prima la richiesta diretta (veloce), e solo se la
+        risposta è una challenge Cloudflare (status 403/503 o marker noti nell'HTML)
+        passa a FlareSolverr. Ritorna (status_code, html_text) oppure None se
+        entrambi i tentativi falliscono o FlareSolverr non è configurato.
+
+        Il dominio viene ricordato in extto_cf_domains.json (self._cf_domains) per
+        _CF_DOMAIN_TTL: le chiamate successive — anche in cicli futuri, essendo il
+        file persistito su disco — saltano direttamente a FlareSolverr invece di
+        sprecare un tentativo diretto che sappiamo già destinato a fallire. Nessuna
+        configurazione manuale per-sorgente: il sistema impara da solo osservando
+        le risposte.
+
+        Se usa FlareSolverr, i cookie ottenuti restano in self.sess: le richieste
+        dirette successive sullo stesso dominio (es. pagine di dettaglio) passano
+        senza dover richiamarlo di nuovo."""
+        domain = urlparse(url).netloc
+
+        if self._domain_needs_flaresolverr(domain):
+            fs = self._flaresolverr_get(url, timeout=max(timeout, 60))
+            if fs is not None:
+                return fs
+            # FlareSolverr non ha risposto questa volta (es. servizio giù): ultimo tentativo diretto
+            try:
+                res = self.sess.get(url, timeout=timeout, headers=headers or {})
+                return res.status_code, res.text
+            except Exception as e:
+                logger.debug(f"   {url[:60]} richiesta diretta fallita ({e})")
+                return None
+
+        try:
+            res = self.sess.get(url, timeout=timeout, headers=headers or {})
+            if not self._is_cloudflare_block(res.status_code, res.text):
+                return res.status_code, res.text
+            logger.debug(f"   ⛅ Cloudflare rilevato su {url[:60]} — provo FlareSolverr")
+        except Exception as e:
+            logger.debug(f"   {url[:60]} richiesta diretta fallita ({e}) — provo FlareSolverr")
+
+        fs = self._flaresolverr_get(url, timeout=max(timeout, 60))
+        if fs is not None and fs[0] == 200:
+            self._remember_cf_domain(domain)
+        return fs
 
     def _search_bitsearch(self, query: str, limit: int = 20) -> List[Dict]:
         """Ricerca su bitsearch.to (ex solidtorrents.to) via JSON API (no Cloudflare)."""
@@ -885,20 +972,17 @@ class Engine:
             try:
                 p_url = f"{url}&page={page}" if page > 0 else url
 
-                # Prova FlareSolverr (bypass Cloudflare); fallback a requests diretto
-                fs = self._flaresolverr_get(p_url)
-                if fs is not None:
-                    status_code, html_text = fs
-                    if status_code != 200:
-                        logger.warning(f"⚠️ ExtTo FlareSolverr status {status_code}: {p_url[:60]}")
-                        break
-                    soup = BeautifulSoup(html_text, 'html.parser')
-                else:
-                    res = self.sess.get(p_url, timeout=10)
-                    if res.status_code != 200:
-                        logger.warning(f"⚠️ ExtTo HTTP {res.status_code}: {p_url[:60]}")
-                        break
-                    soup = BeautifulSoup(res.content, 'html.parser')
+                # Pre-check Cloudflare: diretto se possibile, FlareSolverr solo se serve
+                # (e ricordato per i prossimi cicli — vedi _smart_get)
+                fs = self._smart_get(p_url, timeout=10)
+                if fs is None:
+                    logger.warning(f"⚠️ ExtTo: impossibile scaricare {p_url[:60]}")
+                    break
+                status_code, html_text = fs
+                if status_code != 200:
+                    logger.warning(f"⚠️ ExtTo HTTP {status_code}: {p_url[:60]}")
+                    break
+                soup = BeautifulSoup(html_text, 'html.parser')
 
                 # Struttura nuova: <a class="torrent-title-link" href="/SLUG-ID/" ...>
                 title_links = soup.find_all('a', class_='torrent-title-link')
@@ -1493,10 +1577,10 @@ class Engine:
         for page in range(scan_pages):
             try:
                 p_url = f"{url}{'&' if '?' in url else '?'}page={page}" if page > 0 else url
-                res   = self.sess.get(p_url, timeout=10)
-                if res.status_code != 200:
+                fs = self._smart_get(p_url, timeout=10)
+                if fs is None or fs[0] != 200:
                     break
-                soup  = BeautifulSoup(res.content, 'html.parser')
+                soup  = BeautifulSoup(fs[1], 'html.parser')
                 links = soup.find_all('a', href=re.compile(r'/torrents?/\d+'))
                 if not links:
                     break
@@ -1631,15 +1715,17 @@ class Engine:
 
         items = []
 
-        # --- Scarica la pagina listing ---
-        try:
-            resp = self.sess.get(url, timeout=15, headers=_HEADERS)
-            resp.raise_for_status()
-        except Exception as e:
-            logger.error(f"❌ TGx listing error '{url}': {e}")
+        # --- Scarica la pagina listing (pre-check Cloudflare → FlareSolverr se serve) ---
+        fs = self._smart_get(url, timeout=15, headers=_HEADERS)
+        if fs is None:
+            logger.error(f"❌ TGx listing error '{url}': impossibile scaricare la pagina")
+            return items
+        status_code, html_text = fs
+        if status_code != 200:
+            logger.error(f"❌ TGx listing error '{url}': HTTP {status_code}")
             return items
 
-        soup = BeautifulSoup(resp.content, 'html.parser')
+        soup = BeautifulSoup(html_text, 'html.parser')
         rows = soup.select('div.tgxtablerow')
 
         if not rows:
@@ -1671,9 +1757,11 @@ class Engine:
                     continue
                 try:
                     time.sleep(1)  # Cortesia verso il server
-                    sub = self.sess.get(torrent_url, timeout=10, headers=_HEADERS)
-                    sub.raise_for_status()
-                    sub_soup = BeautifulSoup(sub.content, 'html.parser')
+                    fs_d = self._smart_get(torrent_url, timeout=10, headers=_HEADERS)
+                    if fs_d is None or fs_d[0] != 200:
+                        logger.debug(f"   TGx: impossibile scaricare dettaglio '{torrent_url}'")
+                        continue
+                    sub_soup = BeautifulSoup(fs_d[1], 'html.parser')
                     # BeautifulSoup decodifica automaticamente &amp; → & nelle href
                     mag_tag = sub_soup.find('a', href=_re.compile(r'^magnet:\?'))
                     if not mag_tag:

@@ -24,6 +24,7 @@ LOG_FILE         = os.path.join(_BASE_DIR, "extto.log")
 XML_FILE         = os.path.join(_BASE_DIR, "extto_magnet_feed.xml")
 FEED_BUFFER_FILE = os.path.join(_BASE_DIR, "extto_feed_buffer.json")
 STATE_DIR        = os.path.join(_BASE_DIR, "extto_torrents_state")
+CF_DOMAINS_FILE  = os.path.join(_BASE_DIR, "extto_cf_domains.json")  # memoria domini che richiedono FlareSolverr
 REFRESH          = 7200
 MAX_PAGES        = 3
 
