@@ -2255,6 +2255,16 @@ def run_backup():
         zip_name = f'extto-backup-{ts}.7z'
         zip_path = os.path.abspath(os.path.join(backup_dir, zip_name))
 
+        # Determina se splittare a 45 MB: solo se Telegram è abilitato (limite bot 50 MB)
+        _cfg_full = parse_series_config().get('settings', {})
+        _send_tg  = str(_cfg_full.get('backup_send_telegram', 'false')).lower() in ('true', '1', 'yes')
+        _tg_configured = False
+        if _send_tg:
+            from core.notifier import Notifier as _NCheck
+            _ncheck = _NCheck(_cfg_full)
+            _tg_configured = bool(_ncheck.tg_enabled)
+        _do_split = _tg_configured
+
         EXCLUDE_PATTERNS = [
             '__pycache__', '*.pyc', '*.pyo',
             'backups/', '*.log', '*.log.*', '.git/', '.venv/', '.claude/',
@@ -2298,15 +2308,18 @@ def run_backup():
             '-xr!static/posters',
             '-xr!*.log', '-xr!*.log.*',
         ]
-        _7z_cmd = ['7z', 'a', '-t7z', '-mx=5', '-v45m', zip_path, '.'] + _7z_excludes
+        _7z_cmd = ['7z', 'a', '-t7z', '-mx=5']
+        if _do_split:
+            _7z_cmd.append('-v45m')  # split in volumi da 45 MB per Telegram (limite 50 MB)
+        _7z_cmd += [zip_path, '.'] + _7z_excludes
         _res = _subprocess.run(_7z_cmd, cwd=BASE_DIR, capture_output=True, text=True)
         if _res.returncode != 0:
             raise RuntimeError(f'7z fallito: {_res.stderr.strip()}')
 
-        # Con -v45m i volumi si chiamano .7z.001, .7z.002, …
+        # Con -v45m i volumi si chiamano .7z.001, .7z.002, …; senza split è un singolo .7z
         vol_paths = sorted(glob.glob(zip_path + '.*'))
         if not vol_paths and os.path.exists(zip_path):
-            vol_paths = [zip_path]  # fallback: archivio singolo senza split
+            vol_paths = [zip_path]  # archivio singolo senza split
         n_vols   = len(vol_paths)
         zip_size = sum(os.path.getsize(v) for v in vol_paths)
 
@@ -2358,9 +2371,10 @@ def run_backup():
 
         # Retention: tieni solo gli ultimi N backup.
         # I backup multi-volume sono rappresentati dal primo volume (.7z.001);
-        # i backup legacy a file singolo (.zip) sono trattati direttamente.
+        # i backup a file singolo (.7z o .zip) sono trattati direttamente.
         existing_sets = sorted(
             glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z.001')) +
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')) +
             glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip'))
         )
         while len(existing_sets) > retention:
@@ -2376,6 +2390,7 @@ def run_backup():
 
         kept = len(
             glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z.001')) +
+            glob.glob(os.path.join(backup_dir, 'extto-backup-*.7z')) +
             glob.glob(os.path.join(backup_dir, 'extto-backup-*.zip'))
         )
         tg_sent = False
