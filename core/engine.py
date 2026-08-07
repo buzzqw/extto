@@ -528,9 +528,15 @@ class Engine:
         'ddos protection by cloudflare',
     )
 
+    # Codici 520-530: errori "origin" generati da Cloudflare stesso (non dal
+    # sito dietro di esso) quando il server reale è irraggiungibile/lento a
+    # rispondere — non sono JS-challenge ma FlareSolverr (browser reale, IP
+    # diverso, timeout più permissivi) a volte riesce dove 'requests' fallisce.
+    _CF_ORIGIN_ERROR_CODES = (403, 503, 520, 521, 522, 523, 524, 525, 526, 527, 530)
+
     def _is_cloudflare_block(self, status_code: int, html_text: str) -> bool:
         """True se la risposta è una challenge Cloudflare invece del contenuto reale."""
-        if status_code in (403, 503):
+        if status_code in self._CF_ORIGIN_ERROR_CODES:
             return True
         if not html_text:
             return False
