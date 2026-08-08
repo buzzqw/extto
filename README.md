@@ -59,9 +59,9 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 ### 🧠 One App, Full Stack
 Monitors RSS feeds, searches Jackett/Prowlarr indexers, scores release quality, downloads via libtorrent (embedded) or your existing qBittorrent / Transmission / aria2, renames files with TMDB metadata, archives to your NAS, notifies you. All automatic.
 
-### 🌐 6-Engine Web Search with Cloudflare Bypass
-When your indexers come up empty, EXTTO fans out across **6 public search engines** simultaneously:  
-**BitSearch · The Pirate Bay · Knaben · BTDigg · LimeTorrents · Torrentz2**
+### 🌐 9-Engine Web Search with Cloudflare Bypass
+When your indexers come up empty, EXTTO fans out across **9 public search engines** simultaneously:
+**BitSearch · The Pirate Bay · Knaben · Nyaa · EZTV · BTDigg · LimeTorrents · Torrentz2 · TorrentsCSV**
 
 Engines protected by Cloudflare are bypassed transparently via the optional **FlareSolverr** sidecar. Web search fires both in scheduled cycles and in manually triggered ones — so when you hit "Search Now" you get the full search network, not just RSS.
 
@@ -256,7 +256,7 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 | Fumetti nativi | **✅ Integrato** | ❌ Serve Mylar |
 | Fallback eMule / eD2k | **✅ Integrato** | ❌ Impossibile |
 | Download in RAM disk | **✅ Integrato** | ❌ Impossibile |
-| Ricerca web multi-motore | **✅ 6 motori** | ❌ Solo indexer |
+| Ricerca web multi-motore | **✅ 9 motori** | ❌ Solo indexer |
 | Bypass Cloudflare | **✅ FlareSolverr** | ❌ Impossibile |
 | Cartelle per tag | **✅ Integrato** | ❌ Manuale |
 | Notifiche webhook | **✅ Integrato** | ❌ Solo tramite plugin |
@@ -274,9 +274,9 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 ### 🧠 Un'App, lo Stack Completo
 Monitora feed RSS, cerca su indexer Jackett/Prowlarr, valuta la qualità delle release, scarica via libtorrent (integrato) oppure qBittorrent / Transmission / aria2 esistenti, rinomina con metadati TMDB, archivia sul NAS, notifica su Telegram. Tutto automatico.
 
-### 🌐 Ricerca Web su 6 Motori con Bypass Cloudflare
-Quando gli indexer non trovano nulla, EXTTO espande la ricerca su **6 motori pubblici** in parallelo:  
-**BitSearch · The Pirate Bay · Knaben · BTDigg · LimeTorrents · Torrentz2**
+### 🌐 Ricerca Web su 9 Motori con Bypass Cloudflare
+Quando gli indexer non trovano nulla, EXTTO espande la ricerca su **9 motori pubblici** in parallelo:
+**BitSearch · The Pirate Bay · Knaben · Nyaa · EZTV · BTDigg · LimeTorrents · Torrentz2 · TorrentsCSV**
 
 I motori protetti da Cloudflare vengono attraversati in modo trasparente tramite il sidecar opzionale **FlareSolverr**. La ricerca web scatta sia nei cicli schedulati sia in quelli avviati manualmente — quindi premendo "Controlla ora" si ottiene l'intera rete di ricerca, non solo RSS.
 

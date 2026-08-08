@@ -62,7 +62,7 @@ class Config:
         self.prowlarr_url             = ''
         self.prowlarr_api             = ''
         self.flaresolverr_url         = ''
-        self.websearch_engines        = []     # lista motori web: ['solidtorrents','bt4g']
+        self.websearch_engines        = []     # lista motori web: bitsearch,tpb,knaben,nyaa,eztv,btdig,limetorrents,torrentz2,torrentscsv
         self.jackett_save_to_archive  = True   # se False, i risultati Jackett non vengono scritti in archive.db
         self.prowlarr_save_to_archive = True   # se False, i risultati Prowlarr non vengono scritti in archive.db
         self.backup_dir               = ''

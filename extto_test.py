@@ -2430,6 +2430,41 @@ class TestWebSearchEngines(unittest.TestCase):
             out = eng._search_knaben('test')
         self.assertEqual(len(out), 1)
 
+    # ── Nyaa / EZTV ───────────────────────────────────────────────────────────
+
+    def test_nyaa_rss_infohash(self):
+        """_search_nyaa converte l'info-hash RSS in un magnet valido."""
+        eng = self._make_engine()
+        h = 'a' * 40
+        xml = (
+            '<rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item>'
+            '<title>Anime S01E01 ITA</title>'
+            f'<nyaa:infoHash>{h}</nyaa:infoHash>'
+            '</item></channel></rss>'
+        )
+        resp = MagicMock(status_code=200, content=xml.encode())
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_nyaa('Anime S01E01 ita')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['source'], 'Nyaa')
+        self.assertIn(h, out[0]['magnet'])
+
+    def test_eztv_api_filtra_serie_e_episodio(self):
+        """_search_eztv filtra localmente l'API latest, che ignora keywords."""
+        eng = self._make_engine()
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = {
+            'torrents': [
+                {'title': 'Altra Show S01E01 1080p', 'magnet_url': 'magnet:?xt=urn:btih:' + 'b' * 40},
+                {'title': 'Example Show S01E01 ITA 1080p', 'magnet_url': 'magnet:?xt=urn:btih:' + 'c' * 40},
+            ]
+        }
+        with patch.object(eng.sess, 'get', return_value=resp):
+            out = eng._search_eztv('Example Show ita S01E01')
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['source'], 'EZTV')
+        self.assertIn('c' * 40, out[0]['magnet'])
+
     # ── BTDigg ───────────────────────────────────────────────────────────────
 
     def _btdig_html(self, hash_val, title):
@@ -2499,6 +2534,19 @@ class TestWebSearchEngines(unittest.TestCase):
         resp = MagicMock(status_code=200, text=html, content=html.encode() + b' ' * 1100)
         with patch.object(eng.sess, 'get', return_value=resp):
             out = eng._search_btdig('test')
+        self.assertEqual(len(out), 1)
+
+    def test_btdig_usa_sessione_dedicata(self):
+        """BTDigg non usa la sessione CloudScraper condivisa."""
+        eng = self._make_engine()
+        import requests
+        eng.btdig_sess = requests.Session()
+        h = '5' * 40
+        html = self._btdig_html(h, 'Serie.S01E01.ITA')
+        resp = MagicMock(status_code=200, text=html, content=html.encode() + b' ' * 1100)
+        with patch.object(eng.sess, 'get', side_effect=AssertionError('sessione errata')):
+            with patch.object(eng.btdig_sess, 'get', return_value=resp):
+                out = eng._search_btdig('test')
         self.assertEqual(len(out), 1)
 
     # ── LimeTorrents ─────────────────────────────────────────────────────────
@@ -2596,6 +2644,18 @@ class TestWebSearchEngines(unittest.TestCase):
         no_magnet = MagicMock(status_code=200, text='<html><body>nessun magnet</body></html>')
 
         with patch.object(eng.sess, 'get', side_effect=lambda url, **kw: no_magnet if '/torrent/' in url else listing):
+            with patch.object(eng, '_flaresolverr_get', return_value=None):
+                out = eng._search_torrentz2('test')
+        self.assertEqual(out, [])
+
+    def test_torrentz2_pagina_valida_senza_risultati(self):
+        """Una pagina .results senza <dl> è una ricerca valida con zero match."""
+        eng = self._make_engine()
+        listing = MagicMock(
+            status_code=200,
+            text='<html><body><div class="results">0 results</div></body></html>'
+        )
+        with patch.object(eng.sess, 'get', return_value=listing):
             with patch.object(eng, '_flaresolverr_get', return_value=None):
                 out = eng._search_torrentz2('test')
         self.assertEqual(out, [])

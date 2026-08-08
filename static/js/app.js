@@ -2365,6 +2365,8 @@ const app = {
             if (_cb('websearch-bitsearch'))    _ws.push('bitsearch');
             if (_cb('websearch-tpb'))          _ws.push('tpb');
             if (_cb('websearch-knaben'))       _ws.push('knaben');
+            if (_cb('websearch-nyaa'))         _ws.push('nyaa');
+            if (_cb('websearch-eztv'))         _ws.push('eztv');
             if (_cb('websearch-btdig'))        _ws.push('btdig');
             if (_cb('websearch-limetorrents')) _ws.push('limetorrents');
             if (_cb('websearch-torrentz2'))    _ws.push('torrentz2');
@@ -3678,6 +3680,8 @@ const app = {
                 _ck('websearch-bitsearch',    'bitsearch');
                 _ck('websearch-tpb',          'tpb');
                 _ck('websearch-knaben',       'knaben');
+                _ck('websearch-nyaa',          'nyaa');
+                _ck('websearch-eztv',          'eztv');
                 _ck('websearch-btdig',        'btdig');
                 _ck('websearch-limetorrents', 'limetorrents');
                 _ck('websearch-torrentz2',    'torrentz2');
@@ -7035,7 +7039,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 const dlSrc = (torr.dl_source || '').trim();
                 let srcIcon, srcColor, srcLabel;
                 const _rssNames = ['ExtTo', 'Corsaro', 'ExtTo Live', 'Corsaro Live'];
-                const _webNames = ['ThePirateBay', 'Knaben', 'BTDigg', 'LimeTorrents', 'Torrentz2', 'BitSearch'];
+                const _webNames = ['ThePirateBay', 'Knaben', 'Nyaa', 'EZTV', 'BTDigg', 'LimeTorrents', 'Torrentz2', 'BitSearch'];
                 if (!dlSrc) {
                     srcIcon = 'fa-hand-pointer'; srcColor = 'var(--text-muted)'; srcLabel = 'Manuale';
                 } else if (_rssNames.some(s => dlSrc.includes(s))) {
@@ -10870,6 +10874,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             setCkw('websearch-bitsearch',    'bitsearch');
             setCkw('websearch-tpb',          'tpb');
             setCkw('websearch-knaben',       'knaben');
+            setCkw('websearch-nyaa',         'nyaa');
+            setCkw('websearch-eztv',         'eztv');
             setCkw('websearch-btdig',        'btdig');
             setCkw('websearch-limetorrents', 'limetorrents');
             setCkw('websearch-torrentz2',    'torrentz2');
@@ -10896,6 +10902,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             if (cb('websearch-bitsearch'))    engines.push('bitsearch');
             if (cb('websearch-tpb'))          engines.push('tpb');
             if (cb('websearch-knaben'))       engines.push('knaben');
+            if (cb('websearch-nyaa'))         engines.push('nyaa');
+            if (cb('websearch-eztv'))         engines.push('eztv');
             if (cb('websearch-btdig'))        engines.push('btdig');
             if (cb('websearch-limetorrents')) engines.push('limetorrents');
             if (cb('websearch-torrentz2'))    engines.push('torrentz2');

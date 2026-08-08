@@ -132,6 +132,17 @@ class Engine:
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
             })
+        # BTDigg does not need Cloudflare solving and rate-limits the
+        # CloudScraper fingerprint used by the shared session.
+        self.btdig_sess = requests.Session()
+        self.btdig_sess.headers.update({
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+        })
         self.archive  = ArchiveDB()
         self.cache    = SmartCache(CACHE_FILE)
         self.age_filter = {'days': 0, 'threshold': 0.8}
@@ -152,6 +163,11 @@ class Engine:
                 self.sess.close()
         except Exception as e:
             logger.debug(f"sess close: {e}")
+        try:
+            if hasattr(self, 'btdig_sess'):
+                self.btdig_sess.close()
+        except Exception as e:
+            logger.debug(f"btdig sess close: {e}")
 
     def __del__(self):
         self.close()
@@ -692,24 +708,131 @@ class Engine:
             logger.warning(f"⚠️ Knaben: {e}")
             return []
 
+    def _search_nyaa(self, query: str, max_results: int = 15) -> List[Dict]:
+        """Ricerca su Nyaa tramite RSS e info-hash XML."""
+        from urllib.parse import quote_plus as _qp
+
+        url = f"https://nyaa.si/?page=rss&q={_qp(query)}"
+        try:
+            r = self.sess.get(url, timeout=20)
+            if r.status_code != 200:
+                logger.warning(f"⚠️ Nyaa: HTTP {r.status_code}")
+                return []
+            root = ET.fromstring(r.content)
+        except ET.ParseError as e:
+            logger.warning(f"⚠️ Nyaa: XML non valido: {e}")
+            return []
+        except Exception as e:
+            logger.warning(f"⚠️ Nyaa: {e}")
+            return []
+
+        nyaa_ns = '{https://nyaa.si/xmlns/nyaa}'
+        out = []
+        for item in root.findall('./channel/item'):
+            title_el = item.find('title')
+            hash_el = item.find(f'{nyaa_ns}infoHash')
+            title = (title_el.text or '').strip() if title_el is not None else ''
+            info_hash = (hash_el.text or '').strip().lower() if hash_el is not None else ''
+            if not info_hash:
+                desc_el = item.find('description')
+                desc = (desc_el.text or '') if desc_el is not None else ''
+                match = re.search(r'\b([a-fA-F0-9]{40})\b', desc)
+                info_hash = match.group(1).lower() if match else ''
+            if not title or not re.fullmatch(r'[a-f0-9]{40}', info_hash):
+                continue
+            magnet = (
+                f"magnet:?xt=urn:btih:{info_hash}&dn={quote(title, safe='')}"
+                '&tr=udp://tracker.opentrackr.org:1337/announce'
+                '&tr=udp://open.stealth.si:80/announce'
+            )
+            out.append({'title': title, 'magnet': magnet, 'source': 'Nyaa'})
+            if len(out) >= max_results:
+                break
+
+        logger.info(f"🌐 Nyaa: {len(out)} risultati per '{query}'")
+        return out
+
+    def _search_eztv(self, query: str, max_results: int = 15) -> List[Dict]:
+        """Ricerca su EZTV via API JSON; il filtro titolo viene applicato localmente."""
+        api_url = 'https://eztvx.to/api/get-torrents'
+        episode = re.search(r'\bS(\d{1,2})E(\d{1,3})\b', query, re.I)
+        if not episode:
+            logger.info(f"🌐 EZTV: 0 risultati per '{query}' (ricerca TV senza episodio)")
+            return []
+        try:
+            r = self.sess.get(
+                api_url,
+                params={'limit': 100, 'page': 1, 'keywords': query},
+                timeout=20,
+            )
+            if r.status_code != 200:
+                logger.warning(f"⚠️ EZTV: HTTP {r.status_code}")
+                return []
+            items = r.json().get('torrents') or []
+        except Exception as e:
+            logger.warning(f"⚠️ EZTV: {e}")
+            return []
+
+        episode_re = None
+        series_part = query[:episode.start()] if episode else query
+        if episode:
+            season, ep_num = (int(episode.group(1)), int(episode.group(2)))
+            episode_re = re.compile(
+                rf'(?<!\d)s0?{season}[\s._-]*e0?{ep_num}(?!\d)'
+                rf'|(?<!\d){season}x0?{ep_num}(?!\d)',
+                re.I,
+            )
+        ignored = {'ita', 'it', 'eng', 'en', 'sub', 'subs'}
+        series_tokens = [
+            token for token in re.findall(r'[a-z0-9]+', series_part.lower())
+            if token not in ignored and not re.fullmatch(r'19\d{2}|20\d{2}', token)
+        ]
+
+        out = []
+        for item in items:
+            title = (item.get('title') or item.get('filename') or '').strip()
+            title_low = title.lower()
+            if not title or any(token not in title_low for token in series_tokens):
+                continue
+            if episode_re and not episode_re.search(title):
+                continue
+            magnet = (item.get('magnet_url') or '').strip()
+            info_hash = (item.get('hash') or '').strip().lower()
+            if not magnet and re.fullmatch(r'[a-f0-9]{40}', info_hash):
+                magnet = f"magnet:?xt=urn:btih:{info_hash}&dn={quote(title, safe='')}"
+            if not magnet:
+                continue
+            out.append({'title': title, 'magnet': magnet, 'source': 'EZTV'})
+            if len(out) >= max_results:
+                break
+
+        logger.info(f"🌐 EZTV: {len(out)} risultati per '{query}'")
+        return out
+
     def _search_btdig(self, query: str, max_results: int = 15) -> List[Dict]:
         """Ricerca su btdig.com (DHT crawler, HTML scraping, no Cloudflare)."""
         from urllib.parse import quote_plus as _qp
         search_url = f"https://btdig.com/search?q={_qp(query)}&order=0&p=0"
 
         html = None
+        last_status = None
+        btdig_sess = getattr(self, 'btdig_sess', self.sess)
         try:
-            r = self.sess.get(search_url, timeout=15)
+            r = btdig_sess.get(search_url, timeout=15)
+            last_status = r.status_code
             if r.status_code == 200 and len(r.content) > 1000:
                 html = r.text
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"BTDigg richiesta diretta fallita: {e}")
         if not html:
             fs = self._flaresolverr_get(search_url, timeout=40)
             if fs and fs[0] == 200:
                 html = fs[1]
         if not html:
-            logger.warning("⚠️ BTDigg: nessuna risposta")
+            if last_status is not None:
+                logger.warning(f"⚠️ BTDigg: HTTP {last_status} o risposta non valida")
+            else:
+                logger.warning("⚠️ BTDigg: nessuna risposta")
             return []
 
         soup = BeautifulSoup(html, 'html.parser')
@@ -848,18 +971,25 @@ class Engine:
         search_url = f"{_BASE}/search?q={_qp(query)}"
 
         html = None
+        last_status = None
         try:
             r = self.sess.get(search_url, timeout=15)
-            if r.status_code == 200 and '<dl>' in r.text:
+            last_status = r.status_code
+            # Una ricerca valida senza match contiene comunque il contenitore
+            # .results, ma non contiene alcun <dl>.
+            if r.status_code == 200 and '<div class="results"' in r.text:
                 html = r.text
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Torrentz2 richiesta diretta fallita: {e}")
         if not html:
             fs = self._flaresolverr_get(search_url, timeout=40)
             if fs and fs[0] == 200:
                 html = fs[1]
         if not html:
-            logger.warning("⚠️ Torrentz2: nessuna risposta")
+            if last_status is not None:
+                logger.warning(f"⚠️ Torrentz2: HTTP {last_status} o struttura non riconosciuta")
+            else:
+                logger.warning("⚠️ Torrentz2: nessuna risposta")
             return []
 
         soup = BeautifulSoup(html, 'html.parser')
@@ -938,6 +1068,12 @@ class Engine:
             results.extend(self._search_tpb(query))
         if 'knaben' in engines:
             results.extend(self._search_knaben(query))
+        # 1337x intentionally omitted: its Cloudflare challenge is not
+        # reliably solvable by the current FlareSolverr deployment/IP.
+        if 'nyaa' in engines:
+            results.extend(self._search_nyaa(query))
+        if 'eztv' in engines:
+            results.extend(self._search_eztv(query))
         if 'btdig' in engines:
             results.extend(self._search_btdig(query))
         if 'limetorrents' in engines:

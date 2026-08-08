@@ -96,7 +96,13 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 
 ---
 
-## Stato attuale del progetto (v51)
+## Stato attuale del progetto (v52)
+
+### v52 — Nyaa · EZTV nella ricerca web
+
+- **`core/engine.py`**: aggiunti `_search_nyaa()` tramite RSS/info-hash e `_search_eztv()` tramite API JSON con filtro locale per serie/episodio. Il supporto diretto a 1337x è stato rimosso: i mirror disponibili richiedono Cloudflare e FlareSolverr non riesce a risolvere il challenge dall'IP corrente.
+- **UI/configurazione**: nuove chiavi `nyaa`, `eztv` nella tab Integrazioni e nella lista `websearch_engines`.
+- **Nota EZTV**: l'API corrente restituisce principalmente gli ultimi torrent e può ignorare `keywords`; EXTTO filtra quindi titolo, stagione ed episodio localmente.
 
 ### v51 — Coda libtorrent: fix giveup, priorità per ETA, coda dinamica (13 Luglio 2026)
 
