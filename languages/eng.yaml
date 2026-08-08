@@ -1429,3 +1429,12 @@ e altri: and
 'Download segnato come fallito.': 'Download marked as failed.'
 'Errore durante la segnalazione.': 'Error while reporting.'
 'Segna come fallito (blocklist e riprova con un''altra release)': 'Mark as failed (blocklist and retry with a different release)'
+
+# --- Simkl ---
+'Credenziali Simkl salvate': 'Simkl credentials saved'
+'Opzioni Simkl salvate': 'Simkl options saved'
+'Simkl collegato!': 'Simkl connected!'
+'Disconnettere EXTTO da Simkl?': 'Disconnect EXTTO from Simkl?'
+'Disconnesso da Simkl': 'Disconnected from Simkl'
+'Non autenticato su Simkl.': 'Not authenticated on Simkl.'
+'Lista Simkl vuota.': 'Simkl list is empty.'

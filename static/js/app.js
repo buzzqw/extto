@@ -4299,9 +4299,10 @@ const app = {
 
         // Usiamo 'app.' per evitare l'errore "this.loadScoresSettings is not a function"
         if (tab === 'scores') app.loadScoresSettings();
-        if (tab === 'integrazioni') { app.traktInit(); app.jellyfinInit(); app.plexInit(); app.indexerInit(); }
+        if (tab === 'integrazioni') { app.traktInit(); app.simklInit(); app.jellyfinInit(); app.plexInit(); app.indexerInit(); }
         // Legacy support for direct calls
         if (tab === 'trakt')       { app.traktInit(); }
+        if (tab === 'simkl')       { app.simklInit(); }
         if (tab === 'mediaserver') { app.jellyfinInit(); app.plexInit(); }
         // Accordion persistence after tab switch
         app.initAccordionPersistence();
@@ -10713,6 +10714,176 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         } catch(e) {
             container.innerHTML = `<span style="color:var(--danger);">${t('Errore')}: ${e.message}</span>`;
         }
+    },
+
+    // ── SIMKL ───────────────────────────────────────────────────────────────
+    async simklInit() {
+        try {
+            const res = await fetch('/api/simkl/status');
+            const data = await res.json();
+            if (data.error) return;
+            const badge = document.getElementById('simkl-status-badge');
+            if (badge) {
+                badge.textContent = data.authenticated ? `✅ ${t('Connesso')}` : `⚠️ ${t('Non connesso')}`;
+                badge.className = `badge ${data.authenticated ? 'badge-success' : 'badge-warning'}`;
+            }
+            const login = document.getElementById('simkl-login-box');
+            const connected = document.getElementById('simkl-connected-box');
+            if (login) login.style.display = data.authenticated ? 'none' : '';
+            if (connected) connected.style.display = data.authenticated ? '' : 'none';
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = String(val); };
+            setVal('simkl-client-id', data.client_id);
+            setVal('simkl-import-quality', data.import_quality);
+            setVal('simkl-import-language', data.import_language);
+            setVal('simkl-watchlist-status', data.watchlist_status);
+            setVal('simkl-calendar-days', data.calendar_days);
+            this._setToggle('simkl-include-anime', data.include_anime);
+            this._setToggle('simkl-mark-watched', data.mark_watched);
+        } catch(e) { console.error('simklInit', e); }
+    },
+
+    async simklSaveCredentials() {
+        const client_id = (document.getElementById('simkl-client-id')?.value || '').trim();
+        if (!client_id) { this.showToast(t('Inserisci il Client ID'), 'error'); return false; }
+        try {
+            const r = await fetch('/api/simkl/settings', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({client_id}),
+            });
+            const d = await r.json();
+            if (d.ok) { this.showToast(t('Credenziali Simkl salvate'), 'success'); return true; }
+            this.showToast(t('Errore salvataggio') + ': ' + (d.error || ''), 'error');
+        } catch(e) { this.showToast(t('Errore') + ': ' + e.message, 'error'); }
+        return false;
+    },
+
+    async simklSaveOptions() {
+        const body = {
+            import_quality: document.getElementById('simkl-import-quality')?.value || '720p+',
+            import_language: document.getElementById('simkl-import-language')?.value || 'ita',
+            watchlist_status: document.getElementById('simkl-watchlist-status')?.value || 'plantowatch,watching',
+            calendar_days: parseInt(document.getElementById('simkl-calendar-days')?.value) || 7,
+            include_anime: this._getToggle('simkl-include-anime') === 'true',
+            mark_watched: this._getToggle('simkl-mark-watched') === 'true',
+        };
+        try {
+            const r = await fetch('/api/simkl/settings', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+            });
+            const d = await r.json();
+            if (d.ok) this.showToast(t('Opzioni Simkl salvate'), 'success');
+            else this.showToast(t('Errore') + ': ' + (d.error || ''), 'error');
+        } catch(e) { this.showToast(t('Errore') + ': ' + e.message, 'error'); }
+    },
+
+    async simklStartAuth() {
+        if (!await this.simklSaveCredentials()) return;
+        try {
+            const res = await fetch('/api/simkl/auth/start', {method: 'POST'});
+            const data = await res.json();
+            if (data.error) { this.showToast(data.error, 'error'); return; }
+            const box = document.getElementById('simkl-pin-box');
+            const codeEl = document.getElementById('simkl-user-code');
+            const urlEl = document.getElementById('simkl-verify-url');
+            const msgEl = document.getElementById('simkl-poll-msg');
+            if (box) box.style.display = '';
+            if (codeEl) codeEl.textContent = data.user_code;
+            if (urlEl) { urlEl.href = data.verification_url; urlEl.textContent = data.verification_url; }
+            if (msgEl) msgEl.textContent = t('In attesa di autorizzazione...');
+            const interval = (data.interval || 5) * 1000;
+            const expiresAt = Date.now() + (data.expires_in || 900) * 1000;
+            const timer = setInterval(async () => {
+                if (Date.now() >= expiresAt) {
+                    clearInterval(timer);
+                    if (msgEl) msgEl.textContent = '⏰ ' + t('Codice scaduto. Riprova.');
+                    return;
+                }
+                try {
+                    const pr = await fetch('/api/simkl/auth/poll', {method: 'POST'});
+                    const pdata = await pr.json();
+                    if (msgEl) msgEl.textContent = pdata.message || '';
+                    if (pdata.status === 'authorized') {
+                        clearInterval(timer);
+                        if (box) box.style.display = 'none';
+                        this.showToast('✅ ' + t('Simkl collegato!'), 'success');
+                        await this.simklInit();
+                    } else if (pdata.status === 'expired' || pdata.status === 'denied') clearInterval(timer);
+                } catch(e) { console.error('simkl poll', e); }
+            }, interval);
+        } catch(e) { this.showToast(t('Errore') + ': ' + e.message, 'error'); }
+    },
+
+    async simklRevoke() {
+        if (!confirm(t('Disconnettere EXTTO da Simkl?'))) return;
+        try {
+            await fetch('/api/simkl/auth/revoke', {method: 'POST'});
+            this.showToast(t('Disconnesso da Simkl'), 'success');
+            await this.simklInit();
+        } catch(e) { this.showToast(t('Errore') + ': ' + e.message, 'error'); }
+    },
+
+    async simklLoadWatchlist() {
+        const container = document.getElementById('simkl-watchlist-list');
+        if (!container) return;
+        container.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + t('Caricamento...');
+        try {
+            const res = await fetch('/api/simkl/watchlist');
+            if (res.status === 401) { container.innerHTML = `<span style="color:var(--warning);">${t('Non autenticato su Simkl.')}</span>`; return; }
+            const shows = await res.json();
+            if (shows.error) { container.innerHTML = `<span style="color:var(--danger);">${this._esc(shows.error)}</span>`; return; }
+            if (!shows.length) { container.innerHTML = `<span style="color:var(--text-muted);">${t('Lista Simkl vuota.')}</span>`; return; }
+            container.innerHTML = shows.map(s => `
+                <label style="display:flex;align-items:center;gap:.75rem;padding:.45rem 0;border-bottom:1px solid var(--border);cursor:pointer;">
+                    <input type="checkbox" class="simkl-wl-check" value="${this._esc(s.title)}" ${s.in_extto ? 'disabled' : ''} style="width:16px;height:16px;flex-shrink:0;accent-color:var(--primary);">
+                    <span style="flex:1;${s.in_extto ? 'opacity:.5;' : ''}">${this._esc(s.title)} ${s.year ? `<span style="color:var(--text-muted);font-size:.8rem;">(${s.year})</span>` : ''}</span>
+                    <span style="color:var(--text-muted);font-size:.75rem;">${this._esc(s.status || '')}</span>
+                    ${s.in_extto ? `<span style="color:var(--success);font-size:.78rem;white-space:nowrap;">✅ ${t('In EXTTO')}</span>` : ''}
+                </label>`).join('');
+        } catch(e) { container.innerHTML = `<span style="color:var(--danger);">${t('Errore')}: ${e.message}</span>`; }
+    },
+
+    async simklImportSelected() {
+        const titles = Array.from(document.querySelectorAll('.simkl-wl-check:checked')).map(c => c.value);
+        if (!titles.length) { this.showToast(t('Seleziona almeno una serie'), 'error'); return; }
+        await this._simklDoImport({titles});
+    },
+
+    async simklImportAll() { await this._simklDoImport({skip_existing: true}); },
+
+    async _simklDoImport(body) {
+        const resultEl = document.getElementById('simkl-import-result');
+        if (resultEl) resultEl.textContent = t('Importazione in corso...');
+        try {
+            const res = await fetch('/api/simkl/watchlist/import', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (data.error) { this.showToast(data.error, 'error'); return; }
+            const msg = `${data.imported} ${t('importate')}, ${data.skipped} ${t('già presenti')}`;
+            this.showToast(msg, 'success');
+            if (resultEl) resultEl.textContent = msg;
+            if (this._currentView === 'series') this.loadSeries();
+            await this.simklLoadWatchlist();
+        } catch(e) { this.showToast(t('Errore import') + ': ' + e.message, 'error'); }
+    },
+
+    async simklLoadCalendar() {
+        const container = document.getElementById('simkl-calendar-list');
+        if (!container) return;
+        container.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + t('Caricamento...');
+        try {
+            const days = document.getElementById('simkl-calendar-days')?.value || 7;
+            const res = await fetch(`/api/simkl/calendar?days=${days}`);
+            if (res.status === 401) { container.innerHTML = `<span style="color:var(--warning);">${t('Non autenticato su Simkl.')}</span>`; return; }
+            const data = await res.json();
+            if (data.error) { container.innerHTML = `<span style="color:var(--danger);">${this._esc(data.error)}</span>`; return; }
+            const episodes = data.episodes || [];
+            if (!episodes.length) { container.innerHTML = `<span style="color:var(--text-muted);">Nessun episodio in uscita nel periodo selezionato.</span>`; return; }
+            const byDate = {};
+            for (const ep of episodes) { const d = (ep.first_aired || '').slice(0, 10) || t('Data sconosciuta'); (byDate[d] ||= []).push(ep); }
+            container.innerHTML = Object.entries(byDate).map(([date, eps]) => `
+                <div style="margin-bottom:1rem;"><div style="font-size:.75rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.4rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);">📅 ${date}</div>
+                ${eps.map(ep => `<div style="display:flex;align-items:center;gap:.75rem;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.04);"><span style="flex:1;font-size:.9rem;"><strong>${this._esc(ep.series_title)}</strong> <span style="color:var(--text-muted);margin:0 .3rem;">${ep.season ? `S${String(ep.season).padStart(2,'0')}` : ''}E${String(ep.episode).padStart(2,'0')}</span>${ep.episode_title ? `<span style="color:var(--text-secondary);font-size:.82rem;">— ${this._esc(ep.episode_title)}</span>` : ''}${ep.rating ? `<span style="color:var(--warning);font-size:.75rem;margin-left:.4rem;">★ ${ep.rating}</span>` : ''}</span>${ep.in_extto ? `<span style="color:var(--success);font-size:.78rem;white-space:nowrap;">✅ ${t('Monitorato')}</span>` : `<span style="color:var(--text-muted);font-size:.78rem;white-space:nowrap;">— ${t('Non monitorato')}</span>`}</div>`).join('')}</div>`).join('');
+        } catch(e) { container.innerHTML = `<span style="color:var(--danger);">${t('Errore')}: ${e.message}</span>`; }
     },
 
 

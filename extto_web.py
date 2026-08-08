@@ -9524,6 +9524,296 @@ def trakt_scrobble():
 # END TRAKT INTEGRATION
 # ============================================================================
 
+
+# ============================================================================
+# SIMKL INTEGRATION
+# ============================================================================
+
+_SIMKL_FLOW: dict = {}
+_SIMKL_FLOW_LOCK = threading.Lock()
+
+
+def _simkl_bool(value) -> bool:
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _simkl_settings() -> dict:
+    return {
+        "client_id":        str(_cdb.get_setting("simkl_client_id", "") or ""),
+        "access_token":     str(_cdb.get_setting("simkl_access_token", "") or ""),
+        "import_quality":   str(_cdb.get_setting("simkl_import_quality", "720p+") or "720p+"),
+        "import_language":  str(_cdb.get_setting("simkl_import_language", "ita") or "ita"),
+        "watchlist_status": str(_cdb.get_setting("simkl_watchlist_status", "plantowatch,watching") or "plantowatch,watching"),
+        "calendar_days":    int(_cdb.get_setting("simkl_calendar_days", 7) or 7),
+        "include_anime":    _simkl_bool(_cdb.get_setting("simkl_include_anime", False)),
+        "mark_watched":     _simkl_bool(_cdb.get_setting("simkl_mark_watched", False)),
+    }
+
+
+def _simkl_load():
+    from core.simkl import load_simkl_client
+    return load_simkl_client()
+
+
+@app.route('/api/simkl/status', methods=['GET'])
+def simkl_status():
+    try:
+        s = _simkl_settings()
+        return jsonify({
+            "configured":       bool(s["client_id"]),
+            "authenticated":    bool(s["access_token"]),
+            "client_id":        s["client_id"],
+            "import_quality":   s["import_quality"],
+            "import_language":  s["import_language"],
+            "watchlist_status": s["watchlist_status"],
+            "calendar_days":    s["calendar_days"],
+            "include_anime":    s["include_anime"],
+            "mark_watched":     s["mark_watched"],
+        })
+    except Exception as e:
+        logger.error(f"simkl_status: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/simkl/settings', methods=['POST'])
+def simkl_save_settings():
+    try:
+        data = request.get_json(force=True) or {}
+        bulk = {}
+        for key in ("client_id",):
+            if key in data:
+                bulk[f"simkl_{key}"] = str(data[key]).strip()
+        for key in ("import_quality", "import_language", "watchlist_status"):
+            if key in data:
+                bulk[f"simkl_{key}"] = str(data[key]).strip()
+        if "calendar_days" in data:
+            bulk["simkl_calendar_days"] = max(1, min(int(data["calendar_days"]), 33))
+        for key in ("include_anime", "mark_watched"):
+            if key in data:
+                bulk[f"simkl_{key}"] = bool(data[key])
+        if bulk:
+            _cdb.set_settings_bulk(bulk)
+        try:
+            from core.config import Config as _Cfg; _Cfg.invalidate()
+        except Exception:
+            pass
+        return jsonify({"ok": True})
+    except Exception as e:
+        logger.error(f"simkl_save_settings: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/simkl/auth/start', methods=['POST'])
+def simkl_auth_start():
+    try:
+        client = _simkl_load()
+        if not client:
+            return jsonify({"error": "client_id non configurato. Salva prima le credenziali."}), 400
+        flow = client.start_pin_auth()
+        if not flow or not flow.get("user_code"):
+            return jsonify({"error": "Impossibile avviare il PIN Flow Simkl"}), 502
+        with _SIMKL_FLOW_LOCK:
+            _SIMKL_FLOW.clear()
+            _SIMKL_FLOW.update({
+                "user_code":  flow["user_code"],
+                "interval":   flow.get("interval", 5),
+                "expires_in": flow.get("expires_in", 900),
+                "started_at": time.time(),
+            })
+        return jsonify({
+            "user_code":        flow["user_code"],
+            "verification_url": flow.get("verification_uri") or flow.get("verification_url", "https://simkl.com/pin"),
+            "expires_in":       flow.get("expires_in", 900),
+            "interval":         flow.get("interval", 5),
+        })
+    except Exception as e:
+        logger.error(f"simkl_auth_start: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/simkl/auth/poll', methods=['POST'])
+def simkl_auth_poll():
+    try:
+        from core.simkl import save_simkl_token
+        with _SIMKL_FLOW_LOCK:
+            state = dict(_SIMKL_FLOW)
+        if not state.get("user_code"):
+            return jsonify({"status": "error", "message": "Nessun PIN Flow attivo. Clicca su 'Collega Simkl'."})
+        if time.time() - state.get("started_at", 0) >= state.get("expires_in", 900):
+            return jsonify({"status": "expired", "message": "Codice scaduto. Riprova."})
+
+        client = _simkl_load()
+        if not client:
+            return jsonify({"status": "error", "message": "client_id non configurato"})
+        result = client.poll_pin_auth(state["user_code"])
+        if not result:
+            return jsonify({"status": "error", "message": "Errore di comunicazione con Simkl"})
+        if result.get("access_token"):
+            client.access_token = result["access_token"]
+            save_simkl_token(client)
+            with _SIMKL_FLOW_LOCK:
+                _SIMKL_FLOW.clear()
+            logger.info("[Simkl] Autenticazione completata.")
+            return jsonify({"status": "authorized", "message": "Connesso a Simkl!"})
+        if result.get("device_code"):
+            return jsonify({"status": "expired", "message": "PIN scaduto o non valido. Riprova."})
+        if str(result.get("result", "")).upper() == "KO":
+            return jsonify({"status": "pending", "message": result.get("message", "In attesa di autorizzazione...")})
+        return jsonify({"status": "error", "message": "Risposta Simkl non riconosciuta"})
+    except Exception as e:
+        logger.error(f"simkl_auth_poll: {e}")
+        return jsonify({"status": "error", "message": str(e)})
+
+
+@app.route('/api/simkl/auth/revoke', methods=['POST'])
+def simkl_auth_revoke():
+    try:
+        _cdb.set_setting("simkl_access_token", "")
+        return jsonify({"ok": True})
+    except Exception as e:
+        logger.error(f"simkl_auth_revoke: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def _simkl_statuses(value: str) -> list:
+    allowed = {"plantowatch", "watching", "hold", "completed", "dropped"}
+    result = [item.strip() for item in str(value or "").split(",") if item.strip() in allowed]
+    return result or ["plantowatch", "watching"]
+
+
+@app.route('/api/simkl/watchlist', methods=['GET'])
+def simkl_get_watchlist():
+    try:
+        client = _simkl_load()
+        if not client or not client.is_authenticated():
+            return jsonify({"error": "Non autenticato su Simkl"}), 401
+        s = _simkl_settings()
+        shows = client.get_watchlist_shows(_simkl_statuses(s["watchlist_status"]))
+        c = db.conn.cursor()
+        c.execute("SELECT name FROM series WHERE enabled=1")
+        from core.models import normalize_series_name, _series_name_matches
+        existing = [normalize_series_name(r[0]) for r in c.fetchall()]
+        return jsonify([{
+            "title": show["title"],
+            "year": show.get("year"),
+            "ids": show.get("ids", {}),
+            "status": show.get("simkl_status", ""),
+            "in_extto": any(_series_name_matches(normalize_series_name(show["title"]), name) for name in existing),
+        } for show in shows])
+    except Exception as e:
+        logger.error(f"simkl_get_watchlist: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/simkl/watchlist/import', methods=['POST'])
+def simkl_import_watchlist():
+    try:
+        data = request.get_json(force=True) or {}
+        s = _simkl_settings()
+        quality = data.get("quality", s["import_quality"])
+        language = data.get("language", s["import_language"])
+        skip_existing = data.get("skip_existing", True)
+        filter_titles = {str(t).strip().lower() for t in data.get("titles", [])}
+        client = _simkl_load()
+        if not client or not client.is_authenticated():
+            return jsonify({"error": "Non autenticato su Simkl"}), 401
+        shows = client.get_watchlist_shows(_simkl_statuses(s["watchlist_status"]))
+        c = db.conn.cursor()
+        c.execute("SELECT name FROM series")
+        from core.models import normalize_series_name, _series_name_matches
+        existing = [normalize_series_name(r[0]) for r in c.fetchall()]
+        imported, skipped, errors = 0, 0, []
+        for show in shows:
+            title = show["title"]
+            normalized_title = normalize_series_name(title)
+            if filter_titles and title.lower() not in filter_titles:
+                continue
+            if skip_existing and any(_series_name_matches(normalized_title, name) for name in existing):
+                skipped += 1
+                continue
+            tmdb_id = str((show.get("ids", {}) or {}).get("tmdb", "") or "")
+            try:
+                c.execute(
+                    """INSERT INTO series
+                       (name, quality_requirement, seasons, language, enabled,
+                        archive_path, timeframe, aliases, ignored_seasons, tmdb_id)
+                       VALUES (?, ?, '1+', ?, 1, '', 0, '[]', '[]', ?)
+                       ON CONFLICT(name) DO NOTHING""",
+                    (title, quality, language, tmdb_id)
+                )
+                if c.rowcount > 0:
+                    imported += 1
+                    existing.append(normalized_title)
+                    logger.info(f"[Simkl] Importata: {title} (tmdb={tmdb_id})")
+                else:
+                    skipped += 1
+            except Exception as ie:
+                errors.append(f"{title}: {ie}")
+        db.conn.commit()
+        return jsonify({
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors,
+            "message": f"{imported} serie importate, {skipped} già presenti.",
+        })
+    except Exception as e:
+        logger.error(f"simkl_import_watchlist: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/simkl/calendar', methods=['GET'])
+def simkl_get_calendar():
+    try:
+        client = _simkl_load()
+        if not client or not client.is_authenticated():
+            return jsonify({"error": "Non autenticato su Simkl"}), 401
+        s = _simkl_settings()
+        days = max(1, min(int(request.args.get("days", s["calendar_days"]) or 7), 33))
+        episodes = client.get_my_calendar(
+            days=days,
+            statuses=_simkl_statuses(s["watchlist_status"]),
+            include_anime=s["include_anime"],
+        )
+        from core.models import normalize_series_name, _series_name_matches
+        c = db.conn.cursor()
+        c.execute("SELECT name FROM series WHERE enabled=1")
+        existing = [normalize_series_name(r[0]) for r in c.fetchall()]
+        for ep in episodes:
+            ep["in_extto"] = any(_series_name_matches(normalize_series_name(ep["series_title"]), name) for name in existing)
+        return jsonify({"days": days, "episodes": episodes})
+    except Exception as e:
+        logger.error(f"simkl_get_calendar: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/simkl/mark-watched', methods=['POST'])
+def simkl_mark_watched():
+    try:
+        s = _simkl_settings()
+        if not s["mark_watched"]:
+            return jsonify({"error": "Marcatura visto non abilitata nelle impostazioni Simkl"}), 403
+        client = _simkl_load()
+        if not client or not client.is_authenticated():
+            return jsonify({"error": "Non autenticato su Simkl"}), 401
+        data = request.get_json(force=True) or {}
+        name = str(data.get("series_name", "") or "")
+        season = int(data.get("season", 0) or 0)
+        episode = int(data.get("episode", 0) or 0)
+        tmdb_id = int(data["tmdb_id"]) if data.get("tmdb_id") else None
+        if not name or not season or not episode:
+            return jsonify({"error": "series_name, season ed episode sono obbligatori"}), 400
+        if client.mark_episode_watched(name, tmdb_id, season, episode):
+            return jsonify({"ok": True, "message": f"Segnato: {name} S{season:02d}E{episode:02d}"})
+        return jsonify({"error": "Marcatura fallita (vedi log)"}), 502
+    except Exception as e:
+        logger.error(f"simkl_mark_watched: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# END SIMKL INTEGRATION
+# ============================================================================
+
 @app.route('/api/aria2/status-service', methods=['GET'])
 def aria2_status_service():
     import subprocess

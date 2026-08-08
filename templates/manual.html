@@ -51,9 +51,10 @@
                             <a href="#man-torrent-peers" onclick="manualGoTo('man-torrent-peers')">31. Tab Peers — Connessioni Attive</a>
                             <a href="#man-i18n" onclick="manualGoTo('man-i18n')">32. Multilingua — Interfaccia e Traduzioni</a>
                             <a href="#man-configdb" onclick="manualGoTo('man-configdb')">33. Configurazione su Database (v40+)</a>
-                            <a href="#man-trakt" onclick="manualGoTo('man-trakt')">34. Trakt.tv — Watchlist e Calendar</a>
-                            <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">35. Jellyfin / Plex — Library Refresh</a>
-                            <a href="#man-amule" onclick="manualGoTo('man-amule')">36. aMule / ed2k — Installazione e Configurazione</a>
+                             <a href="#man-trakt" onclick="manualGoTo('man-trakt')">34. Trakt.tv — Watchlist e Calendar</a>
+                             <a href="#man-simkl" onclick="manualGoTo('man-simkl')">35. Simkl — Liste e Calendar</a>
+                             <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">36. Jellyfin / Plex — Library Refresh</a>
+                             <a href="#man-amule" onclick="manualGoTo('man-amule')">37. aMule / ed2k — Installazione e Configurazione</a>
                         </div>
                     </div>
 
@@ -577,7 +578,7 @@
                                     <div><strong>Struttura payload:</strong> ogni notifica contiene <code>event</code> (tipo di evento: <code>download_started</code>, <code>download_complete</code>, <code>gap_filled</code>, <code>post_processing</code>, <code>system_event</code>), <code>ts</code> (timestamp Unix) e i dettagli specifici dell'evento (nome serie, episodio, qualità, ecc.).</div>
                                 </div>
                                 <div class="man-subsection">Jellyfin / Plex — Library Refresh</div>
-                                <p>Oltre a Telegram, Email e Webhook, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Integrazioni</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a> per i dettagli.</p>
+                                 <p>Oltre a Telegram, Email e Webhook, EXTTO può notificare i media server Jellyfin e Plex di aggiornare la libreria al termine di ogni download. La configurazione si trova in <strong>Configurazione → Integrazioni</strong>. Vedi la <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 36</a> per i dettagli.</p>
                             </div>
                         </div>
 
@@ -1143,7 +1144,7 @@
                                         <div class="man-flow-num">5</div>
                                         <div class="man-flow-content">
                                             <strong>Download e Pulizia Duplicati</strong>
-                                            <p>I magnet link vengono inviati al client attivo. Con libtorrent: download in <code>libtorrent_temp_dir</code>, poi spostamento in <code>libtorrent_dir</code>. Se abilitata la <strong>pulizia duplicati</strong> (<code>@cleanup_upgrades = yes</code>): i file di qualità inferiore vengono spostati automaticamente in <code>@trash_path</code> dopo ogni upgrade. Al termine del post-processing (spostamento + rinomina), se configurati, viene inviato un <strong>Library Refresh</strong> a Jellyfin e/o Plex (vedi <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 35</a>).</p>
+                                             <p>I magnet link vengono inviati al client attivo. Con libtorrent: download in <code>libtorrent_temp_dir</code>, poi spostamento in <code>libtorrent_dir</code>. Se abilitata la <strong>pulizia duplicati</strong> (<code>@cleanup_upgrades = yes</code>): i file di qualità inferiore vengono spostati automaticamente in <code>@trash_path</code> dopo ogni upgrade. Al termine del post-processing (spostamento + rinomina), se configurati, viene inviato un <strong>Library Refresh</strong> a Jellyfin e/o Plex (vedi <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 36</a>).</p>
                                         </div>
                                     </div>
                                     <div class="man-flow-step">
@@ -1950,7 +1951,7 @@
                                             <tr><td><strong>Notifiche</strong></td><td>Telegram (bot token, chat ID), Email (SMTP, from, to, password)</td></tr>
                                             <tr><td><strong>Avanzate</strong></td><td>Livello di logging, intervallo ciclo, blacklist, wantedlist, debug flags, pulizia archivio, backup automatico</td></tr>
                                             <tr><td><strong>Fonti</strong></td><td>URL sorgenti scraping (ExtTo, Corsaro, RSS), Jackett URL/API key, Prowlarr URL/API key</td></tr>
-                                            <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download; Jackett/Prowlarr (URL + API key); FlareSolverr (URL); Motori di ricerca web (BitSearch, TPB, Knaben, Nyaa, EZTV, BTDigg, LimeTorrents, Torrentz2, TorrentsCSV)</td></tr>
+                                             <tr><td><strong><i class="fa-solid fa-plug"></i> Integrazioni</strong></td><td>Trakt.tv (OAuth, watchlist, scrobble), Simkl (PIN, liste, calendar CDN), Jellyfin (URL + API key), Plex (URL + token) — library refresh automatico post-download; Jackett/Prowlarr (URL + API key); FlareSolverr (URL); Motori di ricerca web (BitSearch, TPB, Knaben, Nyaa, EZTV, BTDigg, LimeTorrents, Torrentz2, TorrentsCSV)</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -2056,10 +2057,38 @@
                             </div>
                         </div>
 
-                        <!-- SEZIONE 35: JELLYFIN / PLEX -->
-                        <div class="man-section" id="man-mediaserver">
+                        <!-- SEZIONE 35: SIMKL -->
+                        <div class="man-section" id="man-simkl">
                             <div class="man-section-header">
                                 <span class="man-section-num">35</span>
+                                <h2>Simkl — Liste e Calendar</h2>
+                                <i class="fa-solid fa-chevron-down man-chevron"></i>
+                            </div>
+                            <div class="man-section-body">
+                                <p>L'integrazione con <strong>Simkl</strong> è opzionale e permette di importare in EXTTO le serie nelle liste <em>Plan to Watch</em>/<em>Watching</em>, vedere il prossimo calendario personale e, se abilitato, segnare manualmente un episodio come visto. L'API Simkl è gratuita per uso non commerciale.</p>
+                                <div class="man-subsection">Setup iniziale</div>
+                                <ol>
+                                    <li>Crea un'app su <a href="https://simkl.com/settings/developer/new/" target="_blank">simkl.com/settings/developer/new</a> e copia il <strong>Client ID</strong>.</li>
+                                    <li>In EXTTO: <strong>Configurazione → Integrazioni → Simkl</strong> → incolla il Client ID e clicca <strong>Salva Credenziali</strong>.</li>
+                                    <li>Clicca <strong>Collega Simkl</strong>, apri <a href="https://simkl.com/pin" target="_blank">simkl.com/pin</a>, inserisci il PIN e autorizza.</li>
+                                    <li>EXTTO rileva l'autorizzazione automaticamente entro pochi secondi.</li>
+                                </ol>
+                                <div class="man-note"><strong>PIN Flow:</strong> non richiede un browser sul server e il token Simkl non ha una scadenza breve. Se revochi l'app dalle impostazioni Simkl, disconnetti e ricollega EXTTO.</div>
+                                <div class="man-subsection">Funzioni</div>
+                                <ul>
+                                    <li><strong>Watchlist Simkl</strong>: aggiorna la lista, seleziona le serie e importale con qualità/lingua configurabili. Le liste importate di default sono Plan to Watch e Watching.</li>
+                                    <li><strong>Calendar Simkl</strong>: usa il file CDN pubblico v2, aggiornato circa ogni 6 ore, e lo filtra sulle serie presenti nelle liste Simkl. È possibile includere anche gli anime.</li>
+                                    <li><strong>Marcatura visto</strong>: abilita l'opzione per consentire a integrazioni esterne di usare <code>/api/simkl/mark-watched</code>. EXTTO non invia marcature automatiche dopo il download.</li>
+                                </ul>
+                                <div class="man-subsection">Nota su API e limiti</div>
+                                <p>EXTTO non esegue sincronizzazioni Simkl periodiche in background e non abilita i rewatches Pro/VIP: Simkl raccomanda di chiamare le API di sincronizzazione solo dopo un'azione esplicita dell'utente. I rating mostrati nel Calendar sono informativi e non modificano lo scoring o la scelta dei download di EXTTO.</p>
+                            </div>
+                        </div>
+
+                        <!-- SEZIONE 36: JELLYFIN / PLEX -->
+                        <div class="man-section" id="man-mediaserver">
+                            <div class="man-section-header">
+                                <span class="man-section-num">36</span>
                                 <h2>Jellyfin / Plex — Library Refresh Automatico</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
@@ -2140,10 +2169,10 @@
                             </div>
                         </div>
 
-                        <!-- SEZIONE 36: AMULE / ED2K -->
+                        <!-- SEZIONE 37: AMULE / ED2K -->
                         <div class="man-section" id="man-amule">
                             <div class="man-section-header">
-                                <span class="man-section-num">36</span>
+                                <span class="man-section-num">37</span>
                                 <h2>aMule / ed2k — Installazione e Configurazione</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>

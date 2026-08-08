@@ -89,6 +89,7 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 | DB / upgrade / cleaner | `database.py`, `cleaner.py` |
 | Rename file | `renamer.py` |
 | Traduzioni UI / i18n | `core/i18n_db.py`, `extto_web.py`, `languages/it.yaml`, `languages/en.yaml` |
+| Tracker Trakt / Simkl | `core/trakt.py`, `core/simkl.py`, `extto_web.py`, `templates/index.html`, `static/js/app.js` |
 | Web UI / API | `extto_web.py`, `index.html` |
 | Scraping RSS | `engine.py` |
 | Fumetti | `comics.py` |
@@ -103,6 +104,12 @@ EXTTO è un sistema **personale** di automazione download torrent per contenuti 
 - **`core/engine.py`**: aggiunti `_search_nyaa()` tramite RSS/info-hash e `_search_eztv()` tramite API JSON con filtro locale per serie/episodio. Il supporto diretto a 1337x è stato rimosso: i mirror disponibili richiedono Cloudflare e FlareSolverr non riesce a risolvere il challenge dall'IP corrente.
 - **UI/configurazione**: nuove chiavi `nyaa`, `eztv` nella tab Integrazioni e nella lista `websearch_engines`.
 - **Nota EZTV**: l'API corrente restituisce principalmente gli ultimi torrent e può ignorare `keywords`; EXTTO filtra quindi titolo, stagione ed episodio localmente.
+
+### v53 — Integrazione Simkl
+
+- **`core/simkl.py`**: aggiunti PIN Flow, import manuale delle liste Simkl, marcatura episodio visto opzionale e calendario CDN v2 pubblico filtrato sulle liste dell'utente.
+- **UI/API**: nuova sezione Simkl in Configurazione → Integrazioni con impostazioni indipendenti da Trakt.
+- **Limiti rispettati**: nessun polling Simkl automatico, nessun rewatch Pro/VIP automatico; i ratings del calendario sono solo informativi e non influenzano lo scoring EXTTO.
 
 ### v51 — Coda libtorrent: fix giveup, priorità per ETA, coda dinamica (13 Luglio 2026)
 

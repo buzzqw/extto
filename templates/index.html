@@ -1202,7 +1202,7 @@
                     <button class="tab-btn" data-tab="notifications" data-i18n-title="Configura avvisi Email o bot Telegram alla fine di un download." title="Configura avvisi Email o bot Telegram alla fine di un download." onclick="app.switchConfigTab('notifications')" data-i18n="Notifiche">Notifiche</button>
                     <button class="tab-btn" data-tab="advanced" data-i18n-title="Opzioni di sistema avanzate." title="Opzioni di sistema avanzate." onclick="app.switchConfigTab('advanced')" data-i18n="Avanzate">Avanzate</button>
                     <button class="tab-btn" data-tab="urls" data-i18n-title="Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli." title="Aggiungi sorgenti Jackett/siti Torrent, liste blocchi ed esclusioni titoli." onclick="app.switchConfigTab('urls')" data-i18n="Fonti">Fonti</button>
-                    <button class="tab-btn" data-tab="integrazioni" title="Integrazioni con Trakt.tv, Jellyfin e Plex" onclick="app.switchConfigTab('integrazioni')"><i class="fa-solid fa-plug" style="color:#a78bfa;"></i> <span data-i18n="Integrazioni">Integrazioni</span></button>
+                    <button class="tab-btn" data-tab="integrazioni" title="Integrazioni con Trakt.tv, Simkl, Jellyfin e Plex" onclick="app.switchConfigTab('integrazioni')"><i class="fa-solid fa-plug" style="color:#a78bfa;"></i> <span data-i18n="Integrazioni">Integrazioni</span></button>
                 </div>
 
                 <div id="config-settings" class="config-panel active">
@@ -2062,9 +2062,93 @@ sudo mount /mnt/ramdisk</div>
                     </div>
                   </div>
 
-                  </div><!-- fine config-trakt-inner -->
+                   </div><!-- fine config-trakt-inner -->
 
-                  <hr style="border:none; border-top:1px solid var(--border); margin:2rem 0;">
+                   <hr style="border:none; border-top:1px solid var(--border); margin:2rem 0;">
+                   <h3 style="margin:0 0 1.25rem 0; font-size:1rem; color:var(--text-secondary); display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-circle-play" style="color:#00a8e8;"></i> Simkl</h3>
+                   <div id="config-simkl-inner">
+
+                   <!-- STATO CONNESSIONE -->
+                   <div class="card" style="margin-bottom:1.5rem;">
+                     <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                       <span><i class="fa-solid fa-plug" style="color:#00a8e8;"></i> Stato Connessione Simkl</span>
+                       <span id="simkl-status-badge" class="badge badge-secondary">—</span>
+                     </div>
+                     <div class="card-body">
+                       <p style="color:var(--text-secondary);font-size:.9rem;margin-bottom:1rem;line-height:1.5;">
+                         Crea un'app su <a href="https://simkl.com/settings/developer/new/" target="_blank" style="color:var(--primary);">simkl.com/settings/developer/new</a>, copia il <strong>Client ID</strong> e usa il PIN mostrato da EXTTO su <a href="https://simkl.com/pin" target="_blank" style="color:var(--primary);">simkl.com/pin</a>.
+                       </p>
+                       <div id="simkl-login-box">
+                         <div class="form-grid" style="margin-bottom:1rem;">
+                           <div class="form-group">
+                             <label>Client ID</label>
+                             <input type="text" id="simkl-client-id" class="form-input" placeholder="Incolla il Client ID">
+                           </div>
+                         </div>
+                         <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+                           <button class="btn btn-secondary" onclick="app.simklSaveCredentials()"><i class="fa-solid fa-floppy-disk"></i> Salva Credenziali</button>
+                           <button class="btn btn-primary" id="simkl-connect-btn" onclick="app.simklStartAuth()"><i class="fa-solid fa-key"></i> Collega Simkl</button>
+                         </div>
+                         <div id="simkl-pin-box" style="display:none;margin-top:1.5rem;padding:1.25rem;background:rgba(0,168,232,.08);border:1px solid rgba(0,168,232,.25);border-radius:8px;">
+                           <p style="margin:0 0 .5rem;font-size:.9rem;color:var(--text-secondary);">Vai su <a id="simkl-verify-url" href="https://simkl.com/pin" target="_blank" style="color:var(--primary);font-weight:600;">simkl.com/pin</a> e inserisci questo PIN:</p>
+                           <div id="simkl-user-code" style="font-size:2rem;font-weight:800;letter-spacing:.3em;font-family:var(--font-mono);color:var(--primary-light);margin:.5rem 0;"></div>
+                           <p id="simkl-poll-msg" style="margin:0;font-size:.8rem;color:var(--text-muted);">In attesa di autorizzazione...</p>
+                         </div>
+                       </div>
+                       <div id="simkl-connected-box" style="display:none;">
+                         <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                           <span style="color:var(--success);font-size:1rem;"><i class="fa-solid fa-circle-check"></i> Connesso a Simkl</span>
+                           <button class="btn btn-small btn-secondary" onclick="app.simklRevoke()" style="margin-left:auto;"><i class="fa-solid fa-plug-circle-xmark"></i> Disconnetti</button>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+
+                   <!-- OPZIONI -->
+                   <div class="card" style="margin-bottom:1.5rem;">
+                     <div class="card-header"><i class="fa-solid fa-sliders"></i> Opzioni Import Simkl</div>
+                     <div class="card-body">
+                       <div class="lt-compact" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:.75rem;">
+                         <div class="form-group" style="flex:2;min-width:140px;margin:0;">
+                           <label>Qualità default import</label>
+                           <select id="simkl-import-quality" class="form-input">
+                             <option value="any">Qualsiasi (any)</option><option value="720p">720p</option><option value="720p+" selected>720p+</option><option value="720p-1080p">720p-1080p</option><option value="1080p+">1080p+</option><option value="2160p">4K (2160p)</option>
+                           </select>
+                         </div>
+                         <div class="form-group" style="flex:1;min-width:100px;margin:0;"><label>Lingua default import</label><input type="text" id="simkl-import-language" class="form-input" value="ita" placeholder="es: ita"></div>
+                         <div class="form-group" style="flex:2;min-width:170px;margin:0;">
+                           <label>Liste da importare</label>
+                           <select id="simkl-watchlist-status" class="form-input"><option value="plantowatch,watching" selected>Plan to Watch + Watching</option><option value="plantowatch">Solo Plan to Watch</option><option value="watching">Solo Watching</option><option value="plantowatch,watching,hold">Incl. On Hold</option></select>
+                         </div>
+                         <div class="form-group" style="flex:1;min-width:100px;margin:0;"><label>Giorni Calendar</label><input type="number" id="simkl-calendar-days" class="form-input" value="7" min="1" max="33"></div>
+                       </div>
+                       <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:.75rem;">
+                         <div class="form-group toggle-group" style="margin:0;flex:1;min-width:220px;"><label>Includi anime nel Calendar</label><label class="toggle-switch"><input type="checkbox" id="simkl-include-anime" value="true"><span class="toggle-slider"></span></label></div>
+                         <div class="form-group toggle-group" style="margin:0;flex:1;min-width:220px;"><label>Abilita marcatura episodio visto</label><label class="toggle-switch"><input type="checkbox" id="simkl-mark-watched" value="true"><span class="toggle-slider"></span></label></div>
+                       </div>
+                       <button class="btn btn-primary" style="margin-top:.25rem;" onclick="app.simklSaveOptions()"><i class="fa-solid fa-floppy-disk"></i> Salva Opzioni</button>
+                     </div>
+                   </div>
+
+                   <!-- WATCHLIST -->
+                   <div class="card" style="margin-bottom:1.5rem;">
+                     <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;"><span><i class="fa-solid fa-list-check"></i> Watchlist Simkl</span><button class="btn btn-small btn-secondary" onclick="app.simklLoadWatchlist()"><i class="fa-solid fa-rotate"></i> Aggiorna</button></div>
+                     <div class="card-body">
+                       <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:1rem;">Le serie con <span style="color:var(--success);">●</span> sono già monitorate in EXTTO.</p>
+                       <div id="simkl-watchlist-list" style="min-height:48px;"><span style="color:var(--text-muted);font-size:.85rem;">Clicca "Aggiorna" per caricare la lista.</span></div>
+                       <div style="margin-top:1rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;"><button class="btn btn-primary" onclick="app.simklImportSelected()"><i class="fa-solid fa-download"></i> Importa Selezionate</button><button class="btn btn-secondary" onclick="app.simklImportAll()"><i class="fa-solid fa-plus-circle"></i> Importa Tutte le Nuove</button><span id="simkl-import-result" style="font-size:.85rem;color:var(--success);"></span></div>
+                     </div>
+                   </div>
+
+                   <!-- CALENDAR -->
+                   <div class="card">
+                     <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;"><span><i class="fa-solid fa-calendar-days"></i> Prossimi Episodi Simkl</span><button class="btn btn-small btn-secondary" onclick="app.simklLoadCalendar()"><i class="fa-solid fa-rotate"></i> Aggiorna</button></div>
+                     <div class="card-body"><p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem;">Dati dal calendario pubblico CDN Simkl, filtrati sulle tue liste. Aggiornamento ogni circa 6 ore.</p><div id="simkl-calendar-list" style="min-height:48px;"><span style="color:var(--text-muted);font-size:.85rem;">Clicca "Aggiorna" per caricare il calendar.</span></div></div>
+                   </div>
+
+                   </div><!-- fine config-simkl-inner -->
+
+                   <hr style="border:none; border-top:1px solid var(--border); margin:2rem 0;">
                   <h3 style="margin:0 0 1.25rem 0; font-size:1rem; color:var(--text-secondary); display:flex; align-items:center; gap:8px;"><i class="fa-solid fa-photo-film" style="color:#00a4dc;"></i> Jellyfin / Plex</h3>
                   <div id="config-mediaserver-inner">
 
