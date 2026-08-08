@@ -422,6 +422,17 @@
                                     </div>
                                 </div>
 
+                                <div class="man-subsection">Auto-gestione Download/Upload</div>
+                                <p>Quando attivata dalla sezione libtorrent, l'auto-gestione coordina coda, slot e risorse per torrent. Non modifica i valori salvati nel database: i limiti statici configurati restano il punto di partenza dopo il riavvio.</p>
+                                <div class="man-params">
+                                    <div class="man-param"><div class="man-param-name">libtorrent_dynamic_queue</div><div class="man-param-desc"><code>yes</code> / <code>no</code>. Regola automaticamente <code>active_downloads</code>, <code>active_seeds</code>, <code>active_limit</code> e le risorse per torrent. Il controllo viene eseguito circa ogni 120 secondi.</div></div>
+                                    <div class="man-param"><div class="man-param-name">libtorrent_dynamic_queue_min / max</div><div class="man-param-desc">Limiti minimo e massimo degli slot di download dinamici. Gli slot cambiano al massimo di uno per volta e solo dopo campioni consecutivi coerenti, per evitare oscillazioni.</div></div>
+                                </div>
+                                <div class="man-callout man-callout-info">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <div>La coda privilegia prima i torrent che stanno realmente scaricando, poi quelli con fonti ma rate nullo e infine quelli senza fonti. I magnet senza metadati vengono promossi temporaneamente per risolvere DHT/tracker senza consumare uno slot di download. Un torrent appena attivato resta protetto dal riordino per circa <strong>15 minuti</strong>, salvo assenza di progressi.</div>
+                                </div>
+
                                 <div class="man-subsection">Pianificazione Banda (Scheduler)</div>
                                 <div class="man-params">
                                     <div class="man-param">
@@ -662,21 +673,21 @@
                                 </div>
 
                                 <div class="man-subsection">FlareSolverr — Bypass Cloudflare</div>
-                                <p>Alcuni siti (ext.to, LimeTorrents e mirror) sono protetti da <strong>Cloudflare JS Challenge</strong>: rispondono con una pagina "Just a moment..." che richiede l'esecuzione di JavaScript nel browser. EXTTO non può superarla da solo; usa <strong>FlareSolverr</strong>, un servizio Docker che esegue Chrome headless e restituisce la pagina risolta con i cookie validi.</p>
+                                <p>Alcuni siti (ext.to, LimeTorrents e mirror) sono protetti da <strong>Cloudflare JS Challenge</strong>: rispondono con una pagina "Just a moment..." che richiede l'esecuzione di JavaScript nel browser. EXTTO non può superarla da solo; usa <strong>FlareSolverr</strong>, un servizio Docker che esegue Chrome headless e restituisce la pagina risolta con i cookie validi. Il rilevamento considera anche gli errori Cloudflare lato origin nella serie <code>520–530</code>.</p>
                                 <p>Installazione: <code>docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest</code></p>
                                 <p>Una volta avviato, inserisci l'URL in <strong>Configurazione → Integrazioni → FlareSolverr URL</strong> (es. <code>http://192.168.1.x:8191</code>) e usa il bottone <em>Testa Connessione</em> per verificare.</p>
                                 <div class="man-params">
                                     <div class="man-param"><div class="man-param-name">@flaresolverr_url</div><div class="man-param-desc">URL del servizio FlareSolverr. Esempio: <code>http://192.168.1.161:8191</code>. Lascia vuoto per disabilitare. Senza FlareSolverr, ext.to e i motori web dietro Cloudflare restituiranno 403.</div></div>
                                 </div>
 
-                                <div class="man-subsection">Motori di Ricerca Web (DHT)</div>
+                                <div class="man-subsection">Motori di Ricerca Web</div>
                                 <p>Oltre a Jackett/Prowlarr, EXTTO può interrogare motori di ricerca web come fallback. Vengono usati in tre contesti: ricerca manuale, gap fill (deep search), e cicli avviati manualmente dal pulsante "Controlla serie". Si attivano solo quando nessun altro metodo ha trovato risultati. Vanno abilitati esplicitamente in <strong>Configurazione → Integrazioni → Motori di Ricerca Web</strong>.</p>
                                 <ul>
                                     <li><strong>BitSearch</strong> (<code>bitsearch.to</code>, ex solidtorrents.to) — JSON API, no Cloudflare. Il più veloce e affidabile.</li>
                                     <li><strong>The Pirate Bay</strong> (<code>apibay.org</code>) — JSON API ufficiale di TPB, no Cloudflare.</li>
                                     <li><strong>Knaben</strong> (<code>knaben.org</code>) — aggrega diversi indexer via API JSON, no Cloudflare.</li>
                                     <li><strong>Nyaa</strong> (<code>nyaa.si</code>) — RSS con info-hash, principalmente anime e release internazionali.</li>
-                                    <li><strong>EZTV</strong> (<code>eztvx.to</code>) — API JSON per serie TV internazionali; il filtro titolo viene applicato da EXTTO.</li>
+                                    <li><strong>EZTV</strong> (<code>eztvx.to</code>) — API JSON per serie TV internazionali; l'API può ignorare le keyword, quindi EXTTO filtra localmente titolo, stagione ed episodio.</li>
                                     <li><strong>BTDigg</strong> (<code>btdig.com</code>) — DHT crawler con magnet diretti, scraping HTML, no Cloudflare.</li>
                                     <li><strong>LimeTorrents</strong> (<code>limetorrents.fun</code> + mirror) — scraping HTML multipagina, multi-dominio. Richiede FlareSolverr se il dominio è dietro Cloudflare.</li>
                                     <li><strong>Torrentz2</strong> (<code>torrentz2.nz</code>) — meta-search che aggrega più siti, no Cloudflare.</li>
@@ -793,7 +804,7 @@
                                 <div class="man-params">
                                     <div class="man-param"><div class="man-param-name">tmdb_api_key</div><div class="man-param-desc">API key v3 di TMDB. Obbligatoria per abilitare l'autocompletamento nella GUI e le rinomine dei file.</div></div>
                                     <div class="man-param"><div class="man-param-name">tmdb_language</div><div class="man-param-desc">Codice della lingua (es. <code>it-IT</code>, <code>en-US</code>, <code>ja-JP</code>) in cui EXTTO chiederà a TMDB di tradurre i titoli degli episodi e i nomi dei film durante le operazioni di rinomina.</div></div>
-                                    <div class="man-param"><div class="man-param-name">rename_episodes</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>no</code>). Rinomina automaticamente i file video (sia Serie che Film) dopo il completamento del download. Avviene solo se usi libtorrent embedded.</div></div>
+                                    <div class="man-param"><div class="man-param-name">rename_episodes</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>no</code>). Rinomina automaticamente i file video (sia Serie che Film) dopo il completamento del download. È supportata dal post-processing di libtorrent embedded e rqbit; qBittorrent e Transmission restano add-only.</div></div>
                                     
                                     <div class="man-param">
                                         <div class="man-param-name">rename_format</div>
@@ -810,6 +821,12 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="man-subsection">Verifica rinomina automatica</div>
+                                <p>Nei cicli normali EXTTO controlla periodicamente gli episodi già archiviati per verificare che il nome rispetti il formato configurato. Il controllo strutturale del nome usa solo filesystem e regex; solo i file non conformi consumano chiamate TMDB e rinomine effettive, con un limite di pochi file per ciclo.</p>
+                                <div class="man-params">
+                                    <div class="man-param"><div class="man-param-name">rename_verify_interval</div><div class="man-param-desc">Intervallo in ore tra le verifiche automatiche. Default: <code>12</code>. Imposta <code>0</code> per disabilitare il controllo.</div></div>
                                 </div>
 
                                 <div class="man-subsection">Rinomina Massiva e File Ausiliari</div>
@@ -1073,25 +1090,25 @@
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
-                                <p>EXTTO include un sistema di backup integrato, accessibile dalla sezione <strong>Manutenzione</strong> dell'interfaccia web. Crea un archivio ZIP con tutti i file di configurazione e il database principale.</p>
+                                <p>EXTTO include un sistema di backup integrato, accessibile dalla sezione <strong>Manutenzione</strong> dell'interfaccia web. Crea un archivio <code>.7z</code> con il codice, la configurazione e i database SQLite del progetto.</p>
                                 <div class="man-callout man-callout-info">
                                     <i class="fa-solid fa-circle-info"></i>
-                                    <div>Le impostazioni di backup sono configurate direttamente in <code>extto.conf</code> con le chiavi <code>@backup_dir</code>, <code>@backup_retention</code> e <code>@backup_schedule</code> — non esiste un file di configurazione separato. Le modifiche dalla Web UI (sezione Manutenzione → Impostazioni Backup) vengono scritte automaticamente in <code>extto.conf</code>.</div>
+                                    <div>Dalla v40 le impostazioni vengono salvate in <code>extto_config.db</code>. Le modifiche dalla Web UI (sezione Manutenzione → Impostazioni Backup) sono applicate al database senza modificare manualmente <code>extto.conf</code>.</div>
                                 </div>
                                 <div class="man-subsection">Contenuto del backup</div>
                                 <ul>
-                                    <li><code>extto.conf</code> — Configurazione motore, indexer, client, notifiche</li>
-                                    <li><code>series.txt</code> — Lista serie TV</li>
-                                    <li><code>movies.txt</code> — Lista film</li>
-                                    <li><code>database.db</code> — Database episodi/film scaricati</li>
+                                    <li><code>extto_config.db</code> — Configurazione, film e traduzioni UI</li>
+                                    <li><code>extto_series.db</code> — Episodi, film, pending e metadati operativi</li>
+                                    <li><code>extto_archive.db</code> — Archivio storico dei torrent</li>
                                     <li>Script Python (<code>*.py</code>) e template HTML/JS/CSS</li>
                                 </ul>
-                                <p><strong>Esclusi:</strong> <code>__pycache__</code>, <code>*.log</code>, <code>*.pyc</code>, cartella <code>backups/</code>, <code>extto_torrents_state/</code>.</p>
-                                <div class="man-subsection">Parametri (in extto.conf)</div>
+                                <p><strong>Esclusi:</strong> <code>__pycache__</code>, <code>*.log</code>, <code>*.pyc</code>, cartella <code>backups/</code>, <code>extto_torrents_state/</code>, file SQLite temporanei <code>*.db-wal</code> e <code>*.db-shm</code>.</p>
+                                <div class="man-subsection">Parametri (salvati nel DB)</div>
                                 <div class="man-params">
-                                    <div class="man-param"><div class="man-param-name">@backup_dir</div><div class="man-param-desc">Cartella di destinazione. Default: <code>backups/</code> nella directory EXTTO. Può essere un percorso su NAS: <code>@backup_dir = /mnt/nas/extto-backups</code></div></div>
-                                    <div class="man-param"><div class="man-param-name">@backup_retention</div><div class="man-param-desc">Numero massimo di backup da mantenere. I più vecchi vengono eliminati automaticamente. Default: <code>5</code>.</div></div>
-                                    <div class="man-param"><div class="man-param-name">@backup_schedule</div><div class="man-param-desc">Frequenza: <code>manual</code> | <code>daily</code> | <code>weekly</code>. La pianificazione automatica richiede un sistema linux. Default: <code>manual</code>.</div></div>
+                                    <div class="man-param"><div class="man-param-name">backup_dir</div><div class="man-param-desc">Cartella di destinazione. Default: <code>backups/</code> nella directory EXTTO. Può essere un percorso su NAS.</div></div>
+                                    <div class="man-param"><div class="man-param-name">backup_retention</div><div class="man-param-desc">Numero massimo di backup da mantenere. I più vecchi vengono eliminati automaticamente. Default: <code>5</code>.</div></div>
+                                    <div class="man-param"><div class="man-param-name">backup_schedule</div><div class="man-param-desc">Frequenza: <code>manual</code> | <code>daily</code> | <code>weekly</code>. Default: <code>manual</code>.</div></div>
+                                    <div class="man-param"><div class="man-param-name">backup_send_telegram</div><div class="man-param-desc"><code>true</code> / <code>false</code>. Invia il backup al bot Telegram configurato. Se attivo, l'archivio viene diviso in volumi da 45 MB per rispettare il limite Telegram; altrimenti resta un unico file.</div></div>
                                 </div>
                                 <div class="man-subsection">Badge serie TV</div>
                                 <p>Il database nel backup contiene le colonne <code>is_completed</code> e <code>is_ended</code> che alimentano i badge nell'interfaccia serie:</p>
@@ -1677,21 +1694,20 @@
                         <div class="man-section" id="man-cloud-backup">
                             <div class="man-section-header">
                                 <span class="man-section-num">25</span>
-                                <h2>Auto-Backup Cloud (FTP / Dropbox)</h2>
+                                <h2>Auto-Backup Cloud (FTP)</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
-                                <p>Oltre al backup locale su ZIP, EXTTO può inviare automaticamente i tuoi salvataggi su un server cloud o NAS esterno tramite i protocolli supportati.</p>
-                                <div class="man-subsection">Protocolli Supportati (v34+)</div>
+                                <p>Oltre al backup locale su archivio <code>.7z</code>, EXTTO può inviare automaticamente i salvataggi a un server FTP o NAS esterno.</p>
+                                <div class="man-subsection">Protocollo Supportato (v40+)</div>
                                 <ul>
                                     <li><strong>FTP:</strong> Caricamento su server FTP standard o NAS (richiede Host, Utente e Password).</li>
-                                    <li><strong>Dropbox:</strong> Caricamento sicuro su Dropbox tramite <strong>App Token</strong> (inserisci il Token nel campo Password).</li>
                                 </ul>
                                 <div class="man-subsection">Configurazione</div>
                                 <p>Accedi a <strong>Manutenzione → Impostazioni Backup</strong> per configurare i parametri:</p>
                                 <ul>
-                                    <li><strong>Tipo Cloud:</strong> Seleziona tra FTP o Dropbox.</li>
-                                    <li><strong>Remote Path:</strong> Cartella sul server o su Dropbox dove caricare i file (es. <code>/backups/extto/</code>).</li>
+                                    <li><strong>Tipo Cloud:</strong> Seleziona FTP oppure Nessuno (solo locale).</li>
+                                    <li><strong>Remote Path:</strong> Cartella sul server FTP dove caricare i file (es. <code>/backups/extto/</code>).</li>
                                 </ul>
                                 <div class="man-subsection">Vantaggi</div>
                                 <p>Garantisce la disponibilità dei tuoi database (serie, episodi, archivio) e delle configurazioni anche in caso di rottura fisica del server locale o del NAS principale.</p>
@@ -1933,11 +1949,11 @@
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
-                                <p>A partire dalla <strong>v40</strong> tutte le impostazioni di EXTTO sono migrate dal file di testo <code>extto.conf</code> al database SQLite principale (<code>extto_series.db</code>). La Web UI legge e scrive direttamente il database — non è più necessario modificare file di testo a mano per la configurazione ordinaria.</p>
+                                <p>A partire dalla <strong>v40</strong> tutte le impostazioni di EXTTO sono migrate dal file di testo <code>extto.conf</code> al database SQLite di configurazione (<code>extto_config.db</code>). La Web UI legge e scrive direttamente il database — non è più necessario modificare file di testo a mano per la configurazione ordinaria.</p>
 
                                 <div class="man-callout man-callout-info">
                                     <i class="fa-solid fa-circle-info"></i>
-                                    <div><strong>Retrocompatibilità:</strong> il file <code>extto.conf</code> viene ancora letto all'avvio per la migrazione iniziale e per parametri di sistema a basso livello (porta engine, path base). Una volta migrati nel DB, i valori in <code>extto.conf</code> vengono ignorati per le impostazioni gestite dalla UI.</div>
+                                    <div><strong>Retrocompatibilità:</strong> i file <code>extto.conf</code>, <code>series.txt</code> e <code>movies.txt</code> vengono usati solo per la migrazione iniziale. Una volta migrati nel DB, la configurazione gestita dalla UI viene letta da <code>extto_config.db</code>.</div>
                                 </div>
 
                                 <div class="man-subsection">Struttura schede Configurazione</div>
@@ -1957,7 +1973,7 @@
                                 </div>
 
                                 <div class="man-subsection">Backup automatico della configurazione</div>
-                                <p>Poiché le impostazioni sono nel database, il backup ZIP generato da EXTTO include automaticamente anche la configurazione completa. Non è necessario fare backup separato di <code>extto.conf</code>: tutto è in <code>extto_series.db</code>.</p>
+                                <p>Poiché le impostazioni sono nel database, il backup <code>.7z</code> generato da EXTTO include automaticamente anche la configurazione completa. Non è necessario fare un backup separato di <code>extto.conf</code>: configurazione, stato operativo e archivio storico sono conservati nei tre database SQLite.</p>
 
                                 <div class="man-subsection">Protezione scritture concorrenti</div>
                                 <p>Le scritture sulla configurazione avvengono tramite un lock interno (<code>_config_write_lock</code>) che previene race condition quando più operazioni cercano di modificare le impostazioni contemporaneamente — ad esempio durante un salvataggio dalla UI mentre il motore è in esecuzione in background.</p>
@@ -1966,11 +1982,11 @@
                                 <p>In caso di necessità (es. configurazione via SSH senza accesso alla UI), è possibile leggere e modificare direttamente il database:</p>
                                 <div class="man-syntax">
                                     <div class="man-syntax-label">Lettura da shell</div>
-                                    <code>sqlite3 extto_series.db "SELECT key, value FROM config ORDER BY key;"</code>
+                                    <code>sqlite3 extto_config.db "SELECT key, value FROM settings ORDER BY key;"</code>
                                 </div>
                                 <div class="man-syntax">
                                     <div class="man-syntax-label">Scrittura da shell</div>
-                                    <code>sqlite3 extto_series.db "UPDATE config SET value='yes' WHERE key='gap_filling';"</code>
+                                    <code>sqlite3 extto_config.db "UPDATE settings SET value='yes' WHERE key='gap_filling';"</code>
                                 </div>
                                 <div class="man-callout man-callout-warn">
                                     <i class="fa-solid fa-triangle-exclamation"></i>

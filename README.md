@@ -57,7 +57,7 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 ## 🚀 Killer Features
 
 ### 🧠 One App, Full Stack
-Monitors RSS feeds, searches Jackett/Prowlarr indexers, scores release quality, downloads via libtorrent (embedded) or your existing qBittorrent / Transmission / aria2, renames files with TMDB metadata, archives to your NAS, notifies you. All automatic.
+Monitors RSS feeds, searches Jackett/Prowlarr indexers, scores release quality, downloads via embedded libtorrent, rqbit, or your existing qBittorrent / Transmission / aria2, renames files with TMDB metadata, archives to your NAS, notifies you. All automatic.
 
 ### 🌐 9-Engine Web Search with Cloudflare Bypass
 When your indexers come up empty, EXTTO fans out across **9 public search engines** simultaneously:
@@ -72,6 +72,9 @@ Assign a tag to any download (automatically or at the moment you add a magnet/to
 Protect your SSD. EXTTO downloads small torrents directly to a `tmpfs` RAM disk and moves them to permanent storage only when 100% complete. Zero SSD writes during download.  
 Capacity is checked atomically — if two torrents are accepted simultaneously, only one gets the RAM slot; the other falls back to disk without races or `tmpfs` overflow.
 
+### ⚙️ Smart libtorrent Queue
+The optional download/upload auto-management adapts active slots to the configured bandwidth ceiling, prioritises torrents by real ETA and available sources, and lets metadata resolution bypass the normal download queue. Stability guards prevent queue thrashing, while static limits remain the restart baseline.
+
 ### 🫏 eMule / eD2k Resurrection
 Still hunting that obscure 2003 documentary no one seeds anymore? EXTTO integrates with `amuled` and automatically falls back to the eD2k network when torrents fail. No other media manager does this.
 
@@ -83,7 +86,10 @@ EXTTO scores every release (4K, HDR10, Dolby Vision, DTS-X, codec, source...) an
 Every weight — resolution, source, codec, audio, release group, DV/REAL/PROPER bonuses — is editable directly from the **Web UI** without touching any config file. No YAML, no restart.
 
 ### 🎛️ Modern Web UI — Accordion, Tabs & Live Dirty Tracking
-The settings page is organized in collapsible accordion sections (state saved in localStorage) with a dedicated **Integrations tab** for Trakt and Jellyfin. A red dot appears on any tab with unsaved changes so you never lose edits by accident.
+The settings page is organized in collapsible accordion sections (state saved in localStorage) with a dedicated **Integrations tab** for Trakt, Simkl, Jellyfin and Plex. A red dot appears on any tab with unsaved changes so you never lose edits by accident.
+
+### 📺 Simkl — PIN Login, Watchlists & Calendar
+Connect a headless EXTTO server to **Simkl** with the PIN Flow: no browser is required on the server. From the Web UI you can import selected shows from your Simkl lists, view the next episodes from the public CDN calendar, optionally include anime, and enable manual watched-state updates. EXTTO does not poll Simkl or mark episodes watched automatically.
 
 ### 🔇 Category Filter (beyond Blacklist)
 Two levels of filtering: the **Blacklist** blocks at parse time but still archives the item for deduplication. The **Category Filter** blocks *and* prevents archiving entirely — those items don't exist for EXTTO. Perfect for permanently ignoring cam-rips, CAM-quality, or entire release groups.
@@ -111,7 +117,7 @@ When an Italian RSS feed publishes a release under an alternative title (e.g. *"
 Aliases defined in the series config are checked at every stage — RSS parsing, deduplication, feed-match tracking, and gap-fill search queries.
 
 ### 💾 Automatic Backup & Telegram Delivery
-EXTTO backs itself up automatically. Archives rotate with a **GFS scheme** (daily / weekly / monthly / yearly), are sent straight to your **Telegram chat**, and can optionally be uploaded to FTP or Dropbox — all configured from the Web UI, zero external scripts needed.
+EXTTO backs itself up automatically. Archives rotate according to the configured retention, are sent straight to your **Telegram chat**, and can optionally be uploaded to FTP. If Telegram is enabled, archives are split into 45 MB volumes; without Telegram delivery, the backup remains a single archive. Temporary SQLite WAL/SHM files are excluded.
 
 ### 🏷️ Per-Title Exclusion Rules
 Beyond the global blacklist, each series or movie can carry its own **exclude word list**. Useful to separate a sequel from its original, block a specific release group only for one title, or skip extended cuts of a single film — without affecting anything else.
@@ -272,7 +278,7 @@ Feed RSS → Ricerca intelligente → Download automatico → Rinomina & Archivi
 ## 🚀 Le Funzionalità Che Fanno la Differenza
 
 ### 🧠 Un'App, lo Stack Completo
-Monitora feed RSS, cerca su indexer Jackett/Prowlarr, valuta la qualità delle release, scarica via libtorrent (integrato) oppure qBittorrent / Transmission / aria2 esistenti, rinomina con metadati TMDB, archivia sul NAS, notifica su Telegram. Tutto automatico.
+Monitora feed RSS, cerca su indexer Jackett/Prowlarr, valuta la qualità delle release, scarica via libtorrent integrato, rqbit oppure qBittorrent / Transmission / aria2 esistenti, rinomina con metadati TMDB, archivia sul NAS, notifica su Telegram. Tutto automatico.
 
 ### 🌐 Ricerca Web su 9 Motori con Bypass Cloudflare
 Quando gli indexer non trovano nulla, EXTTO espande la ricerca su **9 motori pubblici** in parallelo:
@@ -287,6 +293,9 @@ Assegna un tag a qualsiasi download (automaticamente o al momento in cui aggiung
 Proteggi il tuo SSD. EXTTO scarica i torrent piccoli direttamente su un RAM disk `tmpfs` e li sposta in archivio solo a completamento al 100%. Zero scritture SSD durante il download.  
 La capacità viene verificata in modo atomico — se due torrent vengono accettati quasi contemporaneamente, solo uno occupa lo slot RAM; l'altro ricade su disco senza race condition né overflow del `tmpfs`.
 
+### ⚙️ Coda libtorrent Intelligente
+L'auto-gestione opzionale di download/upload adatta gli slot attivi al tetto di banda configurato, ordina i torrent in base a ETA reale e fonti disponibili e permette ai magnet senza metadati di tentare subito DHT/tracker senza restare bloccati nella coda normale. Le protezioni di stabilità evitano oscillazioni, mentre i limiti statici restano il punto di partenza dopo il riavvio.
+
 ### 🫏 La Rinascita di eMule / eD2k
 Cerchi quel documentario oscuro del 2003 che nessuno seedca più? EXTTO si integra con `amuled` e cade automaticamente sulla rete eD2k quando i torrent falliscono. Nessun altro media manager lo fa.
 
@@ -298,7 +307,10 @@ EXTTO valuta ogni release (4K, HDR10, Dolby Vision, DTS-X, codec, sorgente...) e
 Ogni peso — risoluzione, sorgente, codec, audio, gruppi, bonus DV/REAL/PROPER — è modificabile direttamente dalla **Web UI** senza toccare alcun file di configurazione. Niente YAML, niente riavvio.
 
 ### 🎛️ Web UI Moderna — Accordion, Tab e Dirty Tracking
-La pagina impostazioni è organizzata in sezioni accordion collassabili (stato salvato in localStorage) con un tab dedicato **Integrazioni** per Trakt e Jellyfin. Un pallino rosso compare su ogni tab con modifiche non salvate, così non perdi mai le impostazioni per errore.
+La pagina impostazioni è organizzata in sezioni accordion collassabili (stato salvato in localStorage) con un tab dedicato **Integrazioni** per Trakt, Simkl, Jellyfin e Plex. Un pallino rosso compare su ogni tab con modifiche non salvate, così non perdi mai le impostazioni per errore.
+
+### 📺 Simkl — PIN, Liste e Calendar
+Collega un server EXTTO headless a **Simkl** tramite PIN Flow, senza browser sul server. Dalla Web UI puoi importare le serie selezionate dalle liste Simkl, consultare i prossimi episodi dal calendario CDN pubblico, includere opzionalmente gli anime e abilitare la marcatura manuale degli episodi visti. EXTTO non esegue polling Simkl e non marca automaticamente gli episodi dopo il download.
 
 ### 🔇 Filtro Categorie (oltre la Blacklist)
 Due livelli di filtraggio: la **Blacklist** blocca al parsing ma archivia comunque l'item per deduplicazione. Il **Filtro Categorie** blocca *e* impedisce l'archiviazione — quegli item non esistono per EXTTO. Perfetto per ignorare definitivamente cam-rip, qualità CAM o interi release group.
@@ -326,7 +338,7 @@ Quando un feed RSS italiano pubblica una release con un titolo alternativo (es. 
 Gli alias definiti nella configurazione della serie vengono controllati in ogni fase — parsing RSS, deduplicazione, tracciamento feed-match e query di gap-fill.
 
 ### 💾 Backup Automatico e Invio su Telegram
-EXTTO si fa il backup da solo. Gli archivi ruotano con schema **GFS** (giornaliero / settimanale / mensile / annuale), vengono inviati direttamente nella tua **chat Telegram** e possono essere caricati opzionalmente su FTP o Dropbox — tutto configurabile dalla Web UI, senza script esterni.
+EXTTO si fa il backup da solo. Gli archivi ruotano secondo la retention configurata, vengono inviati direttamente nella tua **chat Telegram** e possono essere caricati opzionalmente su FTP. Se Telegram è abilitato, gli archivi vengono divisi in volumi da 45 MB; senza invio Telegram resta un archivio unico. I file SQLite temporanei WAL/SHM vengono esclusi.
 
 ### 🏷️ Regole di Esclusione per Singolo Titolo
 Oltre alla blacklist globale, ogni serie o film può avere la propria **lista di parole da escludere**. Utile per separare un sequel dall'originale, bloccare un release group problematico solo per quel titolo, o saltare le versioni extended di un singolo film — senza influenzare il resto.
