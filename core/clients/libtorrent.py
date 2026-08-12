@@ -224,14 +224,105 @@ class LibtorrentClient:
         if not cls.session_available():
             return
         try:
-            if tuple(int(x) for x in cls._lt.version.split('.')[:2]) >= (2, 0):
+            settings = cls._session.get_settings()
+            if isinstance(settings, dict) and 'pre_allocate_storage' not in settings:
                 return
-        except Exception:
-            pass
-        try:
-            cls._session.apply_settings({'pre_allocate_storage': bool(enabled)})
+            cls._apply_session_settings({'pre_allocate_storage': bool(enabled)})
         except Exception as e:
             logger.debug(f"_set_preallocate({enabled}): {e}")
+
+    @classmethod
+    def _apply_session_settings(cls, settings: dict):
+        """Applica settings sia con il binding 1.0 sia con quelli piu' recenti."""
+        session = cls._session
+        apply_settings = getattr(session, 'apply_settings', None)
+        if callable(apply_settings):
+            apply_settings(settings)
+            return
+        set_settings = getattr(session, 'set_settings', None)
+        if callable(set_settings):
+            set_settings(settings)
+            return
+        raise AttributeError('libtorrent session has no settings API')
+
+    @classmethod
+    def _mark_resume_as_seed(cls, params):
+        """Evita il recheck dei torrent gia' seedati su tutte le API 1.x/2.x."""
+        if isinstance(params, dict):
+            # I binding 1.0/1.1 ricevono add_torrent_params come dict.
+            # Il campo deprecato seed_mode viene convertito correttamente nel
+            # bit flag dal wrapper C++; override_resume_data impedisce al
+            # fastresume precedente di annullare il seed mode richiesto.
+            params['seed_mode'] = True
+            params['override_resume_data'] = True
+            return
+        try:
+            flags = getattr(params, 'flags', None)
+            torrent_flags = getattr(cls._lt, 'torrent_flags', None)
+            skip_flag = getattr(torrent_flags, 'no_verify_files', None)
+            if skip_flag is None:
+                atp_flags = getattr(cls._lt, 'add_torrent_params_flags_t', None)
+                skip_flag = getattr(atp_flags, 'flag_seed_mode', None)
+            override_flag = getattr(torrent_flags, 'override_resume_data', None)
+            if override_flag is None:
+                atp_flags = getattr(cls._lt, 'add_torrent_params_flags_t', None)
+                override_flag = getattr(atp_flags, 'flag_override_resume_data', None)
+            if flags is not None and skip_flag is not None:
+                params.flags = flags | skip_flag | (override_flag or 0)
+                return
+        except Exception as e:
+            logger.debug(f"resume seed flag: {e}")
+        try:
+            params.skip_checking = True
+        except Exception:
+            pass
+
+    @classmethod
+    def _resume_params(cls, data):
+        """Decodifica resume data con le API 2.x o con il wrapper dict 1.x."""
+        reader = getattr(cls._lt, 'read_resume_data', None)
+        if callable(reader):
+            return reader(data)
+
+        params = {'resume_data': data}
+        try:
+            decoded = cls._lt.bdecode(data) or {}
+            save_path = decoded.get(b'save_path', decoded.get('save_path', ''))
+            if isinstance(save_path, bytes):
+                save_path = save_path.decode('utf-8', errors='replace')
+            if save_path:
+                params['save_path'] = str(save_path)
+        except Exception as e:
+            logger.debug(f"legacy resume decode: {e}")
+
+        if not params.get('save_path'):
+            params['save_path'] = cls._cfg_snapshot.get('libtorrent_dir', '/downloads')
+        return params
+
+    @classmethod
+    def _resume_bytes(cls, resume_data):
+        """Serializza un alert di resume data su binding vecchi e nuovi."""
+        writer = getattr(cls._lt, 'write_resume_data', None)
+        if callable(writer):
+            data = writer(resume_data)
+        else:
+            data = cls._lt.bencode(resume_data)
+        if isinstance(data, dict):
+            data = cls._lt.bencode(data)
+        return bytes(data)
+
+    @classmethod
+    def _param_get(cls, params, name, default=None):
+        if isinstance(params, dict):
+            return params.get(name, default)
+        return getattr(params, name, default)
+
+    @classmethod
+    def _param_set(cls, params, name, value):
+        if isinstance(params, dict):
+            params[name] = value
+        else:
+            setattr(params, name, value)
 
     @classmethod
     def _set_storage_mode(cls, params, preallocate: bool):
@@ -240,10 +331,10 @@ class LibtorrentClient:
             mode = getattr(cls._lt, 'storage_mode_t', None)
             if mode is None:
                 return
-            params.storage_mode = getattr(
+            cls._param_set(params, 'storage_mode', getattr(
                 mode,
                 'storage_mode_allocate' if preallocate else 'storage_mode_sparse',
-            )
+            ))
         except Exception as e:
             logger.debug(f"_set_storage_mode({preallocate}): {e}")
 
@@ -283,6 +374,11 @@ class LibtorrentClient:
         """Canonical info hash from add_torrent_params (save_resume_data_alert, shutdown).
         Mirrors _ih() logic but for params objects which expose info_hashes differently.
         """
+        if isinstance(params, dict):
+            value = params.get('info_hash', '')
+            if isinstance(value, bytes):
+                return value.hex()
+            return str(value or '')
         try:
             ihs = params.info_hashes
             try:
@@ -333,7 +429,7 @@ class LibtorrentClient:
                     with open(path, 'rb') as f:
                         data = f.read()
                     try:
-                        params = lt.read_resume_data(data)
+                        params = cls._resume_params(data)
                         ih = filename.replace('.fastresume', '')
 
                         # --- Decodifica il fastresume come dict per leggere lo stato ---
@@ -371,7 +467,7 @@ class LibtorrentClient:
                             try:
                                 with open(torrent_path, 'rb') as tf:
                                     ti = lt.torrent_info(lt.bdecode(tf.read()))
-                                params.ti = ti
+                                cls._param_set(params, 'ti', ti)
                             except Exception as te:
                                 logger.debug(f"load .torrent {ih[:8]}: {te}")
 
@@ -383,27 +479,7 @@ class LibtorrentClient:
                         # di fidarsi del fastresume senza verificare i pezzi.
                         if _was_seeding:
                             cls._restored_seeding.add(ih.lower())
-                            try:
-                                _flags = getattr(params, 'flags', None)
-                                if _flags is not None:
-                                    # libtorrent 2.x usa no_verify_files; nelle versioni
-                                    # precedenti era disponibile skip_checking.
-                                    _skip_flag = getattr(lt.torrent_flags, 'no_verify_files', None)
-                                    if _skip_flag is None:
-                                        _skip_flag = getattr(lt.torrent_flags, 'skip_checking', None)
-                                    if _skip_flag is not None:
-                                        params.flags = _flags | _skip_flag
-                                    else:
-                                        # fallback attributo diretto (alcune versioni)
-                                        params.skip_checking = True
-                                else:
-                                    params.skip_checking = True
-                            except Exception as _sf:
-                                logger.debug(f"skip_checking flag: {_sf}")
-                                try:
-                                    params.skip_checking = True
-                                except Exception:
-                                    pass
+                            cls._mark_resume_as_seed(params)
                             logger.debug(f"↩️  Restored (skip_checking) seeded torrent: {ih[:12]}")
 
                         _rh = session.add_torrent(params)
@@ -595,7 +671,7 @@ class LibtorrentClient:
                     mask = (lt.alert.category_t.status_notification |
                             lt.alert.category_t.storage_notification |
                             lt.alert.category_t.error_notification)
-                    s.apply_settings({'alert_mask': mask})
+                    cls._apply_session_settings({'alert_mask': mask})
                     logger.info(f'🔔 alert_mask set: {mask}')
                 except Exception as e:
                     logger.warning(f'⚠️ alert_mask not set: {e}')
@@ -626,10 +702,8 @@ class LibtorrentClient:
         def _bool(k, default='yes'):
             return str(cfg.get(k, default)).lower() in ('yes', 'true', '1')
 
-        _ver_parts   = [int(x) for x in getattr(lt, 'version', '1.0.0').split('.')]
-        lt_ver       = tuple(_ver_parts[:2])
-        lt_ver3      = tuple(_ver_parts[:3])
-        use_dict_api = lt_ver >= (2, 0)
+        available_settings = s.get_settings()
+        use_dict_api = callable(getattr(s, 'apply_settings', None))
 
         _dl_kb      = int(cfg.get('libtorrent_dl_limit', 0))
         _ul_kb      = int(cfg.get('libtorrent_ul_limit', 0))
@@ -639,7 +713,16 @@ class LibtorrentClient:
         conn_limit  = int(cfg.get('libtorrent_connections_limit', 200))
         ul_slots    = int(cfg.get('libtorrent_upload_slots', 4))
         seed_ratio  = float(cfg.get('libtorrent_seed_ratio', 0))
-        seed_time   = int(cfg.get('libtorrent_seed_time', 0))
+        # La UI salva il limite in giorni; il nome storico in minuti resta
+        # compatibile con configurazioni precedenti e con il cleanup globale.
+        try:
+            seed_time_days = float(cfg.get('libtorrent_seed_time_days', 0) or 0)
+        except (TypeError, ValueError):
+            seed_time_days = 0
+        if seed_time_days > 0:
+            seed_time = int(seed_time_days * 24 * 60)
+        else:
+            seed_time = int(cfg.get('libtorrent_seed_time', 0) or 0)
         ann_all     = _bool('libtorrent_announce_to_all', 'no')
         enc_str     = str(cfg.get('libtorrent_encryption', '1'))
         enc_val     = cls._ENC_MAP.get(enc_str.lower(), 1)
@@ -718,7 +801,7 @@ class LibtorrentClient:
                 'max_peerlist_size':         mem_peer_list,
             }
             # disk_disable_copy_on_write — introdotto in libtorrent 2.0.12
-            if lt_ver3 >= (2, 0, 12):
+            if not isinstance(available_settings, dict) or 'disk_disable_copy_on_write' in available_settings:
                 pack['disk_disable_copy_on_write'] = bool(disable_cow)
             # Limiti seeding globali — presenti anche nel ramo 1.x
             # share_ratio_limit: ratio upload/download minimo prima di fermare il seeding
@@ -734,18 +817,20 @@ class LibtorrentClient:
                 pack['proxy_port']     = int(cfg.get('libtorrent_proxy_port', 1080))
                 pack['proxy_username'] = cfg.get('libtorrent_proxy_username', '')
                 pack['proxy_password'] = cfg.get('libtorrent_proxy_password', '')
+            if isinstance(available_settings, dict):
+                pack = {k: v for k, v in pack.items() if k in available_settings}
             try:
-                s.apply_settings(pack)
+                cls._apply_session_settings(pack)
                 logger.debug('⚙️  apply_settings 2.x OK')
             except Exception:
                 for k, v in pack.items():
                     try:
-                        s.apply_settings({k: v})
+                        cls._apply_session_settings({k: v})
                     except Exception as e2:
                         logger.debug(f'  skip {k}={v!r}: {e2}')
         else:
             try:
-                ss = s.get_settings()
+                ss = dict(available_settings)
                 ss['download_rate_limit']      = dl_limit
                 ss['upload_rate_limit']        = ul_limit
                 ss['connections_limit']        = conn_limit
@@ -758,25 +843,21 @@ class LibtorrentClient:
                 ss['active_limit']             = active_tot
                 ss['inactive_down_rate']       = slow_dl
                 ss['inactive_up_rate']         = slow_ul
-                ss['pre_allocate_storage']     = preallocate
-                ss['rename_files_on_settings_change'] = True
                 ss['cache_size']                = mem_cache_size
                 ss['max_queued_disk_bytes']     = mem_queue_disk_mb * 1024 * 1024
                 ss['send_buffer_watermark']     = mem_send_kb * 1024
                 ss['send_buffer_low_watermark'] = 16384
                 ss['read_cache_line_size']      = 1
                 ss['alert_queue_size']          = 200
-                _peer_list_key = (
-                    'max_peerlist_size'
-                    if 'max_peerlist_size' in ss
-                    else 'max_peer_list_size'
-                )
-                ss[_peer_list_key]              = mem_peer_list
+                if 'max_peerlist_size' in ss:
+                    ss['max_peerlist_size'] = mem_peer_list
+                elif 'max_peer_list_size' in ss:
+                    ss['max_peer_list_size'] = mem_peer_list
                 if seed_ratio > 0:
                     ss['share_ratio_limit'] = seed_ratio
                 if seed_time > 0:
                     ss['seed_time_limit'] = seed_time * 60
-                s.apply_settings(ss)
+                cls._apply_session_settings(ss)
             except Exception as e:
                 logger.warning(f'⚠️  apply_settings 1.x: {e}')
             try:
@@ -1682,11 +1763,11 @@ class LibtorrentClient:
         if (new_dl, new_seeds, new_limit) != (current_dl, current_seeds, current_limit):
             payload = {'active_downloads': int(new_dl), 'active_seeds': int(new_seeds), 'active_limit': int(new_limit)}
             try:
-                cls._session.apply_settings(payload)
+                cls._apply_session_settings(payload)
             except Exception:
                 ss = cls._session.get_settings()
                 ss.update(payload)
-                cls._session.apply_settings(ss)
+                cls._apply_session_settings(ss)
             logger.info(
                 f"📊 Coda: active_downloads {current_dl}→{new_dl}, "
                 f"active_seeds {current_seeds}→{new_seeds}, active_limit {current_limit}→{new_limit} "
@@ -2121,9 +2202,7 @@ class LibtorrentClient:
                             params = getattr(a, 'params', None) or getattr(a, 'resume_data', None)
                             if params:
                                 try:
-                                    data = cls._lt.write_resume_data(params)
-                                    if isinstance(data, dict):
-                                        data = cls._lt.bencode(data)
+                                    data = cls._resume_bytes(params)
                                     ih          = cls._ih_params(params) or cls._ih(a.handle)
                                     final_path  = os.path.join(cls.STATE_DIR, f"{ih}.fastresume")
                                     temp_path   = final_path + ".tmp"
@@ -2502,9 +2581,7 @@ class LibtorrentClient:
                             params = getattr(a, 'params', None) or getattr(a, 'resume_data', None)
                             if params:
                                 try:
-                                    data = cls._lt.write_resume_data(params)
-                                    if isinstance(data, dict):
-                                        data = cls._lt.bencode(data)
+                                    data = cls._resume_bytes(params)
                                     ih = cls._ih_params(params) or cls._ih(a.handle)
                                     fp = os.path.join(cls.STATE_DIR, f"{ih}.fastresume")
                                     tmp = fp + ".tmp"
@@ -2554,14 +2631,16 @@ class LibtorrentClient:
 
             final_path = self.save_path
             temp_path  = self.cfg.get('libtorrent_temp_dir', '').strip()
-            params.save_path = self.__class__._resolve_initial_save_path(self.cfg)
+            self.__class__._param_set(
+                params, 'save_path', self.__class__._resolve_initial_save_path(self.cfg)
+            )
 
             # Se il torrent va sul RAM disk, disabilita temporaneamente la prealloca:
             # preallocare in RAM prima di sapere la dimensione reale (i metadati arrivano
             # dopo) è controproducente e potrebbe riempire il RAM disk subito.
             # La prealloca viene ripristinata al valore config subito dopo l'add.
             _going_to_ramdisk = self.__class__._ramdisk_enabled(self.cfg) and \
-                params.save_path == self.cfg.get('libtorrent_ramdisk_dir', '').strip()
+                self.__class__._param_get(params, 'save_path', '') == self.cfg.get('libtorrent_ramdisk_dir', '').strip()
             _global_preallocate = str(self.cfg.get('libtorrent_preallocate', 'no')).lower() in ('yes', 'true', '1')
             self.__class__._set_storage_mode(params, _global_preallocate and not _going_to_ramdisk)
             if _going_to_ramdisk and _global_preallocate:
@@ -2575,7 +2654,8 @@ class LibtorrentClient:
             if min_space_gb > 0 and not _going_to_ramdisk:
                 import shutil
                 try:
-                    check_path = params.save_path if os.path.exists(params.save_path) else '/'
+                    _save_path = self.__class__._param_get(params, 'save_path', '')
+                    check_path = _save_path if os.path.exists(_save_path) else '/'
                     free_space = shutil.disk_usage(check_path).free
                     if free_space < (min_space_gb * 1024**3):
                         logger.error(f"🚫 Insufficient space! Liberi: {free_space/(1024**3):.2f} GB (Min: {min_space_gb} GB). Torrent discarded.")
@@ -2587,15 +2667,17 @@ class LibtorrentClient:
             ul_limit = int(self.cfg.get('libtorrent_ul_limit', 0))
             # params.download_limit e upload_limit vogliono B/s, non KB/s
             if dl_limit > 0:
-                params.download_limit = dl_limit * 1024
+                self.__class__._param_set(params, 'download_limit', dl_limit * 1024)
             if ul_limit > 0:
-                params.upload_limit = ul_limit * 1024
+                self.__class__._param_set(params, 'upload_limit', ul_limit * 1024)
 
             extra = self.cfg.get('libtorrent_extra_trackers', '')
             if extra:
                 tr_list = [t.strip() for t in extra.split('|') if t.strip()]
                 try:
-                    params.trackers = list(params.trackers or []) + tr_list
+                    self.__class__._param_set(
+                        params, 'trackers', list(self.__class__._param_get(params, 'trackers', []) or []) + tr_list
+                    )
                 except Exception:
                     pass
 
@@ -2622,7 +2704,7 @@ class LibtorrentClient:
             return True
         except Exception as e:
             logger.error(f'❌ libtorrent add: {e}')
-            stats.errors += 1
+            stats.add_error('libtorrent add')
             return False
 
     # ------------------------------------------------------------------
@@ -3137,13 +3219,13 @@ class LibtorrentClient:
             cls._cfg_snapshot['libtorrent_dl_limit'] = str(dl_kb)
             cls._cfg_snapshot['libtorrent_ul_limit'] = str(ul_kb)
         try:
-            s.apply_settings({'download_rate_limit': dl_bytes, 'upload_rate_limit': ul_bytes})
+            cls._apply_session_settings({'download_rate_limit': dl_bytes, 'upload_rate_limit': ul_bytes})
         except Exception:
             try:
                 ss = s.get_settings()
                 ss['download_rate_limit'] = dl_bytes
                 ss['upload_rate_limit']   = ul_bytes
-                s.apply_settings(ss)
+                cls._apply_session_settings(ss)
             except Exception as e:
                 logger.warning(f"apply_speed_limits fallback failed: {e}")
                 return False
@@ -3392,7 +3474,7 @@ class LibtorrentClient:
                 logger.debug(f"add_magnet: save_path esplicito non-default → {target}")
 
             params           = lt.parse_magnet_uri(magnet)
-            params.save_path = target
+            cls._param_set(params, 'save_path', target)
 
             # Disabilita prealloca temporaneamente se il target è il RAM disk
             _going_to_ramdisk = cls._ramdisk_enabled(cfg) and \
@@ -3422,7 +3504,9 @@ class LibtorrentClient:
             if extra:
                 extra_tr = [t.strip() for t in extra.split('|') if t.strip()]
                 try:
-                    params.trackers = list(params.trackers or []) + extra_tr
+                    cls._param_set(
+                        params, 'trackers', list(cls._param_get(params, 'trackers', []) or []) + extra_tr
+                    )
                 except Exception:
                     pass
 
@@ -3549,12 +3633,12 @@ class LibtorrentClient:
 
             s = cls._session
             try:
-                s.apply_settings({'download_rate_limit': int(dl), 'upload_rate_limit': int(ul)})
+                cls._apply_session_settings({'download_rate_limit': int(dl), 'upload_rate_limit': int(ul)})
             except Exception:
                 ss = s.get_settings()
                 ss['download_rate_limit'] = dl
                 ss['upload_rate_limit']   = ul
-                s.apply_settings(ss)
+                cls._apply_session_settings(ss)
 
             prev = getattr(cls, '_sched_state', None)
             if prev != in_schedule:

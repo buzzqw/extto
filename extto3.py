@@ -609,9 +609,12 @@ def web_task():
                             _global_preallocate = False
                         
                         ti        = lt.torrent_info(lt.bdecode(torrent_bytes))
-                        params    = lt.add_torrent_params()
-                        params.ti = ti
-                        params.save_path = save_path
+                        # libtorrent 1.0/1.1 non espone il costruttore Python
+                        # add_torrent_params: session.add_torrent accetta il
+                        # dizionario usato anche da parse_magnet_uri().
+                        params    = lt.add_torrent_params() if hasattr(lt, 'add_torrent_params') else {}
+                        LibtorrentClient._param_set(params, 'ti', ti)
+                        LibtorrentClient._param_set(params, 'save_path', save_path)
                         LibtorrentClient._set_storage_mode(
                             params, _global_preallocate and not _going_to_ramdisk
                         )

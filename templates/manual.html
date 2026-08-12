@@ -365,8 +365,8 @@
                                         <div class="man-param-desc">Rapporto di upload/download dopo il quale smettere di fare seeding. <code>0</code> = seed infinito. <code>1.0</code> = smette dopo aver caricato quanto scaricato. <code>0.1</code> = smette dopo aver caricato il 10% — valore molto basso, sconsigliato per chi vuole contribuire alla comunità.</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">libtorrent_seed_time</div>
-                                        <div class="man-param-desc">Tempo massimo di seeding in secondi dopo il completamento. <code>0</code> = nessun limite. Esempio: <code>3600</code> = massimo 1 ora di seeding.</div>
+                                        <div class="man-param-name">libtorrent_seed_time_days</div>
+                                        <div class="man-param-desc">Tempo massimo di seeding in giorni, come impostato dalla UI. <code>0</code> = nessun limite. Il valore viene convertito automaticamente nel limite nativo libtorrent in secondi. <code>libtorrent_seed_time</code> resta supportato come chiave legacy espressa in minuti.</div>
                                     </div>
                                     <div class="man-param">
                                         <div class="man-param-name">libtorrent_stop_at_ratio</div>
