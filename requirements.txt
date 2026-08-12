@@ -54,7 +54,7 @@ pexpect
 # Se non disponibile su PyPI per la tua architettura/versione Python,
 # setup.sh ricade automaticamente sul pacchetto di sistema (apt/dnf/pacman).
 # In quel caso EXTTO funziona ugualmente con --system-site-packages.
-libtorrent>=2.0.11      # Client torrent embedded. Installato nel venv da PyPI.
+libtorrent>=2.1.1       # Client torrent embedded. Installato nel venv da PyPI.
 
 # === STANDARD LIBRARY (no install needed) ===
 # base64, dataclasses, datetime, email, http.server, json, logging,

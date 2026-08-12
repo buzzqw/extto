@@ -214,16 +214,38 @@ class LibtorrentClient:
     @classmethod
     def _set_preallocate(cls, enabled: bool):
         """
-        Imposta pre_allocate_storage a livello di sessione.
+        Imposta pre_allocate_storage a livello di sessione per libtorrent 1.x.
         Usato per disabilitare temporaneamente la prealloca quando si aggiunge
         un torrent destinato al RAM disk (evita di riempire la RAM inutilmente).
+
+        In libtorrent 2.x la preallocazione e' una proprieta' di
+        add_torrent_params.storage_mode e viene applicata direttamente in add().
         """
         if not cls.session_available():
             return
         try:
+            if tuple(int(x) for x in cls._lt.version.split('.')[:2]) >= (2, 0):
+                return
+        except Exception:
+            pass
+        try:
             cls._session.apply_settings({'pre_allocate_storage': bool(enabled)})
         except Exception as e:
             logger.debug(f"_set_preallocate({enabled}): {e}")
+
+    @classmethod
+    def _set_storage_mode(cls, params, preallocate: bool):
+        """Imposta storage sparse/allocate usando l'API disponibile."""
+        try:
+            mode = getattr(cls._lt, 'storage_mode_t', None)
+            if mode is None:
+                return
+            params.storage_mode = getattr(
+                mode,
+                'storage_mode_allocate' if preallocate else 'storage_mode_sparse',
+            )
+        except Exception as e:
+            logger.debug(f"_set_storage_mode({preallocate}): {e}")
 
     @classmethod
     def _ih(cls, h) -> str:
@@ -250,7 +272,11 @@ class LibtorrentClient:
                 pass
         except AttributeError:
             pass
-        return cls._ih(h)
+        # libtorrent 1.x does not expose info_hashes().
+        try:
+            return str(h.info_hash())
+        except AttributeError:
+            return ''
 
     @classmethod
     def _ih_params(cls, params) -> str:
@@ -360,8 +386,11 @@ class LibtorrentClient:
                             try:
                                 _flags = getattr(params, 'flags', None)
                                 if _flags is not None:
-                                    # libtorrent >= 1.2: params.flags è un bitfield
-                                    _skip_flag = getattr(lt.torrent_flags, 'skip_checking', None)
+                                    # libtorrent 2.x usa no_verify_files; nelle versioni
+                                    # precedenti era disponibile skip_checking.
+                                    _skip_flag = getattr(lt.torrent_flags, 'no_verify_files', None)
+                                    if _skip_flag is None:
+                                        _skip_flag = getattr(lt.torrent_flags, 'skip_checking', None)
                                     if _skip_flag is not None:
                                         params.flags = _flags | _skip_flag
                                     else:
@@ -677,9 +706,6 @@ class LibtorrentClient:
                 # Soglia torrent lenti
                 'inactive_down_rate':       int(slow_dl),
                 'inactive_up_rate':         int(slow_ul),
-                # Prealloca spazio disco
-                'pre_allocate_storage':     bool(preallocate),
-                'rename_files_on_settings_change': True,
                 # Limiti memoria — configurabili dall'UI, sezione "Memoria libtorrent"
                 'cache_size':                mem_cache_size,
                 'max_queued_disk_bytes':     mem_queue_disk_mb * 1024 * 1024,
@@ -687,7 +713,9 @@ class LibtorrentClient:
                 'send_buffer_low_watermark': 16384,
                 'read_cache_line_size':      1,
                 'alert_queue_size':          1000,
-                'max_peer_list_size':        mem_peer_list,
+                # Il nome pubblico della configurazione EXTTO resta max_peer_list,
+                # ma libtorrent chiama il setting max_peerlist_size.
+                'max_peerlist_size':         mem_peer_list,
             }
             # disk_disable_copy_on_write — introdotto in libtorrent 2.0.12
             if lt_ver3 >= (2, 0, 12):
@@ -738,7 +766,12 @@ class LibtorrentClient:
                 ss['send_buffer_low_watermark'] = 16384
                 ss['read_cache_line_size']      = 1
                 ss['alert_queue_size']          = 200
-                ss['max_peer_list_size']        = mem_peer_list
+                _peer_list_key = (
+                    'max_peerlist_size'
+                    if 'max_peerlist_size' in ss
+                    else 'max_peer_list_size'
+                )
+                ss[_peer_list_key]              = mem_peer_list
                 if seed_ratio > 0:
                     ss['share_ratio_limit'] = seed_ratio
                 if seed_time > 0:
@@ -2530,6 +2563,7 @@ class LibtorrentClient:
             _going_to_ramdisk = self.__class__._ramdisk_enabled(self.cfg) and \
                 params.save_path == self.cfg.get('libtorrent_ramdisk_dir', '').strip()
             _global_preallocate = str(self.cfg.get('libtorrent_preallocate', 'no')).lower() in ('yes', 'true', '1')
+            self.__class__._set_storage_mode(params, _global_preallocate and not _going_to_ramdisk)
             if _going_to_ramdisk and _global_preallocate:
                 logger.debug("🐏 RAM disk target: disabilito prealloca temporaneamente")
                 self.__class__._set_preallocate(False)
@@ -3364,6 +3398,7 @@ class LibtorrentClient:
             _going_to_ramdisk = cls._ramdisk_enabled(cfg) and \
                 target == cfg.get('libtorrent_ramdisk_dir', '').strip()
             _global_preallocate = str(cfg.get('libtorrent_preallocate', 'no')).lower() in ('yes', 'true', '1')
+            cls._set_storage_mode(params, _global_preallocate and not _going_to_ramdisk)
             if _going_to_ramdisk and _global_preallocate:
                 logger.debug("🐏 RAM disk target: disabilito prealloca temporaneamente")
                 cls._set_preallocate(False)

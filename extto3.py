@@ -612,6 +612,9 @@ def web_task():
                         params    = lt.add_torrent_params()
                         params.ti = ti
                         params.save_path = save_path
+                        LibtorrentClient._set_storage_mode(
+                            params, _global_preallocate and not _going_to_ramdisk
+                        )
                         s.add_torrent(params)
                         
                         # Ripristina la prealloca se era stata disabilitata
