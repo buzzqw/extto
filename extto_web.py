@@ -3798,7 +3798,12 @@ def get_recent_downloads():
                     SELECT e.season, e.episode, e.quality_score, e.downloaded_at, s.name as series_name, s.id as series_id
                     FROM episodes e
                     JOIN series s ON e.series_id = s.id
-                    WHERE e.downloaded_at IS NOT NULL AND e.episode >= 0
+                    -- downloaded_at is also populated by archive scans.  Those
+                    -- rows are present on disk, but were never added to a
+                    -- torrent client and must not appear as recent downloads.
+                    WHERE e.downloaded_at IS NOT NULL
+                      AND e.magnet_hash IS NOT NULL AND e.magnet_hash != ''
+                      AND e.episode >= 0
                     ORDER BY e.downloaded_at DESC
                     LIMIT 15
                 """)
@@ -3830,6 +3835,7 @@ def get_recent_downloads():
                     SELECT id, name, year, quality_score, downloaded_at, removed_at
                     FROM movies
                     WHERE downloaded_at IS NOT NULL
+                      AND magnet_hash IS NOT NULL AND magnet_hash != ''
                     ORDER BY downloaded_at DESC
                     LIMIT 10
                 """)
