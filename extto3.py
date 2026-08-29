@@ -2047,6 +2047,9 @@ def main():
                     dl, msg = db.check_movie(cand['mov'], cand['magnet'], cand['match']['qual'])
                     if dl:
                         ok_send, used_cl = _send_with_fallback(cand['magnet'])
+                        if not ok_send:
+                            db.undo_movie_send(name, cand['mov']['year'], cand['magnet'])
+                            logger.warning(f"⚠️  Send failed (best-in-cycle movie): {name} — record DB ripristinato")
                         if ok_send:
                             stats.downloads_started += 1
                             _src = cand.get('source', '')
@@ -2651,6 +2654,9 @@ def main():
                 if best_movie_cand:
                     mov_p, safe_magnet, match, source, raw_title = best_movie_cand
                     ok_send, used_cl = _send_with_fallback(safe_magnet)
+                    if not ok_send:
+                        db.undo_movie_send(match['name'], mov_p['year'], safe_magnet)
+                        logger.warning(f"⚠️  Send failed (gap-fill movie): {match['name']} — record DB ripristinato")
                     if ok_send:
                         stats.downloads_started += 1
                         logger.info(f"   🚀 MOVIE FOUND [{used_cl}] via {source}: {match['name']} (Score: {best_movie_score})")
@@ -3461,6 +3467,9 @@ def main():
                                         dl, msg = db.check_movie(mov, safe_mag, match.get('quality', match.get('qual', '')))
                                         if dl:
                                             ok_send, used_cl = _send_with_fallback(safe_mag)
+                                            if not ok_send:
+                                                db.undo_movie_send(match['name'], mov['year'], safe_mag)
+                                                logger.warning(f"⚠️  Send failed (fast-rss movie): {match['name']} — record DB ripristinato")
                                             if ok_send:
                                                 fast_m_up += 1
                                                 score = mov['quality'].score() + cfg_live.get_custom_score(item['title'])

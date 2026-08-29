@@ -61,9 +61,18 @@ class QbtClient:
                 'stopped':  'true' if pause else 'false'
             }
             mp = {k: (None, v) for k, v in form.items()}
-            self.sess.post(f"{self.url}/api/v2/torrents/add", files=mp, timeout=10)
+            response = self.sess.post(f"{self.url}/api/v2/torrents/add", files=mp, timeout=10)
+            body = response.text.strip().lower()
+            if (response.status_code not in (200, 201, 202, 204) or
+                    body in ('fails', 'fails.')):
+                logger.error(
+                    f"❌ qBittorrent rejected torrent (HTTP {response.status_code}): "
+                    f"{response.text[:200]!r}"
+                )
+                stats.add_error('qBittorrent add')
+                return False
             return True
         except Exception as e:
             logger.exception(f"❌ Error adding torrent to qBittorrent: {e}")
-            stats.errors += 1
+            stats.add_error('qBittorrent add')
             return False

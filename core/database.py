@@ -428,7 +428,7 @@ class Database:
         - Se l'episodio è stato appena inserito (magnet_hash corrisponde, downloaded_at < 10s fa):
           lo cancella completamente.
         - Se era un upgrade (esisteva già un record precedente con hash diverso):
-          ripristina downloaded_at=NULL e magnet_link=NULL per renderlo "da scaricare".
+          ripristina integralmente il record precedente.
         Restituisce True se ha effettuato un'operazione, False altrimenti.
         """
         import re as _re
@@ -457,7 +457,32 @@ class Database:
                 age = 9999
             if age > 10:
                 return False  # troppo vecchio, non toccare
-            # Cancella il record (era un inserimento new o un upgrade che ora va rimosso)
+            # Un upgrade ha sovrascritto una riga esistente: ripristinala invece
+            # di cancellarla. Il backup viene creato da check_series().
+            try:
+                backup = c.execute(
+                    "SELECT * FROM upgrade_backup WHERE magnet_hash=? AND kind='episode'",
+                    (hash_val,)
+                ).fetchone()
+            except sqlite3.OperationalError:
+                backup = None
+
+            if backup:
+                c.execute("""UPDATE episodes SET quality_score=?, is_repack=?,
+                            magnet_hash=?, magnet_link=?, title=?, original_title=?,
+                            downloaded_at=?, archive_path=? WHERE id=?""",
+                          (backup['old_quality_score'], backup['old_is_repack'],
+                           backup['old_magnet_hash'], backup['old_magnet_link'],
+                           backup['old_title'], backup['old_original_title'],
+                           backup['old_downloaded_at'], backup['old_archive_path'],
+                           row['id']))
+                c.execute("DELETE FROM upgrade_backup WHERE magnet_hash=?", (hash_val,))
+                self.conn.commit()
+                logger.info(f"↩️  undo_episode_send: upgrade ripristinato "
+                            f"S{season:02d}E{episode:02d} (series_id={series_id})")
+                return True
+
+            # Nessun backup: il record era un inserimento nuovo e va rimosso.
             c.execute("DELETE FROM episodes WHERE id=?", (row['id'],))
             self.conn.commit()
             logger.info(f"↩️  undo_episode_send: removed ghost episode "
@@ -465,6 +490,61 @@ class Database:
             return True
         except Exception as e:
             logger.warning(f"undo_episode_send error: {e}")
+            return False
+
+    def undo_movie_send(self, movie_name: str, movie_year: int, magnet: str) -> bool:
+        """Annulla l'inserimento/upgrade film se il client rifiuta il download."""
+        hash_val = _extract_btih(magnet)
+        if not hash_val:
+            return False
+        try:
+            c = self.conn.cursor()
+            row = c.execute(
+                "SELECT * FROM movies WHERE magnet_hash=?", (hash_val,)
+            ).fetchone()
+            if not row:
+                return False
+
+            try:
+                ts = datetime.fromisoformat((row['downloaded_at'] or '').replace('Z', '+00:00'))
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                age = (datetime.now(timezone.utc) - ts).total_seconds()
+            except Exception:
+                age = 9999
+            if age > 10:
+                return False
+
+            try:
+                backup = c.execute(
+                    "SELECT * FROM upgrade_backup WHERE magnet_hash=? AND kind='movie'",
+                    (hash_val,)
+                ).fetchone()
+            except sqlite3.OperationalError:
+                backup = None
+
+            if backup:
+                old_removed_at = (backup['old_removed_at']
+                                  if 'old_removed_at' in backup.keys() else None)
+                c.execute("""UPDATE movies SET quality_score=?, magnet_hash=?,
+                            magnet_link=?, title=?, downloaded_at=?, removed_at=?
+                            WHERE id=?""",
+                          (backup['old_quality_score'], backup['old_magnet_hash'],
+                           backup['old_magnet_link'], backup['old_title'],
+                           backup['old_downloaded_at'], old_removed_at, row['id']))
+                c.execute("DELETE FROM upgrade_backup WHERE magnet_hash=?", (hash_val,))
+                self.conn.commit()
+                logger.info(f"↩️  undo_movie_send: film ripristinato "
+                            f"'{movie_name}' ({movie_year})")
+                return True
+
+            c.execute("DELETE FROM movies WHERE id=?", (row['id'],))
+            self.conn.commit()
+            logger.info(f"↩️  undo_movie_send: record film rimosso "
+                        f"'{movie_name}' ({movie_year})")
+            return True
+        except Exception as e:
+            logger.warning(f"undo_movie_send error: {e}")
             return False
 
     def record_episode_discard(self, series_id: int, season: int, episode: int, reason: str):
@@ -1217,22 +1297,29 @@ class Database:
                     old_original_title TEXT,
                     old_downloaded_at TEXT,
                     old_archive_path TEXT,
+                    old_removed_at TEXT,
                     created_at TEXT NOT NULL
                 )
             ''')
+            try:
+                c.execute("ALTER TABLE upgrade_backup ADD COLUMN old_removed_at TEXT")
+            except sqlite3.OperationalError:
+                pass
             c.execute('''INSERT OR REPLACE INTO upgrade_backup
                 (magnet_hash, kind, series_id, season, episode, movie_name, movie_year,
                  old_quality_score, old_is_repack, old_magnet_hash, old_magnet_link,
-                 old_title, old_original_title, old_downloaded_at, old_archive_path, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                (new_hash.lower(), kind, ids.get('series_id'), ids.get('season'), ids.get('episode'),
-                 ids.get('movie_name'), ids.get('movie_year'),
-                 old_row['quality_score'],
+                 old_title, old_original_title, old_downloaded_at, old_archive_path,
+                 old_removed_at, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                 (new_hash.lower(), kind, ids.get('series_id'), ids.get('season'), ids.get('episode'),
+                  ids.get('movie_name'), ids.get('movie_year'),
+                  old_row['quality_score'],
                  old_row['is_repack'] if kind == 'episode' else None,
-                 old_row['magnet_hash'], old_row['magnet_link'],
-                 old_row['title'], old_row['original_title'] if kind == 'episode' else None,
-                 old_row['downloaded_at'], old_row['archive_path'] if kind == 'episode' else None,
-                 datetime.now(timezone.utc).isoformat()))
+                  old_row['magnet_hash'], old_row['magnet_link'],
+                  old_row['title'], old_row['original_title'] if kind == 'episode' else None,
+                  old_row['downloaded_at'], old_row['archive_path'] if kind == 'episode' else None,
+                  old_row['removed_at'] if 'removed_at' in old_row.keys() else None,
+                  datetime.now(timezone.utc).isoformat()))
             # Pulizia opportunistica: righe più vecchie di 30gg sono backup di
             # upgrade completati con successo (o rimossi manualmente) per cui
             # nessun rollback è mai arrivato — non servono più.
@@ -1659,7 +1746,7 @@ class Database:
             return False, "Blocklisted"
 
         c = self.conn.cursor()
-        c.execute("SELECT id, removed_at FROM movies WHERE magnet_hash = ?", (hash_val,))
+        c.execute("SELECT * FROM movies WHERE magnet_hash = ?", (hash_val,))
         row_hash = c.fetchone()
         if row_hash:
             if row_hash['removed_at'] is None:
@@ -1668,6 +1755,8 @@ class Database:
                 return False, "Duplicate hash"
             else:
                 # stesso magnet ma film rimosso manualmente: ripristina
+                self._save_upgrade_backup('movie', hash_val, row_hash,
+                                           movie_name=mov['config_name'], movie_year=mov['year'])
                 c.execute("UPDATE movies SET removed_at=NULL, downloaded_at=? WHERE id=?",
                           (datetime.now(timezone.utc).isoformat(), row_hash['id']))
                 self.conn.commit()

@@ -2108,12 +2108,15 @@ class LibtorrentClient:
                                   backup['old_downloaded_at'], backup['old_archive_path'],
                                   backup['series_id'], backup['season'], backup['episode']))
                     else:
+                        _old_removed_at = (backup['old_removed_at']
+                                           if 'old_removed_at' in backup.keys() else None)
                         conn.execute("""UPDATE movies SET quality_score=?, magnet_hash=?,
-                                    magnet_link=?, title=?, downloaded_at=?
+                                    magnet_link=?, title=?, downloaded_at=?, removed_at=?
                                     WHERE name=? AND year=? AND removed_at IS NULL""",
                                  (backup['old_quality_score'], backup['old_magnet_hash'],
-                                  backup['old_magnet_link'], backup['old_title'],
-                                  backup['old_downloaded_at'], backup['movie_name'], backup['movie_year']))
+                                   backup['old_magnet_link'], backup['old_title'],
+                                   backup['old_downloaded_at'], _old_removed_at,
+                                   backup['movie_name'], backup['movie_year']))
                     conn.execute("DELETE FROM upgrade_backup WHERE magnet_hash = ?", (ih.lower(),))
                     logger.info(f"↩️  Rollback upgrade fallito: ripristinata versione precedente di '{name}' (non segnata come mancante)")
                 elif kind == 'episode':

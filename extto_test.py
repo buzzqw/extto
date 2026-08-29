@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import unittest
+from datetime import datetime as datetime_cls, timezone
 from unittest.mock import patch, MagicMock
 from core.models import Parser, normalize_series_name, _series_name_matches
 
@@ -1129,6 +1130,19 @@ class TestWebUI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         # Verifica che il codice HTML contenga il titolo della Web UI
         self.assertIn(b"EXTTO Web Interface", response.data)
+
+    def test_fetch_url_blocca_host_privato(self):
+        response = self.client.post('/api/fetch-url', json={
+            'url': 'http://127.0.0.1:8889/api/config'
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Host non consentito', response.get_json()['error'])
+
+    def test_fetch_url_blocca_schemi_non_http(self):
+        response = self.client.post('/api/fetch-url', json={
+            'url': 'file:///etc/passwd'
+        })
+        self.assertEqual(response.status_code, 400)
 
 import tempfile
 from unittest.mock import patch
@@ -2981,6 +2995,86 @@ class TestMovieSoftDelete(unittest.TestCase):
                 self.assertIsNone(c.fetchone()['removed_at'])
 
 
+class TestSendRollback(unittest.TestCase):
+    """Un invio rifiutato dal client non deve lasciare ghost nel DB."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_db = os.path.join(self.temp_dir.name, 'test_series.db')
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_episode_upgrade_fallito_ripristina_record_precedente(self):
+        old_hash = 'a' * 40
+        new_hash = 'b' * 40
+        with patch('core.database.DB_FILE', self.temp_db), \
+             patch('core.clients.libtorrent.LibtorrentClient.list_torrents', return_value=[]):
+            with Database() as db:
+                db.conn.execute("INSERT INTO series (name) VALUES ('Fallout')")
+                db.conn.execute(
+                    "INSERT INTO episodes (series_id, season, episode, title, quality_score, "
+                    "magnet_hash, magnet_link, downloaded_at) VALUES (1, 1, 2, ?, ?, ?, ?, ?)",
+                    ('Fallout.S01E02.720p', 100, old_hash,
+                     f'magnet:?xt=urn:btih:{old_hash}', '2024-01-01T00:00:00+00:00')
+                )
+                db.conn.commit()
+                ep = {'name': 'Fallout', 'season': 1, 'episode': 2,
+                      'title': 'Fallout.S01E02.1080p',
+                      'quality': Quality(resolution='1080p')}
+                ok, reason = db.check_series(ep, f'magnet:?xt=urn:btih:{new_hash}', '')
+                self.assertTrue(ok, reason)
+                self.assertTrue(db.undo_episode_send(1, 1, 2,
+                                                      f'magnet:?xt=urn:btih:{new_hash}'))
+                row = db.conn.execute(
+                    "SELECT quality_score, magnet_hash FROM episodes WHERE series_id=1 AND season=1 AND episode=2"
+                ).fetchone()
+                self.assertEqual((row['quality_score'], row['magnet_hash']), (100, old_hash))
+
+    def test_nuovo_film_fallito_rimuove_record(self):
+        new_hash = 'c' * 40
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                db.conn.execute(
+                    "INSERT INTO movies (name, year, title, quality_score, magnet_hash, downloaded_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    ('Dune', 2021, 'Dune.2021.1080p', 100, new_hash,
+                     datetime_cls.now(timezone.utc).isoformat())
+                )
+                db.conn.commit()
+                self.assertTrue(db.undo_movie_send('Dune', 2021,
+                                                   f'magnet:?xt=urn:btih:{new_hash}'))
+                self.assertIsNone(db.conn.execute(
+                    "SELECT 1 FROM movies WHERE magnet_hash=?", (new_hash,)).fetchone())
+
+    def test_upgrade_film_fallito_ripristina_record_precedente(self):
+        old_hash = 'd' * 40
+        new_hash = 'e' * 40
+        with patch('core.database.DB_FILE', self.temp_db):
+            with Database() as db:
+                db.conn.execute(
+                    "INSERT INTO movies (name, year, title, quality_score, magnet_hash, "
+                    "magnet_link, downloaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    ('Dune', 2021, 'Dune.2021.720p', 100, old_hash,
+                     f'magnet:?xt=urn:btih:{old_hash}', '2024-01-01T00:00:00+00:00')
+                )
+                db.conn.commit()
+                mov = {'config_name': 'Dune', 'year': 2021,
+                       'title': 'Dune.2021.1080p',
+                       'quality': Quality(resolution='1080p')}
+                ok, reason = db.check_movie(
+                    mov, f'magnet:?xt=urn:btih:{new_hash}', '1080p'
+                )
+                self.assertTrue(ok, reason)
+                self.assertTrue(db.undo_movie_send(
+                    'Dune', 2021, f'magnet:?xt=urn:btih:{new_hash}'
+                ))
+                row = db.conn.execute(
+                    "SELECT quality_score, magnet_hash FROM movies WHERE name='Dune' AND year=2021"
+                ).fetchone()
+                self.assertEqual((row['quality_score'], row['magnet_hash']), (100, old_hash))
+
+
 class TestExtto3GuardFormulas(unittest.TestCase):
     """Due bug storici (extto3.py) la cui logica vive inline in funzioni
     enormi (il loop principale e un HTTP handler locale), non in funzioni
@@ -3138,7 +3232,7 @@ class TestTorrentClientsAddOnly(unittest.TestCase):
         with patch('core.clients.qbittorrent.requests.Session.post', return_value=login_resp):
             client = QbtClient({'qbittorrent_enabled': 'yes'})
 
-        with patch.object(client.sess, 'post', return_value=MagicMock()) as mock_add:
+        with patch.object(client.sess, 'post', return_value=MagicMock(status_code=200, text='')) as mock_add:
             client.add("magnet:?xt=urn:btih:" + "a" * 40, {'qbittorrent_paused': 'yes'})
 
         _, kwargs = mock_add.call_args
@@ -3146,6 +3240,30 @@ class TestTorrentClientsAddOnly(unittest.TestCase):
         self.assertEqual(form['paused'][1], 'true')
         self.assertEqual(form['stopped'][1], 'true',
             "'stopped' deve rispecchiare 'paused' per compatibilita' con qBittorrent >=5.x")
+
+    def test_qbt_add_http_error_restituisce_false(self):
+        from core.clients.qbittorrent import QbtClient
+        login_resp = MagicMock(status_code=204, text='')
+        with patch('core.clients.qbittorrent.requests.Session.post', return_value=login_resp):
+            client = QbtClient({'qbittorrent_enabled': 'yes'})
+
+        rejected = MagicMock(status_code=403, text='Forbidden')
+        with patch.object(client.sess, 'post', return_value=rejected):
+            self.assertFalse(client.add(
+                "magnet:?xt=urn:btih:" + "a" * 40, {}
+            ))
+
+    def test_qbt_add_http_200_fails_restituisce_false(self):
+        from core.clients.qbittorrent import QbtClient
+        login_resp = MagicMock(status_code=204, text='')
+        with patch('core.clients.qbittorrent.requests.Session.post', return_value=login_resp):
+            client = QbtClient({'qbittorrent_enabled': 'yes'})
+
+        failed = MagicMock(status_code=200, text='Fails.')
+        with patch.object(client.sess, 'post', return_value=failed):
+            self.assertFalse(client.add(
+                "magnet:?xt=urn:btih:" + "b" * 40, {}
+            ))
 
     # ── Transmission: rinnovo Session-Id su 409, gestione duplicati ─────────
 

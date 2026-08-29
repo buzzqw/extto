@@ -9,6 +9,7 @@ from flask_cors import CORS
 import sqlite3
 import os
 import json
+import ipaddress
 import re
 import shutil
 import time
@@ -16,7 +17,7 @@ import requests
 import psutil
 import socket
 import threading  # <--- AGGIUNGI QUESTA RIGA QUI
-from urllib.parse import unquote
+from urllib.parse import unquote, urljoin, urlparse
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from threading import Thread
@@ -3582,6 +3583,35 @@ def system_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
         
+def _validate_fetch_target(raw_url: str) -> str:
+    """Valida un URL HTTP pubblico prima di effettuare richieste server-side."""
+    parsed = urlparse(str(raw_url or '').strip())
+    if parsed.scheme.lower() not in ('http', 'https'):
+        raise ValueError('Sono consentiti solo URL http:// o https://')
+    if parsed.username or parsed.password or not parsed.hostname:
+        raise ValueError('URL non valido')
+    try:
+        port = parsed.port or (443 if parsed.scheme.lower() == 'https' else 80)
+    except ValueError:
+        raise ValueError('Porta URL non valida')
+
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise ValueError('Host non risolvibile')
+    if not addresses:
+        raise ValueError('Host non risolvibile')
+
+    # Blocca loopback, reti private/link-local e indirizzi speciali anche quando
+    # vengono mascherati dietro un hostname.
+    for address in {item[4][0] for item in addresses}:
+        ip = ipaddress.ip_address(address.split('%', 1)[0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local or
+                ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            raise ValueError('Host non consentito')
+    return parsed.geturl()
+
+
 @app.route('/api/fetch-url', methods=['POST'])
 def fetch_url():
     """Scarica un file .torrent gestendo i redirect verso i magnet link."""
@@ -3593,20 +3623,28 @@ def fetch_url():
             return jsonify({'success': False, 'is_magnet': True, 'magnet': url})
             
         import requests, base64
-        
-        # --- FIX: allow_redirects=False impedisce il crash se il tracker rimanda a un magnet ---
-        res = requests.get(
-            url, timeout=15, verify=False, allow_redirects=False,
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        )
-        
-        # Se il server risponde con un redirect (301, 302...), verifichiamo dove punta
-        if res.status_code in (301, 302, 303, 307, 308):
+
+        # Ogni hop viene validato separatamente: non usare allow_redirects=True,
+        # altrimenti un URL pubblico può redirigere verso una rete privata.
+        current_url = url
+        res = None
+        for _ in range(5):
+            current_url = _validate_fetch_target(current_url)
+            res = requests.get(
+                current_url, timeout=15, verify=True, allow_redirects=False,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            )
+            if res.status_code not in (301, 302, 303, 307, 308):
+                break
             target = res.headers.get('Location', '')
-            if target.startswith('magnet:'):
+            res.close()
+            if target.lower().startswith('magnet:'):
                 return jsonify({'success': False, 'is_magnet': True, 'magnet': target})
-            # Se è un redirect HTTP normale, lo seguiamo manualmente una volta
-            res = requests.get(target, timeout=15, verify=False, headers={'User-Agent': 'Mozilla/5.0'})
+            if not target:
+                return jsonify({'success': False, 'error': 'Redirect senza destinazione'}), 400
+            current_url = urljoin(current_url, target)
+        else:
+            return jsonify({'success': False, 'error': 'Troppi redirect'}), 400
 
         if res.status_code != 200:
             return jsonify({'success': False, 'error': f'Errore Tracker (Status: {res.status_code})'})
@@ -3619,6 +3657,8 @@ def fetch_url():
             if m: filename = m.group(1)
             
         return jsonify({'success': True, 'data': b64_data, 'filename': filename})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         logger.error(f"URL download error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
