@@ -1587,6 +1587,36 @@ class TestParseQualityTitoliRinominati(unittest.TestCase):
             q = Parser.parse_quality(titolo)
             self.assertFalse(q.is_ita, f"Falso positivo ITA su: {titolo}")
 
+    def test_sub_ita_non_e_audio_italiano(self):
+        """Sub ita deve indicare sottotitoli, non una traccia audio italiana."""
+        casi = [
+            "Brilliant.Minds.S02.ENGLiSH.1080p.DLRip.AAC.x265-Pir8",
+            "Brilliant Minds S02 1080p DLRip x265 eng AAC Sub ita eng[Pir8] [Prowlarr - LimeTorrents]",
+            "Brilliant.Minds.S02.1080p.DLRip.x265.eng.AAC.Sub.ita.eng",
+            "Serie.S01E01.1080p.WEB-DL.ENG.SUB.ENG.ITA",
+            "Serie.S01E01.1080p.WEB-DL.ENG.SUB.ENG/ITA",
+            "Serie.S01E01.1080p.WEB-DL.ENG.sub[IT]",
+            "Serie.S01E01.1080p.WEB-DL.ENG.sub.it+en",
+            "Serie.S01E01.1080p.WEB-DL.ENG.FORCED.ITA",
+            "Serie.S01E01.1080p.WEB-DL.ENG.SDH.ITA",
+            "Serie.S01E01.1080p.WEB-DL.SUB ENGLISH ITALIAN",
+        ]
+        for titolo in casi:
+            q = Parser.parse_quality(titolo)
+            self.assertFalse(q.is_ita, f"Falso positivo ITA su sottotitoli: {titolo}")
+            self.assertFalse(Config._lang_ok(titolo, "ita"),
+                             f"Il filtro lingua ha accettato un titolo senza audio ITA: {titolo}")
+
+        for titolo in (
+            "Serie.S01E01.1080p.WEB-DL.ITA.ENG",
+            "Serie.S01E01.1080p.WEB-DL.ITA-ENG",
+            "Serie - S01E01 - [1080p][IT+EN]",
+        ):
+            q = Parser.parse_quality(titolo)
+            self.assertTrue(q.is_ita, f"Audio ITA non riconosciuto: {titolo}")
+            self.assertTrue(Config._lang_ok(titolo, "ita"),
+                            f"Il filtro lingua ha rifiutato audio ITA: {titolo}")
+
     def test_torrent_originale_invariato(self):
         """I titoli torrent originali devono continuare a funzionare come prima"""
         q = Parser.parse_quality("The.Pitt.S02E06.12.00.P.M.ITA.ENG.2160p.HMAX.WEB-DL.DDP5.1.DV.H.265")

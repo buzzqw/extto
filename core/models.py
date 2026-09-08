@@ -424,14 +424,34 @@ class Parser:
             r'|\bhmax\b'             # HBO Max
             r'|\bparamount\b'
         )
+        # I marcatori dopo "sub" indicano sottotitoli, non audio: il feed
+        # puo' riportare "ENG ... Sub ita ..." anche quando il video e'
+        # esclusivamente inglese. Rimuovili prima di cercare la lingua audio.
+        _SUBTITLE_MARKER = r'(?:subs?|subforced|subtitles?|forced|sdh|cc|closedcaptions?)'
+        _SUBTITLE_SEP = r'[\s._\-/\\\[\]()+|,:;]*'
+        _SUBTITLE_LANG = (
+            r'(?:[a-z]{2,3}|english|italian|italiano|german|deutsch|'
+            r'french|francais|spanish|portuguese|japanese|chinese|'
+            r'korean|russian)'
+        )
+        _SUBTITLE_LANG_TAGS = (
+            rf'\b{_SUBTITLE_MARKER}{_SUBTITLE_SEP}'
+            rf'(?:{_SUBTITLE_LANG}{_SUBTITLE_SEP})*'
+            r'(?:it|ita|italian|italiano)\b'
+            rf'|\b(?:it|ita|italian|italiano){_SUBTITLE_SEP}'
+            rf'{_SUBTITLE_MARKER}\b'
+        )
+        t_norm_lang_audio = re.sub(_SUBTITLE_LANG_TAGS, ' ', t_norm_lang)
+        t_audio = re.sub(_SUBTITLE_LANG_TAGS, ' ', t)
+
         if re.search(r'\bita\b|\bitalian\b|\bitaliano\b',
-                     re.sub(_STREAMING_TAGS, ' ', t_norm_lang)):
+                     re.sub(_STREAMING_TAGS, ' ', t_norm_lang_audio)):
             q.is_ita = True
 
         # Livello 2: formato lingua esplicito composito — IT+EN, IT|EN, [IT], [IT+EN]
         # Cerca sull'originale (t già lowercase) perché la normalizzazione rimuove + e []
         # Il "+" non appare mai nel titolo di un episodio, quindi è un indicatore sicuro
-        elif re.search(r'\bit[\+\|]|\[it\]', t):
+        elif re.search(r'\bit[\+\|]|\[it\]', t_audio):
             q.is_ita = True
 
         # Livello 3: \bit\b solo dalla RISOLUZIONE in poi
@@ -440,9 +460,9 @@ class Parser:
         else:
             _res_m = re.search(
                 r'\b(2160p?|1080p?|720p?|480p?|4k|uhd|bluray|web[\s\-]?dl|webrip|hdtv)\b',
-                t_norm_lang
+                t_norm_lang_audio
             )
-            _tech = re.sub(_STREAMING_TAGS, ' ', t_norm_lang[_res_m.start():] if _res_m else '')
+            _tech = re.sub(_STREAMING_TAGS, ' ', t_norm_lang_audio[_res_m.start():] if _res_m else '')
             if re.search(r'\bit\b', _tech) and not re.search(
                     r'\bwith\b|\bbit\b|\bsplit\b|\bedit\b|\bunit\b|\bvisit\b|'
                     r'\blimit\b|\bexit\b|\bprofit\b|\bsubmit\b|\bcommit\b|'
