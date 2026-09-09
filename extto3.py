@@ -1907,6 +1907,7 @@ def main():
                                 'season':        ep['season'],
                                 'episode':       ep['episode'],
                                 'episode_range': list(ep_range_set),
+                                'is_pack':       bool(is_pack_item),
                                 'title':         ep['title'],
                                 'magnet':        item['magnet'],
                                 'quality':       ep['quality'],
@@ -1997,7 +1998,7 @@ def main():
                         'season':       cand['season'],
                         'episode':      cand['episode'],
                         'episode_range': cand.get('episode_range', []),
-                        'is_pack':      bool(cand.get('episode_range') and len(cand.get('episode_range', [])) > 1),
+                        'is_pack':      bool(cand.get('is_pack')),
                         'quality':      cand['quality'],
                         'title':        cand['title'],
                         'archive_path': (_m.get('archive_path', '') if _m else ''),
@@ -3432,7 +3433,7 @@ def main():
                                             ep_dict = {
                                                 'type': 'series', 'name': match['name'], 'season': ep['season'],
                                                 'episode': ep['episode'], 'episode_range': ep.get('episode_range', []),
-                                                'is_pack': bool(ep.get('episode_range') and len(ep.get('episode_range', [])) > 1),
+                                                'is_pack': bool(ep.get('is_pack')),
                                                 'quality': ep['quality'], 'title': ep['title'],
                                                 'archive_path': match.get('archive_path', '')
                                             }

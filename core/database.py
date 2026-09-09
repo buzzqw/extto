@@ -446,6 +446,16 @@ class Database:
             )
             row = c.fetchone()
             if not row:
+                # Un season pack puo' essere registrato sull'episodio utile
+                # piu' vicino, non necessariamente sul primo episodio del
+                # range passato dal caller. Il magnet hash resta univoco e
+                # consente di annullare comunque il record fantasma.
+                row = c.execute(
+                    "SELECT id, magnet_hash, downloaded_at FROM episodes "
+                    "WHERE series_id=? AND season=? AND magnet_hash=?",
+                    (series_id, season, hash_val)
+                ).fetchone()
+            if not row:
                 return False
             # Controlla se è stato inserito/aggiornato negli ultimi 10 secondi
             try:
@@ -1398,6 +1408,8 @@ class Database:
 
         new_score    = ep['quality'].score()
         archive_path = ep.get('archive_path', '') if isinstance(ep, dict) else ''
+        _check_episode = ep['episode']
+        _pack_has_benefit = False
 
         # Punto 5: Se archive_path non è configurato per la serie, prova a trovare
         # automaticamente la cartella tramite @archive_root / nome_serie
@@ -1430,9 +1442,63 @@ class Database:
         except Exception:
             pass
 
+        # Un season pack e' utile solo se almeno un episodio del pack e'
+        # mancante o con qualita' inferiore. Il controllo episodio-singolo
+        # qui sotto non basta per i pack completi (E00), perche' il loro
+        # contenuto reale si conosce soltanto guardando gli episodi della
+        # stagione nell'archivio.
+        if ep.get('is_pack') and archive_path:
+            try:
+                _pack_range = set(int(e) for e in (ep.get('episode_range') or []) if int(e) > 0)
+                if not _pack_range:
+                    _expected = self.get_expected_episodes(series_id, ep['season'])
+                    if _expected and _expected > 0:
+                        _pack_range = set(range(1, int(_expected) + 1))
+
+                if _pack_range:
+                    _useful = []
+                    _already_better = []
+                    for _pack_ep in sorted(_pack_range):
+                        _pack_score = self._best_quality_in_path(
+                            ep['name'], ep['season'], _pack_ep, archive_path
+                        )
+                        if _pack_score is None or _pack_score < new_score:
+                            _useful.append(_pack_ep)
+                        else:
+                            _already_better.append(_pack_ep)
+
+                    if not _useful:
+                        stats.duplicates.append(
+                            f"{ep['name']} S{ep['season']:02d} Pack (nessun episodio utile)"
+                        )
+                        self.record_episode_discard(series_id, ep['season'], ep['episode'],
+                                                    'season_pack_no_benefit')
+                        logger.info(
+                            f"[SEASON-PACK] SKIP: all {len(_pack_range)} episodes already have "
+                            f"quality >= {new_score} (archive: {_already_better})"
+                        )
+                        return False, "Season pack senza episodi utili"
+
+                    logger.info(
+                        f"[SEASON-PACK] VALUE: {len(_useful)}/{len(_pack_range)} episodes "
+                        f"useful at score {new_score} (archive: {_already_better} already covered)"
+                    )
+                    # check_series registra una sola riga per torrent. Per un
+                    # pack parziale il primo episodio del range potrebbe gia'
+                    # essere presente, mentre un episodio successivo e'
+                    # mancante: usa come riferimento il primo episodio utile,
+                    # evitando che il controllo del primo episodio annulli la
+                    # decisione del pack.
+                    _pack_has_benefit = True
+                    _check_episode = sorted(_useful)[0]
+            except Exception as _pack_check_error:
+                # Un errore di scansione non deve bloccare il download: il
+                # controllo standard sottostante resta comunque attivo.
+                logger.warning(f"[SEASON-PACK] benefit check failed: {_pack_check_error}")
+
         try:
             existing_path_score = self._best_quality_in_path(
-                ep['name'], ep['season'], ep['episode'], archive_path
+                ep['name'], ep['season'], _check_episode, archive_path
             ) if archive_path else None
         except Exception as e:
             logger.debug(f"_best_quality_in_path: {e}")
@@ -1441,8 +1507,8 @@ class Database:
         if existing_path_score is not None:
             logger.debug(f"[ARCHIVE-CHECK] best_in_path={existing_path_score} vs new_score={new_score}")
         if existing_path_score is not None and existing_path_score >= new_score:
-            stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{ep['episode']:02d}")
-            self.record_episode_discard(series_id, ep['season'], ep['episode'],
+            stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d}")
+            self.record_episode_discard(series_id, ep['season'], _check_episode,
                                         "in archivio con qualita' uguale o superiore")
             
             # --- START INTELLIGENZA ARCHIVIO ---
@@ -1450,7 +1516,7 @@ class Database:
             try:
                 c2 = self.conn.cursor()
                 # Controlla se sapevamo già di avere questo file (e con che punteggio)
-                c2.execute('SELECT best_quality_score FROM episode_archive_presence WHERE series_id=? AND season=? AND episode=?', (series_id, ep['season'], ep['episode']))
+                c2.execute('SELECT best_quality_score FROM episode_archive_presence WHERE series_id=? AND season=? AND episode=?', (series_id, ep['season'], _check_episode))
                 row = c2.fetchone()
                 
                 # Se è la prima volta che lo vediamo, o se l'utente lo ha sostituito a mano con uno migliore!
@@ -1463,7 +1529,7 @@ class Database:
                     VALUES (?, ?, ?, ?, ?)
                     ON CONFLICT(series_id,season,episode) DO UPDATE
                         SET best_quality_score=excluded.best_quality_score, at=excluded.at
-                ''', (series_id, ep['season'], ep['episode'],
+                ''', (series_id, ep['season'], _check_episode,
                       int(existing_path_score or 0), datetime.now(timezone.utc).isoformat()))
                 self.conn.commit()
             except Exception as e:
@@ -1471,9 +1537,9 @@ class Database:
             
             # Stampa nel log SOLO se è una novità assoluta o un upgrade manuale
             if is_new_discovery:
-                logger.info(f"🎉 [New in Archive] Found '{ep['name']}' S{ep['season']:02d}E{ep['episode']:02d} on disk (Score: {existing_path_score}). Database aligned!")
+                logger.info(f"🎉 [New in Archive] Found '{ep['name']}' S{ep['season']:02d}E{_check_episode:02d} on disk (Score: {existing_path_score}). Database aligned!")
             else:
-                logger.debug(f"[ARCHIVE-CHECK] SKIP: '{ep['name']}' S{ep['season']:02d}E{ep['episode']:02d} already known (Score: {existing_path_score} >= {new_score})")
+                logger.debug(f"[ARCHIVE-CHECK] SKIP: '{ep['name']}' S{ep['season']:02d}E{_check_episode:02d} already known (Score: {existing_path_score} >= {new_score})")
             # --- END INTELLIGENZA ARCHIVIO ---
 
             return False, "In archivio con qualita' uguale o superiore"
@@ -1497,7 +1563,7 @@ class Database:
             # Se la stagione è completa e la qualità esistente è migliore o uguale, scarta.
             # Se NON è completa, permettiamo il download del pack per riempire i buchi,
             # a meno che la qualità del pack non sia davvero pessima (ma è già filtrata a monte).
-            if is_complete and db_max and db_max >= new_score:
+            if is_complete and db_max and db_max >= new_score and not _pack_has_benefit:
                 stats.duplicates.append(f"{ep['name']} S{ep['season']:02d} Pack (inferiore a episodi esistenti)")
                 self.record_episode_discard(series_id, ep['season'], 0, 'existing_season_better')
                 logger.info(f"[SEASON-PACK] SKIP: season is complete and pack {new_score} is not an upgrade (DB max: {db_max})")
@@ -1509,7 +1575,7 @@ class Database:
 
         c.execute(
             "SELECT * FROM episodes WHERE series_id = ? AND season = ? AND episode = ?",
-            (series_id, ep['season'], ep['episode'])
+            (series_id, ep['season'], _check_episode)
         )
         row = c.fetchone()
 
@@ -1520,14 +1586,15 @@ class Database:
                 # potrà ripristinare la versione già scaricata invece di cancellarla
                 # e segnare l'episodio come mancante.
                 self._save_upgrade_backup('episode', hash_val, row,
-                                           series_id=series_id, season=ep['season'], episode=ep['episode'])
+                                           series_id=series_id, season=ep['season'], episode=_check_episode)
                 c.execute("""UPDATE episodes SET quality_score=?, is_repack=?,
                             magnet_hash=?, magnet_link=?, title=?, downloaded_at=?, archive_path=?
                             WHERE series_id=? AND season=? AND episode=?""",
-                         (new_score, ep['quality'].is_repack, hash_val, magnet, ep['title'],
-                          datetime.now(timezone.utc).isoformat(), archive_path, series_id, ep['season'], ep['episode']))
+                          (new_score, ep['quality'].is_repack, hash_val, magnet, ep['title'],
+                           datetime.now(timezone.utc).isoformat(), archive_path, series_id,
+                           ep['season'], _check_episode))
                 self.conn.commit()
-                stats.series_matched.append(f"{ep['name']} S{ep['season']:02d}E{ep['episode']:02d} (upgrade)")
+                stats.series_matched.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d} (upgrade)")
                 # ── CLEANUP UPGRADE ────────────────────────────────────────────
                 # Se cleanup_upgrades è abilitato, cerca e sposta in trash i file
                 # obsoleti (stessa puntata, score inferiore) nell'archive_path.
@@ -1572,17 +1639,36 @@ class Database:
                 # ──────────────────────────────────────────────────────────────
                 return True, "Upgrade"
             else:
-                stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{ep['episode']:02d}")
-                self.record_episode_discard(series_id, ep['season'], ep['episode'], 'existing_better')
+                if _pack_has_benefit:
+                    # Il DB puo' avere una riga stale per l'episodio utile
+                    # (qualita' storica migliore), mentre il file fisico e'
+                    # mancante. Registra comunque il nuovo magnet senza
+                    # abbassare il punteggio; il backup permette il rollback
+                    # se il client rifiuta l'invio.
+                    self._save_upgrade_backup(
+                        'episode', hash_val, row,
+                        series_id=series_id, season=ep['season'], episode=_check_episode
+                    )
+                    c.execute("""UPDATE episodes SET magnet_hash=?, magnet_link=?,
+                                title=?, downloaded_at=?, archive_path=? WHERE id=?""",
+                              (hash_val, magnet, ep['title'],
+                               datetime.now(timezone.utc).isoformat(), archive_path, row['id']))
+                    self.conn.commit()
+                    stats.series_matched.append(
+                        f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d} (season pack)"
+                    )
+                    return True, "Season pack"
+                stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d}")
+                self.record_episode_discard(series_id, ep['season'], _check_episode, 'existing_better')
                 return False, "Existing better"
         else:
             c.execute("""INSERT INTO episodes
                         (series_id, season, episode, title, original_title, quality_score, is_repack, magnet_hash, magnet_link, downloaded_at, archive_path)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                     (series_id, ep['season'], ep['episode'], ep['title'], ep['title'], new_score,
+                     (series_id, ep['season'], _check_episode, ep['title'], ep['title'], new_score,
                       ep['quality'].is_repack, hash_val, magnet, datetime.now(timezone.utc).isoformat(), archive_path))
             self.conn.commit()
-            stats.series_matched.append(f"{ep['name']} S{ep['season']:02d}E{ep['episode']:02d}")
+            stats.series_matched.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d}")
             # ── CLEANUP SEASON PACK (branch New) ──────────────────────────────
             # Se è un season pack, pulisce i file singoli inferiori per TUTTI
             # gli episodi del range, non solo per il primo.
