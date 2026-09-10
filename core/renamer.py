@@ -37,6 +37,15 @@ RENAME_FORMAT_LABELS = {
     'completo': 'Completo  —  Serie (Anno) - S01E01 - Titolo [Qualità][Audio Ch][HDR][Codec][Lingue].mkv',
 }
 
+# Etichetta leggibile per il campo {Source} del template di rinomina.
+_SOURCE_LABEL = {
+    'bluray': 'BluRay',
+    'webdl':  'WEB-DL',
+    'webrip': 'WEBRip',
+    'hdtv':   'HDTV',
+    'dvdrip': 'DVDRip',
+}
+
 
 def _build_filename(series_name: str, season: int, episode: int,
                     title, ext: str,
@@ -58,6 +67,7 @@ def _build_filename(series_name: str, season: int, episode: int,
         name = name.replace('{Stagione}', f"S{season:02d}")
         name = name.replace('{Episodio}', f"E{episode:02d}")
         name = name.replace('{Titolo}', _sanitize(title) if title else "")
+        name = name.replace('{Source}', tags.get('source') or "")
         name = name.replace('{Risoluzione}', tags.get('resolution') or "")
         name = name.replace('{VideoCodec}', tags.get('video_codec') or "")
         
@@ -255,6 +265,16 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
                         logger.debug(f"   mediainfo tags: {tags}")
                 except Exception as e:
                     logger.warning(f"⚠️  mediainfo tags series: {e}")
+
+        # Sorgente (WEB-DL/BluRay/…) non ricavabile da mediainfo: la si prende
+        # dalla qualità del torrent così il {Source} nel template non si perde.
+        try:
+            _src_code = getattr(ep.get('quality'), 'source', 'unknown') if isinstance(ep, dict) else 'unknown'
+            _src_label = _SOURCE_LABEL.get(_src_code, '')
+            if _src_label:
+                tags['source'] = _src_label
+        except Exception as _se:
+            logger.debug(f"rename source tag: {_se}")
 
         new_name = _build_filename(series_name, season, episode, ep_title, ext,
                                    fmt=rename_fmt, year=year, tags=tags, template_str=rename_template)

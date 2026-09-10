@@ -8141,6 +8141,7 @@ def rename_format_preview():
     template_str = request.args.get('tmpl', '{Serie} - {Stagione}{Episodio} - {Titolo} [{Risoluzione}][{HDR}][{Lingue}]')
 
     example_tags = {
+        'source':      'WEB-DL',
         'resolution':  '1080p',
         'video_codec': 'h264',
         'audio_codec': 'EAC3 Atmos',

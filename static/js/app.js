@@ -5038,7 +5038,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
                 <label style="font-size:0.85rem; color:var(--text-muted); margin-bottom:5px; display:block;">${t('Personalizzato')}:</label>
                 <input type="text" id="setting-rename_template" class="form-control" value="${this._esc(tmpl)}" oninput="app._updateRenameFormatExample('custom')">
                 <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:6px; font-family:var(--font-mono);">
-                    Tag: <span style="color:var(--primary-light);">{Serie}, {Anno}, {Stagione}, {Episodio}, {Titolo}, {Risoluzione}, {VideoCodec}, {Audio}, {Canali}, {HDR}, {Lingue}</span>
+                    Tag: <span style="color:var(--primary-light);">{Serie}, {Anno}, {Stagione}, {Episodio}, {Titolo}, {Source}, {Risoluzione}, {VideoCodec}, {Audio}, {Canali}, {HDR}, {Lingue}</span>
                 </div>
                 <div style="font-size:0.8rem; color:var(--text-muted); margin-top:8px; background:rgba(255,255,255,0.03); padding:8px 10px; border-radius:4px; border-left: 3px solid var(--warning);">
                     <i class="fa-solid fa-lightbulb" style="color:var(--warning);"></i> ${t('Semplice e pulito.')}: <code>[]</code> / <code>()</code>

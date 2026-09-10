@@ -1410,6 +1410,7 @@ class Database:
         archive_path = ep.get('archive_path', '') if isinstance(ep, dict) else ''
         _check_episode = ep['episode']
         _pack_has_benefit = False
+        _pack_is_upgrade_only = False
 
         # Punto 5: Se archive_path non è configurato per la serie, prova a trovare
         # automaticamente la cartella tramite @archive_root / nome_serie
@@ -1457,12 +1458,16 @@ class Database:
 
                 if _pack_range:
                     _useful = []
+                    _missing = []
                     _already_better = []
                     for _pack_ep in sorted(_pack_range):
                         _pack_score = self._best_quality_in_path(
                             ep['name'], ep['season'], _pack_ep, archive_path
                         )
-                        if _pack_score is None or _pack_score < new_score:
+                        if _pack_score is None:
+                            _missing.append(_pack_ep)
+                            _useful.append(_pack_ep)
+                        elif _pack_score < new_score:
                             _useful.append(_pack_ep)
                         else:
                             _already_better.append(_pack_ep)
@@ -1490,6 +1495,7 @@ class Database:
                     # evitando che il controllo del primo episodio annulli la
                     # decisione del pack.
                     _pack_has_benefit = True
+                    _pack_is_upgrade_only = not _missing
                     _check_episode = sorted(_useful)[0]
             except Exception as _pack_check_error:
                 # Un errore di scansione non deve bloccare il download: il
@@ -1654,10 +1660,11 @@ class Database:
                               (hash_val, magnet, ep['title'],
                                datetime.now(timezone.utc).isoformat(), archive_path, row['id']))
                     self.conn.commit()
+                    _pack_label = 'upgrade' if _pack_is_upgrade_only else 'season pack'
                     stats.series_matched.append(
-                        f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d} (season pack)"
+                        f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d} ({_pack_label})"
                     )
-                    return True, "Season pack"
+                    return True, "Upgrade" if _pack_is_upgrade_only else "Season pack"
                 stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d}")
                 self.record_episode_discard(series_id, ep['season'], _check_episode, 'existing_better')
                 return False, "Existing better"
@@ -1708,7 +1715,7 @@ class Database:
                 except Exception as _ce:
                     logger.warning(f"⚠️  cleanup season pack error: {_ce}")
             # ──────────────────────────────────────────────────────────────────
-            return True, "New"
+            return True, "Upgrade" if _pack_is_upgrade_only else "New"
 
     def _best_quality_in_path(self, series_name: str, season: int, episode: int,
                                archive_path: str) -> Optional[int]:
