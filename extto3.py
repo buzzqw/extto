@@ -1769,6 +1769,8 @@ def main():
 
                 match = cfg.find_series_match(ep['name'], ep['season'])
                 if match:
+                    if ep['season'] in match.get('ignored_seasons', []) or str(ep['season']) in match.get('ignored_seasons', []):
+                        continue
                     ep['name'] = match['name']  # normalizza al nome canonico (gestisce alias RSS)
 
                     # Release già fallita in precedenza (magnet morto/stallo/errore):
@@ -2070,21 +2072,28 @@ def main():
         if not comics_only_cycle:
             # 2. Timeframe: download pronti (elabora pending da cicli precedenti)
             for r in db.get_ready_downloads():
+                _m = cfg.find_series_match(r['series_name'], r['season'])
+                if not _m or r['season'] in _m.get('ignored_seasons', []) or str(r['season']) in _m.get('ignored_seasons', []):
+                    logger.info(f"⏸️  Timeframe deferred: {r['series_name']} S{r['season']:02d}E{r['episode']:02d} (series paused or season ignored)")
+                    continue
                 if not db.begin_downloading(r['id']):
                     continue
                 safe_magnet = sanitize_magnet(r['best_magnet'], r['best_title']) or r['best_magnet']
-                _m          = cfg.find_series_match(r['series_name'], r['season'])
+                pending_ep  = Parser.parse_series_episode(r['best_title'] or '') or {}
                 ep_dict     = {
                     'type':         'series',
                     'name':         r['series_name'],
                     'season':       r['season'],
                     'episode':      r['episode'],
+                    'episode_range': pending_ep.get('episode_range', []),
+                    'is_pack':      bool(pending_ep.get('is_pack')),
                     'quality':      Parser.parse_quality(r['best_title'] or ''),
                     'title':        r['best_title'],
                     'archive_path': (_m.get('archive_path', '') if _m else ''),
                 }
                 dl_ok, msg = db.check_series(ep_dict, safe_magnet, '')
                 if not dl_ok:
+                    db.requeue_pending(r['id'])
                     logger.info(f"⏭️  Skipping timeframe: {r['series_name']} S{r['season']:02d}E{r['episode']:02d} → {msg}")
                     continue
                 _a2_meta_timeframe = {
@@ -2107,6 +2116,9 @@ def main():
                                              'timeframe-upgrade' if detail == 'upgrade' else 'timeframe-new')
                     tagger.tag_torrent(safe_magnet, TAG_SERIES)
                     _ui_tag(safe_magnet, TAG_SERIES, 'Timeframe')
+                else:
+                    db.undo_episode_send(r['series_id'], r['season'], r['episode'], safe_magnet)
+                    db.requeue_pending(r['id'])
 
         if not comics_only_cycle and not series_only_cycle and not movies_only_cycle:
             # 3. Scansione archivio locale (solo se run-now completo)
@@ -2172,6 +2184,14 @@ def main():
         if not comics_only_cycle and not movies_only_cycle:
             # 4. Gap filling (serie TV)
             if cfg.gap_filling:
+                tmdb_metadata = None
+                if getattr(cfg, 'tmdb_api_key', '').strip():
+                    from core.tmdb import TMDBClient
+                    tmdb_metadata = TMDBClient(
+                        cfg.tmdb_api_key,
+                        cache_days=int(getattr(cfg, 'tmdb_cache_days', 7)),
+                        language=getattr(cfg, 'tmdb_language', 'it-IT')
+                    )
                 # Controlla se sono passate 6 ore (21600 secondi)
                 is_deep_gap_run = (time.time() - last_deep_gap_fill) >= 21600
                 if is_deep_gap_run:
@@ -2187,6 +2207,11 @@ def main():
                     series_id = _resolve_series_id(serie_cfg['name'])
                     if not series_id:
                         continue
+                    if tmdb_metadata:
+                        try:
+                            tmdb_metadata.update_series_metadata(db, series_id, serie_cfg['name'])
+                        except Exception as _tmdb_error:
+                            logger.warning(f"⚠️ TMDB metadata update for '{serie_cfg['name']}': {_tmdb_error}")
                     seasons_cfg = serie_cfg.get('seasons', '1+')
 
                     # Ricava le stagioni da controllare dalla configurazione della serie
@@ -2221,6 +2246,8 @@ def main():
                         seasons_to_check = list(range(min_s, max_s + 1))
 
                     for season in seasons_to_check:
+                        if season in serie_cfg.get('ignored_seasons', []):
+                            continue
                         # Episodi già posseduti: hash reale OPPURE noti su disco via scan-archive.
                         # NULL-hash con quality_score>0 (scan-archive) sono bloccati anche in
                         # check_series(), ma includerli qui evita ricerche inutili.
@@ -2360,16 +2387,13 @@ def main():
 
                                         logger.info(f"      📡 Jackett TV-Search: '{base_q}' (Season: {season}, Episode: {ep_num})")
 
-                                        # Recupera tvdb_id dalla cache per ricerche più precise
-                                        _tvdb_id = db.get_tvdb_id(series_id)
-
-                                        # Passiamo season, ep e (se disponibile) tvdb_id
+                                        # La cache contiene un TMDB ID con nome legacy: non e'
+                                        # un TVDB ID valido per il parametro Torznab tvdbid.
                                         j_res = eng._jackett_search(
                                             base_q,
                                             {},   # config ignorato, indexer letti da Config()
                                             season=season,
-                                            ep=ep_num,
-                                            tvdb_id=_tvdb_id
+                                            ep=ep_num
                                         )
 
                                         if j_res:
@@ -3424,12 +3448,25 @@ def main():
                                 ep = Parser.parse_series_episode(item['title'])
                                 if ep:
                                     match = cfg_live.find_series_match(ep['name'], ep['season'])
-                                    if match and cfg_live._lang_ok(item['title'], match.get('language', match.get('lang', 'ita'))):
+                                    if (match and ep['season'] not in match.get('ignored_seasons', []) and
+                                            str(ep['season']) not in match.get('ignored_seasons', []) and
+                                            cfg_live._lang_ok(item['title'], match.get('language', match.get('lang', 'ita')))):
                                         min_r = cfg_live._min_res_from_qual_req(match.get('quality', match.get('qual', '')))
                                         max_r = cfg_live._max_res_from_qual_req(match.get('quality', match.get('qual', '')))
                                         this_r = cfg_live._res_rank_from_title(item['title'])
                                         
                                         if min_r <= this_r <= max_r:
+                                            timeframe = match.get('timeframe', 0)
+                                            if timeframe > 0:
+                                                _rss_sid = _resolve_series_id(match['name'])
+                                                if _rss_sid:
+                                                    action = db.add_pending(
+                                                        _rss_sid, ep['season'], ep['episode'], ep['title'],
+                                                        ep['quality'].score(), item['magnet'], timeframe
+                                                    )
+                                                    if action == 'added':
+                                                        logger.info(f"⏱️  PENDING FAST-RSS: {match['name']} S{ep['season']:02d}E{ep['episode']:02d} (wait {timeframe}h)")
+                                                continue
                                             ep_dict = {
                                                 'type': 'series', 'name': match['name'], 'season': ep['season'],
                                                 'episode': ep['episode'], 'episode_range': ep.get('episode_range', []),
@@ -3484,13 +3521,33 @@ def main():
                                 
                             # Processa comunque in coda eventuali Timeframe scaduti naturalmente
                             for r in db.get_ready_downloads():
+                                _m = cfg_live.find_series_match(r['series_name'], r['season'])
+                                if not _m or r['season'] in _m.get('ignored_seasons', []) or str(r['season']) in _m.get('ignored_seasons', []):
+                                    logger.info(f"⏸️  Timeframe deferred: {r['series_name']} S{r['season']:02d}E{r['episode']:02d} (series paused or season ignored)")
+                                    continue
                                 if db.begin_downloading(r['id']):
                                     s_mag = sanitize_magnet(r['best_magnet'], r['best_title']) or r['best_magnet']
+                                    pending_ep = Parser.parse_series_episode(r['best_title'] or '') or {}
+                                    ep_dict = {
+                                        'type': 'series', 'name': r['series_name'], 'season': r['season'],
+                                        'episode': r['episode'], 'episode_range': pending_ep.get('episode_range', []),
+                                        'is_pack': bool(pending_ep.get('is_pack')),
+                                        'quality': Parser.parse_quality(r['best_title'] or ''),
+                                        'title': r['best_title'], 'archive_path': _m.get('archive_path', '')
+                                    }
+                                    dl_ok, _msg = db.check_series(ep_dict, s_mag, '')
+                                    if not dl_ok:
+                                        db.requeue_pending(r['id'])
+                                        logger.info(f"⏭️  Skipping timeframe: {r['series_name']} S{r['season']:02d}E{r['episode']:02d} → {_msg}")
+                                        continue
                                     ok_send, used_cl = _send_with_fallback(s_mag)
                                     if ok_send:
                                         db.mark_downloaded(r['id'])
                                         logger.info(f"   ✅ DOWNLOAD TIMEFRAME EXPIRED: {r['series_name']} S{r['season']:02d}E{r['episode']:02d}")
                                         notifier.notify_download(r['series_name'], r['season'], r['episode'], r['best_title'], r['best_quality_score'], "timeframe")
+                                    else:
+                                        db.undo_episode_send(r['series_id'], r['season'], r['episode'], s_mag)
+                                        db.requeue_pending(r['id'])
                     except Exception as e:
                         logger.warning(f"   ⚠️  RSS Scan error: {e}")
             # --- END SOTTO-CICLO RSS ---

@@ -137,13 +137,23 @@ class TMDBClient:
 
         Interfaccia identica a TVDBClient per compatibilità con extto3.py.
         """
-        if db.is_tvdb_cache_fresh(series_id, self.cache_days):
+        # Prefer the configured TMDB ID. Older installations can contain a
+        # legacy cache value that was historically labelled tvdb_id.
+        configured_row = db.conn.execute(
+            "SELECT tmdb_id FROM series WHERE id=?", (series_id,)
+        ).fetchone()
+        configured_tmdb_id = (configured_row['tmdb_id'] if configured_row else None) or None
+        cached_tmdb_id = db.get_tvdb_id(series_id)
+
+        if db.is_tvdb_cache_fresh(series_id, self.cache_days) and (
+            not configured_tmdb_id or str(cached_tmdb_id) == str(configured_tmdb_id)
+        ):
             return False  # cache valida, niente da fare
 
         logger.debug(f"🌐 TMDB: aggiorno metadati per '{series_name}'")
 
-        # Riutilizziamo la colonna tvdb_id nel DB per salvare il tmdb_id
-        tmdb_id = db.get_tvdb_id(series_id)
+        # Riutilizziamo la colonna tvdb_id nel DB per salvare il tmdb_id.
+        tmdb_id = configured_tmdb_id or cached_tmdb_id
         if not tmdb_id:
             tmdb_id = self.resolve_series_id(series_name)
             if not tmdb_id:
@@ -219,10 +229,10 @@ class TMDBClient:
             from .models import normalize_series_name, _series_name_matches
             norm = normalize_series_name(series_name)
             c = db.conn.cursor()
-            c.execute("SELECT id, name FROM series")
+            c.execute("SELECT id, name, tmdb_id FROM series")
             for row in c.fetchall():
                 if _series_name_matches(normalize_series_name(row['name']), norm):
-                    tmdb_id = db.get_tvdb_id(row['id'])
+                    tmdb_id = row['tmdb_id'] or db.get_tvdb_id(row['id'])
                     if tmdb_id:
                         return tmdb_id
                     # trovata la serie ma tmdb_id non ancora in cache → cerca su TMDB

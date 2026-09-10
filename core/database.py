@@ -1264,6 +1264,15 @@ class Database:
         self.conn.commit()
         return c.rowcount == 1
 
+    def requeue_pending(self, pending_id: int):
+        """Rimette in attesa un timeframe non inviato al client."""
+        c = self.conn.cursor()
+        c.execute(
+            "UPDATE pending_downloads SET status='pending' WHERE id=? AND status='downloading'",
+            (pending_id,)
+        )
+        self.conn.commit()
+
     def reset_stale_downloading(self) -> int:
         """Al riavvio, rimette in 'pending' i download rimasti bloccati in stato 'downloading'.
         Questi torrent non sono mai stati completati (mark_downloaded li segna 'downloaded'),
@@ -1344,7 +1353,6 @@ class Database:
     # ------------------------------------------------------------------
 
     def check_series(self, ep: dict, magnet: str, quality_req: str):
-        from .config import Config  # imported here to avoid circular at module level
         from .models import normalize_series_name, _series_name_matches
 
         h = re.search(r'btih:([a-fA-F0-9]{40})', magnet, re.I)
@@ -1360,7 +1368,7 @@ class Database:
         # Matching robusto: normalizza il nome estratto e confronta con
         # tutti i nomi nel DB usando _series_name_matches (anti-ambiguità).
         norm_ep_name = normalize_series_name(ep['name'])
-        c.execute("SELECT id, name, aliases FROM series")
+        c.execute("SELECT id, name, aliases, enabled, ignored_seasons FROM series")
         matched_row = None
         for row in c.fetchall():
             if _series_name_matches(normalize_series_name(row['name']), norm_ep_name):
@@ -1377,6 +1385,17 @@ class Database:
         if not matched_row:
             return False, "No series"
         series_id = matched_row['id']
+
+        # This is the final gate for callers outside the regular RSS pipeline.
+        # A paused series or ignored season must never be sent to a client.
+        if not bool(matched_row['enabled']):
+            return False, "Series disabled"
+        try:
+            ignored_seasons = json.loads(matched_row['ignored_seasons'] or '[]')
+        except Exception:
+            ignored_seasons = []
+        if ep['season'] in ignored_seasons or str(ep['season']) in ignored_seasons:
+            return False, "Season ignored"
 
         # Duplicate hash
         c.execute("SELECT id FROM episodes WHERE magnet_hash = ?", (hash_val,))
@@ -1964,7 +1983,7 @@ class Database:
                    p.best_quality_score, p.best_title, s.name as series_name
             FROM pending_downloads p
             JOIN series s ON p.series_id = s.id
-            WHERE p.status = 'pending' AND
+            WHERE p.status = 'pending' AND s.enabled = 1 AND
                   datetime(p.first_seen_at, '+' || p.timeframe_hours || ' hours') <= datetime('now')
         """)
         return [dict(row) for row in c.fetchall()]
@@ -2006,6 +2025,15 @@ class Database:
         """
         now = datetime.now(timezone.utc).isoformat()
         c   = self.conn.cursor()
+        # TMDB returns the complete current season list. Drop stale rows left by
+        # an old or incorrect cached identifier before writing the fresh cache.
+        if not season_counts:
+            return
+        placeholders = ','.join('?' for _ in season_counts)
+        c.execute(
+            f"DELETE FROM series_metadata WHERE series_id=? AND season NOT IN ({placeholders})",
+            (series_id, *season_counts.keys())
+        )
         for season, count in season_counts.items():
             c.execute('''
                 INSERT INTO series_metadata (series_id, tvdb_id, season, expected_episodes, fetched_at)
