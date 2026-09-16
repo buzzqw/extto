@@ -1263,7 +1263,7 @@ const app = {
 
         return `
             <div class="card" style="display:flex;flex-direction:column;overflow:hidden;background:var(--bg-secondary);border:1px solid var(--border);transition:transform .2s,border-color .2s;" onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='var(--primary)'" onmouseleave="this.style.transform='';this.style.borderColor='var(--border)'">
-                <div style="position:relative;padding-top:150%;background:#1e293b;">
+                <a href="${tmdbLink}" target="_blank" rel="noopener noreferrer" aria-label="Apri ${title} su TMDB" style="position:relative;display:block;padding-top:150%;background:#1e293b;cursor:pointer;">
                     ${item.poster
                         ? `<img src="${posterUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;" loading="lazy">`
                         : `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#475569;"><i class="fa-solid fa-image fa-2x"></i></div>`}
@@ -1273,7 +1273,7 @@ const app = {
                     <div class="disc-overview-overlay" style="position:absolute;inset:0;background:rgba(15,23,42,0.93);padding:12px;overflow-y:auto;opacity:0;transition:opacity .22s;pointer-events:none;display:flex;align-items:flex-start;">
                         <p style="margin:0;font-size:0.8rem;color:#cbd5e1;line-height:1.5;">${overview}</p>
                     </div>
-                </div>
+                </a>
                 <div style="padding:12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:10px;">
                     <div>
                         <h4 style="margin:0;font-size:1rem;line-height:1.25;color:var(--text-primary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;" title="${title}">${title}</h4>
