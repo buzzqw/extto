@@ -476,20 +476,21 @@ def rename_completed_movie(torrent_name: str, save_path: str, cfg: dict) -> bool
 
 
 _TEMPLATE_PLACEHOLDER_RE = re.compile(
-    r'\{(Serie|Anno|Stagione|Episodio|Titolo|Risoluzione|VideoCodec|Audio|AudioCodec|Canali|HDR|Lingue)\}'
+    r'\{(Serie|Anno|Stagione|Episodio|Titolo|Source|Risoluzione|VideoCodec|Audio|AudioCodec|Canali|HDR|Lingue)\}'
 )
 # Placeholder "tag" che possono legittimamente risultare vuoti (HDR solo per
-# contenuti HDR, Anno se TMDB non lo trova) — in quel caso _build_filename
+# contenuti HDR, Anno se TMDB non lo trova, Source se non ricavabile) — in quel caso _build_filename
 # rimuove il blocco [{...}]/({...}) PER INTERO, quindi qui l'intero blocco
 # (parentesi comprese) va reso opzionale, non solo il contenuto.
 # Gli altri tag (Risoluzione/VideoCodec/Audio/AudioCodec/Canali/Lingue) sono
 # sempre valorizzati da mediainfo su un file analizzato correttamente: se il
 # loro blocco manca, il file NON è ancora nel formato giusto — vanno quindi
 # tenuti obbligatori (solo il contenuto è jolly, le parentesi restano fisse).
-_WRAPPED_PLACEHOLDER_RE = re.compile(r'([\[(])\{(HDR|Anno)\}([\])])')
+_WRAPPED_PLACEHOLDER_RE = re.compile(r'([\[(])\{(HDR|Anno|Source)\}([\])])')
 _TEMPLATE_WILDCARDS = {
     'Anno':         r'(?:\(\d{4}\))?',
     'Titolo':       r'.+',
+    'Source':       r'.*',
     'Risoluzione':  r'.*',
     'VideoCodec':   r'.*',
     'Audio':        r'.*',
@@ -517,12 +518,18 @@ def _pattern_regex(series_name: str, season: int, episode: int,
 
     if fmt == 'custom' and template_str:
         # Prima passata: blocchi tag avvolti singolarmente tra [] o () — l'intero
-        # blocco (parentesi comprese) è opzionale, perché _build_filename lo
-        # rimuove del tutto quando il valore è vuoto (es. nessun tag HDR).
+        # blocco (spazio e parentesi comprese) è opzionale, perché
+        # _build_filename lo rimuove del tutto quando il valore è vuoto
+        # (es. nessun tag HDR).
         wrapped_spans = []
         for m in _WRAPPED_PLACEHOLDER_RE.finditer(template_str):
+            w_start = m.start()
+            leading_space = ''
+            if w_start > 0 and template_str[w_start - 1].isspace():
+                w_start -= 1
+                leading_space = r'\s'
             open_c, close_c = re.escape(m.group(1)), re.escape(m.group(3))
-            wrapped_spans.append((m.start(), m.end(), f'(?:{open_c}.*?{close_c})?'))
+            wrapped_spans.append((w_start, m.end(), f'(?:{leading_space}{open_c}.*?{close_c})?'))
 
         subs = dict(_TEMPLATE_WILDCARDS)
         subs['Serie']     = s_name

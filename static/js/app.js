@@ -1793,7 +1793,9 @@ const app = {
                             <input type="checkbox" class="series-checkbox" data-name="${this.escapeHtml(s.name)}" style="width:1rem;height:1rem;cursor:pointer;flex-shrink:0;" ${wasSel ? 'checked' : ''} onchange="app._onSeriesCheckChange()">
                             <div style="display:flex; flex-direction:column; min-width:0;">
                                 <div class="series-name-row">
-                                    <strong title="${this.escapeHtml(s.name)}">${this.escapeHtml(s.name)}</strong>
+                                    <strong class="series-name-link" role="button" tabindex="0" title="Dettagli Serie"
+                                        onclick="app.showEpisodes(${seriesId}, '${this.escapeJs(s.name)}')"
+                                        onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); app.showEpisodes(${seriesId}, '${this.escapeJs(s.name)}'); }">${this.escapeHtml(s.name)}</strong>
                                     ${arch ? `<span class="series-archive-inline" title="${arch}"><i class="fa-regular fa-folder-open"></i>${arch}</span>` : ''}
                                 </div>
                             </div>
@@ -5514,6 +5516,14 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         const btnSelector = 'button[onclick="app.bulkRenameEpisodes()"]';
         const btn = document.querySelector(btnSelector);
         let originalHtml = '';
+
+        const scanAll = confirm(
+            `${t('Scegli il tipo di controllo')}\n\n` +
+            `${t('OK = controlla tutte le puntate')}\n` +
+            `${t('Annulla = controlla solo i nomi non conformi')}`
+        );
+        const scanScope = scanAll ? 'all' : 'nonconforming';
+
         if (btn) {
             originalHtml = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Inizializzazione...';
@@ -5526,7 +5536,7 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         this.startRenamePolling(btnSelector, originalHtml);
         
         try {
-            const res = await fetch(`${API_BASE}/api/series/${this.currentSeriesId}/rename-preview`);
+            const res = await fetch(`${API_BASE}/api/series/${this.currentSeriesId}/rename-preview?scope=${scanScope}`);
             const data = await res.json();
             
             // Ferma il polling preventivamente in caso di errori rapidi

@@ -745,6 +745,9 @@ Rimuovi Torrent: Remove Torrent
 Rinomina fisica dei file in corso...: Physically renaming files...
 Rinomina puntate: Rename episodes
 Rinomina tutti i file fisici usando i titoli ufficiali: Physically rename all files using official titles
+Scegli il tipo di controllo: Choose the check type
+OK = controlla tutte le puntate: OK = check all episodes
+Annulla = controlla solo i nomi non conformi: Cancel = check only non-conforming names
 Riprendi: Resume
 Ripristina Default: Restore Defaults
 'Ripristinare tutti i punteggi ai valori predefiniti di fabbrica?': 'Restore all scores to factory default values?'

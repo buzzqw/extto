@@ -7384,7 +7384,7 @@ def rename_preview(series_id):
     try:
         from core.config import Config
         from core.tmdb import TMDBClient
-        from core.renamer import _build_filename, _VIDEO_EXTS
+        from core.renamer import _build_filename, _VIDEO_EXTS, _looks_renamed
         import os
         import re
 
@@ -7411,13 +7411,10 @@ def rename_preview(series_id):
             return jsonify({'success': False, 'error': 'Percorso archivio della serie non trovato sul disco.'})
 
         force_reprocess = request.args.get('force', '0') == '1'
-
-        tmdb = TMDBClient(api_key, cache_days=int(getattr(cfg, 'tmdb_cache_days', 7)))
-        tmdb_id = tmdb.get_tmdb_id_for_series(db, series_name)
-        if not tmdb_id:
-            tmdb_id = tmdb.resolve_series_id(series_name)
-        if not tmdb_id:
-            return jsonify({'success': False, 'error': 'Serie non identificata su TMDB.'})
+        # La modalità veloce evita TMDB/MediaInfo per i file che rispettano
+        # già la struttura del formato configurato. force=1 mantiene il
+        # comportamento completo usato dal pulsante "riprocessa tutto".
+        scan_all = force_reprocess or request.args.get('scope', 'all') == 'all'
 
         cfg_data        = Config()
         rename_fmt      = str(getattr(cfg_data, 'rename_format', 'base')).strip().lower()
@@ -7425,15 +7422,34 @@ def rename_preview(series_id):
         if rename_fmt not in ('base', 'standard', 'completo', 'custom'):
             rename_fmt = 'base'
 
+        tmdb = None
+        tmdb_id = None
         series_year = None
-        if rename_fmt != 'base':
-            try:
-                td = tmdb._get(f'/tv/{tmdb_id}', {'language': tmdb.language})
-                d  = (td or {}).get('first_air_date', '')
-                series_year = d[:4] if d and len(d) >= 4 else None
-            except Exception as e:
-                logger.debug(f"series_year TMDB: {e}")
-                pass
+
+        def _ensure_tmdb():
+            """Inizializza TMDB solo quando serve una rinomina reale."""
+            nonlocal tmdb, tmdb_id, series_year
+            if tmdb is not None:
+                return bool(tmdb_id)
+
+            tmdb = TMDBClient(api_key, cache_days=int(getattr(cfg, 'tmdb_cache_days', 7)))
+            tmdb_id = tmdb.get_tmdb_id_for_series(db, series_name)
+            if not tmdb_id:
+                tmdb_id = tmdb.resolve_series_id(series_name)
+            if not tmdb_id:
+                return False
+
+            if rename_fmt != 'base':
+                try:
+                    td = tmdb._get(f'/tv/{tmdb_id}', {'language': tmdb.language})
+                    d  = (td or {}).get('first_air_date', '')
+                    series_year = d[:4] if d and len(d) >= 4 else None
+                except Exception as e:
+                    logger.debug(f"series_year TMDB: {e}")
+            return True
+
+        if scan_all and not _ensure_tmdb():
+            return jsonify({'success': False, 'error': 'Serie non identificata su TMDB.'})
 
         _gmt = None
         _mediainfo_ok = False
@@ -7525,7 +7541,22 @@ def rename_preview(series_id):
                 q = Parser.parse_quality(fname)
                 current_score = q.score() if hasattr(q, 'score') else 0
 
-                ep_title = tmdb.fetch_episode_title(tmdb_id, sea, epi) if tmdb_id else None
+                if not scan_all and _looks_renamed(
+                        fname, series_name, sea, epi, rename_fmt, rename_template):
+                    video_renames[fname] = fname
+                    if (sea, epi) not in best_score_map or current_score > best_score_map.get((sea, epi), -1):
+                        best_base_map[(sea, epi)] = base_name
+                        old_best_video_map[(sea, epi)] = base_name
+                        best_score_map[(sea, epi)] = current_score
+                    already_ok_list.append(fname)
+                    continue
+
+                if not _ensure_tmdb():
+                    with _rename_progress_lock:
+                        RENAME_PROGRESS["status"] = "idle"
+                    return jsonify({'success': False, 'error': 'Serie non identificata su TMDB.'})
+
+                ep_title = tmdb.fetch_episode_title(tmdb_id, sea, epi)
                 tags = {}
                 if _mediainfo_ok and _gmt:
                     try:

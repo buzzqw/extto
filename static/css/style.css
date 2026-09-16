@@ -607,6 +607,12 @@ select option {
     color: var(--text-primary); flex-shrink: 0; max-width: 100%;
     font-weight: 600;
 }
+.series-name-link { cursor: pointer; }
+.series-name-link:hover, .series-name-link:focus-visible {
+    color: var(--primary-light);
+    text-decoration: underline;
+    outline: none;
+}
 .series-archive-inline {
     font-size: 0.72rem; color: var(--text-muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
