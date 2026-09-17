@@ -7,10 +7,10 @@
 ### *The All-in-One Media Automation System*
 
 **Stop running 5 bloated apps to manage your media.**  
-EXTTO is a single, lightweight Python daemon that does everything — from RSS monitoring to Telegram notifications — with a beautiful Web UI you'll actually enjoy using.
+EXTTO is a lightweight Python system with an engine and Web UI that handles everything — from RSS monitoring to Telegram notifications — in one place.
 
 [![License: EUPL 1.2](https://img.shields.io/badge/License-EUPL%201.2-blue.svg)](EUPL-1.2%20EN.txt)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-f7c948.svg)](https://www.python.org/)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-f7c948.svg)](https://www.python.org/)
 [![Self-Hosted](https://img.shields.io/badge/Self--Hosted-✓-2ea44f.svg)]()
 [![Donate](https://img.shields.io/badge/❤️_Support_EXTTO-PayPal-00457C.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=azanzani@gmail.com&item_name=Support+EXTTO+Project)
 
@@ -41,7 +41,7 @@ RSS feeds → Smart search → Auto-download → Rename & Archive → Telegram n
 | Comic book support | **✅ Native** | ❌ Needs Mylar |
 | eMule / eD2k fallback | **✅ Built-in** | ❌ Not possible |
 | RAM disk downloads | **✅ Built-in** | ❌ Not possible |
-| Multi-engine web search | **✅ 6 engines** | ❌ Indexer only |
+| Multi-engine web search | **✅ 9 engines** | ❌ Indexer only |
 | Cloudflare bypass | **✅ FlareSolverr** | ❌ Not possible |
 | Tag-based folder routing | **✅ Built-in** | ❌ Manual |
 | Webhook notifications | **✅ Built-in** | ❌ Via plugins only |
@@ -97,6 +97,9 @@ Two levels of filtering: the **Blacklist** blocks at parse time but still archiv
 ### 🌐 Browser Integration
 Click a `magnet:` link or a `.torrent` file anywhere in your browser — EXTTO receives it instantly. One-time setup via a script generated directly from the Web UI, already configured with your server URL.
 
+### 🔒 Safe Archive Downloads
+The archive shows direct magnets and public `.torrent` URLs that the server can reach safely. Links pointing to `localhost`, loopback, private or reserved networks are hidden from the archive and blocked by the URL downloader to prevent unsafe server-side requests.
+
 ### 🔔 Webhook Notifications
 Connect EXTTO to any external service — **ntfy, Gotify, n8n, Home Assistant, Make, Zapier** — with a single URL.  
 Every download, upgrade, gap-fill, and system event fires a signed JSON POST to your endpoint.  
@@ -126,10 +129,10 @@ Beyond the global blacklist, each series or movie can carry its own **exclude wo
 Every torrent EXTTO accepts is tagged with its **origin** (Jackett, ThePirateBay, Knaben, RSS Feed, Timeframe, Comics…). Visible in the download list and useful to trace retrospectively where a file came from.
 
 ### 🔒 Privacy First
-VPN killswitch that binds all traffic to `tun0`/`wg0`. Automatic IP blocklist updates. Your downloads stay private.
+VPN killswitch that binds BitTorrent traffic to `tun0`/`wg0`. Automatic IP blocklist updates. Your downloads stay private.
 
 ### 🌍 Fully Multilingual
-Web UI available in **Italian, English, German, French, Spanish**. Translations managed via YAML files — easy to extend.
+Web UI available in **Italian, English, German, French, Spanish**. Translations are stored in the configuration database and can be imported/exported as YAML files.
 
 ---
 
@@ -235,7 +238,7 @@ EXTTO is a **download automation tool**. It does not host, index, or distribute 
 ### *Il Sistema di Automazione Media Definitivo*
 
 **Basta tenere accesi 5 programmi pesanti per gestire i tuoi media.**  
-EXTTO è un singolo, leggerissimo servizio Python che fa tutto — dal monitoraggio RSS alle notifiche Telegram — con una Web UI moderna che userai volentieri.
+EXTTO è un leggero sistema Python con motore e Web UI che gestisce tutto — dal monitoraggio RSS alle notifiche Telegram — in un unico posto.
 
 </div>
 
@@ -318,6 +321,9 @@ Due livelli di filtraggio: la **Blacklist** blocca al parsing ma archivia comunq
 ### 🌐 Integrazione Browser
 Clicca su un link `magnet:` o su un file `.torrent` ovunque nel browser — EXTTO lo riceve istantaneamente. Setup unico via uno script generato direttamente dalla Web UI, già configurato con l'URL del tuo server.
 
+### 🔒 Download Sicuri dall'Archivio
+L'archivio mostra magnet diretti e URL `.torrent` pubblici raggiungibili dal server in sicurezza. I link verso `localhost`, loopback, reti private o indirizzi riservati vengono nascosti e bloccati dal downloader per impedire richieste server-side non sicure.
+
 ### 🔔 Notifiche Webhook
 Collega EXTTO a qualsiasi servizio esterno — **ntfy, Gotify, n8n, Home Assistant, Make, Zapier** — con un solo URL.  
 Ogni download, upgrade, gap-fill ed evento di sistema invia un POST JSON firmato al tuo endpoint.  
@@ -347,10 +353,10 @@ Oltre alla blacklist globale, ogni serie o film può avere la propria **lista di
 Ogni torrent accettato da EXTTO viene etichettato con la **sorgente di provenienza** (Jackett, ThePirateBay, Knaben, Feed RSS, Timeframe, Fumetti…). Visibile nella lista download, utile per risalire retrospettivamente all'origine di un file.
 
 ### 🔒 Privacy Prima di Tutto
-VPN killswitch che vincola il traffico a `tun0`/`wg0`. Aggiornamento automatico delle IP blocklist. I tuoi download restano privati.
+VPN killswitch che vincola il traffico BitTorrent a `tun0`/`wg0`. Aggiornamento automatico delle IP blocklist. I tuoi download restano privati.
 
 ### 🌍 Completamente Multilingua
-Web UI disponibile in **Italiano, Inglese, Tedesco, Francese, Spagnolo**. Traduzioni gestite via file YAML — facile da estendere.
+Web UI disponibile in **Italiano, Inglese, Tedesco, Francese, Spagnolo**. Le traduzioni sono salvate nel database di configurazione e possono essere importate/esportate come file YAML.
 
 ---
 

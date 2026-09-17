@@ -61,19 +61,19 @@
                     <div id="manual-content">                        <div class="man-section" id="man-series">
                             <div class="man-section-header">
                                 <span class="man-section-num">01</span>
-                                <h2>Serie TV — Formato configurazione</h2>
+                                <h2>Serie TV — Configurazione</h2>
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
-                                <p>Ogni serie è definita su una singola riga nel file <code>series_config.txt</code> con i campi separati da <code>|</code>.</p>
+                                <p>Le serie si configurano dalla Web UI nella sezione <strong>Serie TV</strong> e vengono salvate in <code>extto_config.db</code> (impostazioni della serie nella tabella <code>series</code>). I file <code>series_config.txt</code> e <code>series.txt</code> appartengono al vecchio formato e vengono usati solo per la migrazione iniziale.</p>
 
                                 <div class="man-syntax">
-                                    <div class="man-syntax-label">Formato</div>
+                                    <div class="man-syntax-label">Formato legacy / campi</div>
                                     <code>Nome | Stagioni | Qualità | Lingua | Abilitato | Path (opz.) | Timeframe (opz.) | alias=... (opz.)</code>
                                 </div>
 
                                 <div class="man-syntax">
-                                    <div class="man-syntax-label">Esempi</div>
+                                    <div class="man-syntax-label">Esempi per migrazione</div>
                                     <code>Il Medico di Guardia | 1+ | 720p-1080p | ita | yes | /media/serie/Il Medico di Guardia</code><br>
                                     <code>Agenti Speciali | 1+ | 1080p | ita | yes | /media/serie/Agenti Speciali | alias=A.S.,Special Agents</code><br>
                                     <code>Il Viaggiatore (2023) | 1+ | 720p+ | ita | no</code>
@@ -268,7 +268,7 @@
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
-                                <p>Client BitTorrent integrato direttamente in EXTTO. Non richiede applicazioni esterne. Basato su <em>libtorrent-rasterbar</em> (la stessa libreria usata da qBittorrent). Configurazione tramite prefisso <code>@libtorrent_</code>.</p>
+                                <p>Client BitTorrent integrato direttamente in EXTTO. Non richiede applicazioni esterne. Basato su <em>libtorrent-rasterbar</em> (la stessa libreria usata da qBittorrent). Configurazione tramite le impostazioni con prefisso <code>libtorrent_</code>.</p>
                                 
                                 <div class="man-subsection">Stati del Torrent (Legenda)</div>
                                 <p>Nell'interfaccia <strong>Torrent Manager</strong>, lo stato di ogni download riflette l'operazione corrente del motore <em>libtorrent</em>. Ecco cosa significano le varie etichette:</p>
@@ -561,7 +561,7 @@
                                 <div class="man-params">
                                     <div class="man-param">
                                         <div class="man-param-name">Spazio Disco Esaurito</div>
-                                        <div class="man-param-desc">Se lo spazio libero nella cartella di download scende sotto la soglia <code>@min_free_space_gb</code>, viene inviato un avviso con i GB residui e la soglia configurata. La notifica viene ripetuta al massimo <strong>ogni 24 ore</strong> finché il problema persiste. Non appena lo spazio viene recuperato, il timer si azzera.</div>
+                                        <div class="man-param-desc">Se lo spazio libero nella cartella di download scende sotto la soglia <code>min_free_space_gb</code>, viene inviato un avviso con i GB residui e la soglia configurata. La notifica viene ripetuta al massimo <strong>ogni 24 ore</strong> finché il problema persiste. Non appena lo spazio viene recuperato, il timer si azzera.</div>
                                     </div>
                                     <div class="man-param">
                                         <div class="man-param-name">Sovraccarico CPU/RAM</div>
@@ -601,7 +601,7 @@
                             </div>
                             <div class="man-section-body">
                                 <div class="man-subsection">Sorgenti URL</div>
-                                <p>EXTTO supporta quattro tipi di sorgente URL configurabili tramite <code>@url</code>. Ogni URL viene interrogato ad ogni ciclo; puoi aggiungerne quanti vuoi. Il tipo viene rilevato automaticamente dall'URL.</p>
+                                <p>EXTTO supporta quattro tipi di sorgente URL configurabili dalla scheda <strong>Configurazione → Fonti</strong>. Gli URL vengono salvati in <code>extto_config.db</code> e interrogati ad ogni ciclo; puoi aggiungerne quanti vuoi. Il tipo viene rilevato automaticamente dall'URL.</p>
                                 <div class="man-params">
                                     <div class="man-param">
                                         <div class="man-param-name">ext.to</div>
@@ -662,14 +662,19 @@
                                 </div>
 
                                 <div class="man-subsection">Indexer Torznab — Jackett e Prowlarr</div>
-                                <p>EXTTO supporta <strong>Jackett</strong> e <strong>Prowlarr</strong> simultaneamente: puoi configurarne uno, l'altro, o entrambi. Quando entrambi sono attivi EXTTO li interroga in parallelo e deduplica i risultati per hash. Il tipo viene rilevato automaticamente dall'URL (porta 9696 o nome host "prowlarr" → Prowlarr, altrimenti Jackett).</p>
+                                <p>EXTTO supporta <strong>Jackett</strong> e <strong>Prowlarr</strong> simultaneamente: puoi configurarne uno, l'altro, o entrambi. Quando entrambi sono attivi EXTTO li interroga e deduplica i risultati per hash. Il tipo viene rilevato automaticamente dall'URL (porta 9696 o nome host "prowlarr" → Prowlarr, altrimenti Jackett).</p>
                                 <div class="man-params">
-                                    <div class="man-param"><div class="man-param-name">@jackett_url</div><div class="man-param-desc">URL dell'istanza Jackett. Esempio: <code>http://192.168.1.100:9117</code>. Lascia vuoto per disabilitare Jackett.</div></div>
-                                    <div class="man-param"><div class="man-param-name">@jackett_api</div><div class="man-param-desc">API key di Jackett (in alto a destra nella dashboard). Obbligatoria se <code>jackett_url</code> è configurato.</div></div>
-                                    <div class="man-param"><div class="man-param-name">@prowlarr_url</div><div class="man-param-desc">URL dell'istanza Prowlarr. Esempio: <code>http://192.168.1.100:9696</code>. Compatibile in parallelo con Jackett. Lascia vuoto per disabilitare.</div></div>
-                                    <div class="man-param"><div class="man-param-name">@prowlarr_api</div><div class="man-param-desc">API key di Prowlarr: Impostazioni → Sicurezza → Chiave API. Obbligatoria se <code>prowlarr_url</code> è configurato.</div></div>
-                                    <div class="man-param"><div class="man-param-name">@jackett_save_to_archive</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>yes</code>). Se <code>no</code>, i risultati Jackett non vengono scritti in <code>extto_archive.db</code>. Utile per evitare la crescita incontrollata del database quando Jackett restituisce migliaia di risultati per ciclo.</div></div>
-                                    <div class="man-param"><div class="man-param-name">@prowlarr_save_to_archive</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>yes</code>). Come sopra ma per i risultati Prowlarr.</div></div>
+                                    <div class="man-param"><div class="man-param-name">jackett_url</div><div class="man-param-desc">URL dell'istanza Jackett. Esempio: <code>http://192.168.1.100:9117</code>. Lascia vuoto per disabilitare Jackett.</div></div>
+                                    <div class="man-param"><div class="man-param-name">jackett_api</div><div class="man-param-desc">API key di Jackett (in alto a destra nella dashboard). Obbligatoria se <code>jackett_url</code> è configurato.</div></div>
+                                    <div class="man-param"><div class="man-param-name">prowlarr_url</div><div class="man-param-desc">URL dell'istanza Prowlarr. Esempio: <code>http://192.168.1.100:9696</code>. Compatibile in parallelo con Jackett. Lascia vuoto per disabilitare.</div></div>
+                                    <div class="man-param"><div class="man-param-name">prowlarr_api</div><div class="man-param-desc">API key di Prowlarr: Impostazioni → Sicurezza → Chiave API. Obbligatoria se <code>prowlarr_url</code> è configurato.</div></div>
+                                    <div class="man-param"><div class="man-param-name">jackett_save_to_archive</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>yes</code>). Se <code>no</code>, i risultati Jackett non vengono scritti in <code>extto_archive.db</code>. Utile per evitare la crescita incontrollata del database quando Jackett restituisce migliaia di risultati per ciclo.</div></div>
+                                    <div class="man-param"><div class="man-param-name">prowlarr_save_to_archive</div><div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>yes</code>). Come sopra ma per i risultati Prowlarr.</div></div>
+                                </div>
+
+                                <div class="man-callout man-callout-warn">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                    <div><strong>Nota sui link degli indexer:</strong> gli indirizzi privati come <code>http://192.168.1.100:9117</code> sono corretti per interrogare Jackett dal server. Se però un risultato contiene un URL diretto al file <code>.torrent</code> con host locale o privato, quel risultato viene escluso dall'Archivio e il downloader lo blocca per sicurezza. I magnet diretti e gli URL pubblici restano utilizzabili.</div>
                                 </div>
 
                                 <div class="man-subsection">FlareSolverr — Bypass Cloudflare</div>
@@ -677,7 +682,7 @@
                                 <p>Installazione: <code>docker run -d --name flaresolverr -p 8191:8191 ghcr.io/flaresolverr/flaresolverr:latest</code></p>
                                 <p>Una volta avviato, inserisci l'URL in <strong>Configurazione → Integrazioni → FlareSolverr URL</strong> (es. <code>http://192.168.1.x:8191</code>) e usa il bottone <em>Testa Connessione</em> per verificare.</p>
                                 <div class="man-params">
-                                    <div class="man-param"><div class="man-param-name">@flaresolverr_url</div><div class="man-param-desc">URL del servizio FlareSolverr. Esempio: <code>http://192.168.1.161:8191</code>. Lascia vuoto per disabilitare. Senza FlareSolverr, ext.to e i motori web dietro Cloudflare restituiranno 403.</div></div>
+                                    <div class="man-param"><div class="man-param-name">flaresolverr_url</div><div class="man-param-desc">URL del servizio FlareSolverr. Esempio: <code>http://192.168.1.161:8191</code>. Lascia vuoto per disabilitare. Senza FlareSolverr, ext.to e i motori web dietro Cloudflare restituiranno 403.</div></div>
                                 </div>
 
                                 <div class="man-subsection">Motori di Ricerca Web</div>
@@ -694,7 +699,7 @@
                                     <li><strong>TorrentsCSV</strong> (<code>torrents-csv.com</code>) — database DHT con API JSON, no Cloudflare, no autenticazione. Tra i più affidabili.</li>
                                 </ul>
                                 <div class="man-params">
-                                    <div class="man-param"><div class="man-param-name">@websearch_engines</div><div class="man-param-desc">Lista di motori abilitati separati da virgola. Valori validi: <code>bitsearch</code>, <code>tpb</code>, <code>knaben</code>, <code>nyaa</code>, <code>eztv</code>, <code>btdig</code>, <code>limetorrents</code>, <code>torrentz2</code>, <code>torrentscsv</code>. Esempio: <code>bitsearch,knaben,nyaa,eztv</code>. Lascia vuoto per disabilitare tutti.</div></div>
+                                    <div class="man-param"><div class="man-param-name">websearch_engines</div><div class="man-param-desc">Lista di motori abilitati separati da virgola. Valori validi: <code>bitsearch</code>, <code>tpb</code>, <code>knaben</code>, <code>nyaa</code>, <code>eztv</code>, <code>btdig</code>, <code>limetorrents</code>, <code>torrentz2</code>, <code>torrentscsv</code>. Esempio: <code>bitsearch,knaben,nyaa,eztv</code>. Lascia vuoto per disabilitare tutti.</div></div>
                                 </div>
 
                                 <div class="man-subsection">Parametri di Ricerca</div>
@@ -843,7 +848,7 @@
 
                                 <div class="man-subsection" style="font-size:.85rem;margin-top:1rem;">Stati episodio</div>
                                 <ul>
-                                    <li><strong style="color:#34d399;">🏠 NAS</strong> — file presente fisicamente sul NAS nel <code>@archive_path</code> configurato per la serie.</li>
+                                    <li><strong style="color:#34d399;">🏠 NAS</strong> — file presente fisicamente sul NAS nel percorso archivio configurato per la serie.</li>
                                     <li><strong style="color:var(--success);">✓ Scaricato</strong> — episodio presente nel database, file trovato sul NAS.</li>
                                     <li><strong style="color:var(--danger);">⚠ Mancante</strong> — episodio non ancora trovato in nessun ciclo.</li>
                                     <li><strong style="color:#f97316;">🛰 In feed</strong> — episodio rilevato in almeno un feed RSS ma non scaricato: qualità o lingua non soddisfacevano i requisiti configurati. Il motore continuerà a monitorarlo.</li>
@@ -891,8 +896,8 @@
                                 <div class="man-subsection">Selezione Massiva e Azioni Batch</div>
                                 <p>La barra superiore della tabella archivio contiene la <strong>checkbox "Seleziona tutto"</strong> (agisce sulla pagina corrente) e tre pulsanti batch che si attivano non appena almeno un elemento è selezionato:</p>
                                 <ul>
-                                    <li><i class="fa-solid fa-download"></i> <strong>Scarica</strong> — invia i magnet link selezionati al client torrent attivo (qBittorrent, Transmission o libtorrent).</li>
-                                    <li><i class="fa-regular fa-copy"></i> <strong>Copia</strong> — copia tutti i magnet link selezionati negli appunti, uno per riga.</li>
+                                    <li><i class="fa-solid fa-download"></i> <strong>Scarica</strong> — invia i magnet link o gli URL pubblici <code>.torrent</code> selezionati al client torrent attivo.</li>
+                                    <li><i class="fa-regular fa-copy"></i> <strong>Copia</strong> — copia tutti i link selezionati negli appunti, uno per riga.</li>
                                     <li><i class="fa-solid fa-trash"></i> <strong>Elimina</strong> — rimuove i record selezionati dall'archivio DB. Operazione irreversibile: viene richiesta conferma.</li>
                                 </ul>
                                 <p>Ogni riga ha anche un pulsante <strong><i class="fa-solid fa-magnifying-glass"></i> TMDB</strong> che "pulisce" in automatico il nome del file per cercarne subito la trama e i metadati ufficiali, oltre ai tre pulsanti individuali (Scarica / Copia / Elimina) per le azioni rapide su singolo elemento.</p>
@@ -903,13 +908,13 @@
                                 </div>
 
                                 <div class="man-subsection" style="margin-top:1.5rem;">Manutenzione DB — Pulizia e Ottimizzazione SQLite</div>
-                                <p>Nella sezione <strong>Manutenzione DB</strong> della Web UI puoi tenere sotto controllo le dimensioni dei file e la percentuale di frammentazione. Sono disponibili tre comandi essenziali:</p>
+                                <p>Nella sezione <strong>Manutenzione DB</strong> della Web UI puoi tenere sotto controllo le dimensioni dei file e la percentuale di frammentazione. Sono disponibili i seguenti comandi principali:</p>
                                 <ul>
                                     <li><strong>Pulizia Profonda (Pruning):</strong> Elimina fisicamente i record dei torrent vecchi (es. di oltre 30 giorni) e non scaricati, alleggerendo la memoria.</li>
-                                    <li><strong>Pulizia Cestino:</strong> Elimina fisicamente i file nella cartella <code>@trash_path</code> più vecchi di <code>@trash_retention_days</code> giorni. Il pulsante <strong>Pulisci Cestino Ora</strong> esegue l'operazione manualmente; la stessa pulizia avviene anche automaticamente ad ogni ciclo del motore se il parametro è configurato.</li>
+                                    <li><strong>Pulizia Cestino:</strong> Elimina fisicamente i file nella cartella <code>trash_path</code> più vecchi di <code>trash_retention_days</code> giorni. Il pulsante <strong>Pulisci Cestino Ora</strong> esegue l'operazione manualmente; la stessa pulizia avviene anche automaticamente ad ogni ciclo del motore se il parametro è configurato.</li>
                                     <li><strong>VACUUM:</strong> Dopo un pruning o l'eliminazione di molti torrent, SQLite lascia dei "buchi vuoti" nel file per riciclarli. Il comando VACUUM deframmenta il file, compattandolo e facendogli recuperare tutti i Megabyte fisici sul disco.</li>
                                     <li><strong>ANALYZE:</strong> Ricalcola gli indici interni. Risolve rallentamenti inspiegabili se l'archivio è molto grande.</li>
-                                    <li><strong>Ricalcola Score Episodi:</strong> Ricalcola il <code>quality_score</code> di tutti gli episodi nel database. Usa una cascata di fonti in ordine di priorità: (1) <code>original_title</code> salvato al download, (2) titolo torrent da <code>episode_feed_matches</code> con <code>fail_reason='downloaded'</code>, (3) miglior titolo da <code>episode_feed_matches</code>, (4) file fisico sul NAS scansionando il <code>@archive_path</code> configurato in <code>series.txt</code>, (5) titolo rinominato come ultimo tentativo. Aggiorna anche <code>episode_archive_presence</code> in sincronia per evitare che extto rimandi in download episodi già presenti sul NAS con score aggiornato. Utile dopo una modifica ai pesi del sistema di punteggio o dopo un aggiornamento di extto che ha migliorato il parser qualità.</li>
+                                    <li><strong>Ricalcola Score Episodi:</strong> Ricalcola il <code>quality_score</code> di tutti gli episodi nel database. Usa una cascata di fonti in ordine di priorità: (1) <code>original_title</code> salvato al download, (2) titolo torrent da <code>episode_feed_matches</code> con <code>fail_reason='downloaded'</code>, (3) miglior titolo da <code>episode_feed_matches</code>, (4) file fisico sul NAS scansionando il percorso archivio configurato nella tabella <code>series</code> di <code>extto_series.db</code>, (5) titolo rinominato come ultimo tentativo. Aggiorna anche <code>episode_archive_presence</code> in sincronia per evitare che extto rimandi in download episodi già presenti sul NAS con score aggiornato. Utile dopo una modifica ai pesi del sistema di punteggio o dopo un aggiornamento di extto che ha migliorato il parser qualità.</li>
                                 </ul>
 
                                 <div class="man-params" style="margin-top:1.5rem;">
@@ -927,7 +932,7 @@
                                     </div>
                                 </div>
                                 <div class="man-subsection" style="margin-top:1rem;">Controllo dimensioni con Jackett/Prowlarr</div>
-                                <p>Con indexer attivi, archive.db può crescere rapidamente. Usa <code>@jackett_save_to_archive = no</code> o <code>@prowlarr_save_to_archive = no</code> in extto.conf (o dal toggle in Configurazione → Avanzate) per disabilitare il salvataggio selettivamente. I download continuano a funzionare — solo la cache in archive.db è disabilitata.</p>
+                                <p>Con indexer attivi, archive.db può crescere rapidamente. Usa i toggle <code>jackett_save_to_archive</code> e <code>prowlarr_save_to_archive</code> nella configurazione (salvati in <code>extto_config.db</code>) per disabilitare il salvataggio selettivamente. I download continuano a funzionare — solo la cache in archive.db è disabilitata.</p>
                             </div>
                         </div>
 
@@ -940,15 +945,15 @@
                             <div class="man-section-body">
                                 <div class="man-params">
                                     <div class="man-param">
-                                        <div class="man-param-name">@blacklist</div>
-                                        <div class="man-param-desc">Parola vietata nei titoli dei torrent. Un torrent che contiene la parola (come token separato, case-insensitive) viene scartato immediatamente. Possono essere configurate più voci con righe <code>@blacklist</code> separate. Valori predefiniti già inclusi: <code>cam</code>, <code>hdcam</code>, <code>ts</code>, <code>telesync</code>, <code>screener</code>, <code>sample</code>. Esempi comuni da aggiungere: <code>subita</code> (se si vuole solo audio italiano), <code>dubbed</code>, <code>hardcoded</code>.</div>
+                                        <div class="man-param-name">blacklist</div>
+                                        <div class="man-param-desc">Parola vietata nei titoli dei torrent. Un torrent che contiene la parola (come token separato, case-insensitive) viene scartato immediatamente. Possono essere configurate più voci <code>blacklist</code> separate. Valori predefiniti già inclusi: <code>cam</code>, <code>hdcam</code>, <code>ts</code>, <code>telesync</code>, <code>screener</code>, <code>sample</code>. Esempi comuni da aggiungere: <code>subita</code> (se si vuole solo audio italiano), <code>dubbed</code>, <code>hardcoded</code>.</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">@wantedlist</div>
-                                        <div class="man-param-desc">Parola obbligatoria nei titoli dei torrent. Se configurata, un torrent viene accettato <em>solo</em> se contiene <strong>tutte</strong> le parole della wantedlist. Utile per forzare la presenza di un token specifico. Esempio: <code>@wantedlist = ita</code> forza la presenza del token <em>ita</em> nel titolo (attenzione: potrebbe entrare in conflitto con il filtro lingua per serie non italiane).</div>
+                                        <div class="man-param-name">wantedlist</div>
+                                        <div class="man-param-desc">Parola obbligatoria nei titoli dei torrent. Se configurata, un torrent viene accettato <em>solo</em> se contiene <strong>tutte</strong> le parole della wantedlist. Utile per forzare la presenza di un token specifico. Esempio: <code>wantedlist = ita</code> forza la presenza del token <em>ita</em> nel titolo (attenzione: potrebbe entrare in conflitto con il filtro lingua per serie non italiane).</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">@custom_score</div>
+                                        <div class="man-param-name">custom_score</div>
                                         <div class="man-param-desc">Sistema avanzato per assegnare punti bonus (o malus) in base a specifiche parole nel titolo. Permette al motore di preferire automaticamente specifiche release (es. gruppi di qualità) a parità di risoluzione. Formato: <code>Parola:Punteggio</code>. Esempio: <code>MIRCrew:500</code> aggiunge 500 punti alle release MIRCrew. <code>x265:-200</code> penalizza le versioni compresse.</div>
                                     </div>
                                 </div>
@@ -990,7 +995,7 @@
                                 <i class="fa-solid fa-chevron-down man-chevron"></i>
                             </div>
                             <div class="man-section-body">
-                                <p>I film vengono configurati nel file <code>movies.txt</code> con un formato più semplice rispetto alle serie.</p>
+                                <p>I film si configurano dalla Web UI nella sezione <strong>Film</strong> e vengono salvati in <code>extto_config.db</code>, nella tabella <code>movies_config</code>. Il file legacy <code>movies.txt</code> viene usato solo per la migrazione iniziale.</p>
 
                                 <div class="man-syntax">
                                     <div class="man-syntax-label">Formato</div>
@@ -1161,14 +1166,14 @@
                                         <div class="man-flow-num">5</div>
                                         <div class="man-flow-content">
                                             <strong>Download e Pulizia Duplicati</strong>
-                                             <p>I magnet link vengono inviati al client attivo. Con libtorrent: download in <code>libtorrent_temp_dir</code>, poi spostamento in <code>libtorrent_dir</code>. Se abilitata la <strong>pulizia duplicati</strong> (<code>@cleanup_upgrades = yes</code>): i file di qualità inferiore vengono spostati automaticamente in <code>@trash_path</code> dopo ogni upgrade. Al termine del post-processing (spostamento + rinomina), se configurati, viene inviato un <strong>Library Refresh</strong> a Jellyfin e/o Plex (vedi <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 36</a>).</p>
+                                            <p>I magnet link vengono inviati al client attivo. Con libtorrent: download in <code>libtorrent_temp_dir</code>, poi spostamento in <code>libtorrent_dir</code>. Se abilitata la <strong>pulizia duplicati</strong> (<code>cleanup_upgrades = yes</code>): i file di qualità inferiore vengono spostati automaticamente in <code>trash_path</code> dopo ogni upgrade. Al termine del post-processing (spostamento + rinomina), se configurati, viene inviato un <strong>Library Refresh</strong> a Jellyfin e/o Plex (vedi <a href="#man-mediaserver" onclick="manualGoTo('man-mediaserver')">sezione 36</a>).</p>
                                         </div>
                                     </div>
                                     <div class="man-flow-step">
                                         <div class="man-flow-num">6</div>
                                         <div class="man-flow-content">
                                             <strong>Ciclo Fumetti</strong>
-                                            <p>Eseguito ogni <code>@comics_check_interval</code> secondi (default 7 giorni) oppure immediatamente se attivato dal pulsante <em>Ricontrolla Fumetti</em>. Cerca weekly pack e nuovi numeri dei fumetti monitorati su getcomics.org.</p>
+                                            <p>Eseguito ogni <code>comics_check_interval</code> secondi (default 7 giorni) oppure immediatamente se attivato dal pulsante <em>Ricontrolla Fumetti</em>. Cerca weekly pack e nuovi numeri dei fumetti monitorati su getcomics.org.</p>
                                         </div>
                                     </div>
                                     <div class="man-flow-step man-flow-step-last">
@@ -1315,7 +1320,7 @@
                                 </div>
 
                                 <div class="man-subsection">Logica del ciclo automatico</div>
-                                <p>Il ciclo fumetti viene eseguito ogni <code>@comics_check_interval</code> secondi (default: 604800 = 1 settimana), oppure immediatamente tramite il pulsante <strong>Ricontrolla Fumetti</strong> nella Dashboard. All'avvio di EXTTO il ciclo fumetti parte sempre subito, senza aspettare il timer. In sequenza:</p>
+                                <p>Il ciclo fumetti viene eseguito ogni <code>comics_check_interval</code> secondi (default: 604800 = 1 settimana), oppure immediatamente tramite il pulsante <strong>Ricontrolla Fumetti</strong> nella Dashboard. All'avvio di EXTTO il ciclo fumetti parte sempre subito, senza aspettare il timer. In sequenza:</p>
                                 <div class="man-flow">
                                     <div class="man-flow-step">
                                         <div class="man-flow-num">1</div>
@@ -1342,7 +1347,7 @@
 
                                 <!-- NOTIFICHE -->
                                 <div class="man-subsection">Notifiche</div>
-                                <p>Il modulo fumetti usa lo stesso sistema di notifiche Telegram/Email del resto di EXTTO (configurato in <code>extto.conf</code> con <code>notify_telegram</code>, <code>telegram_bot_token</code>, ecc.). Vengono inviate notifiche per:</p>
+                                <p>Il modulo fumetti usa lo stesso sistema di notifiche Telegram/Email del resto di EXTTO, configurato dalla Web UI e salvato in <code>extto_config.db</code> (<code>notify_telegram</code>, <code>telegram_bot_token</code>, ecc.). Vengono inviate notifiche per:</p>
                                 <ul>
                                     <li>📚 <strong>Nuovo fumetto monitorato scaricato</strong> — con titolo del post.</li>
                                     <li>📅 <strong>Nuovo weekly pack trovato e inviato</strong> — con data del pack.</li>
@@ -1362,11 +1367,11 @@
                                     </table>
                                 </div>
 
-                                <!-- PARAMETRO CONF -->
-                                <div class="man-subsection">Parametri in extto.conf</div>
+                                <!-- PARAMETRO CONFIGURAZIONE -->
+                                <div class="man-subsection">Parametro di configurazione</div>
                                 <div class="man-params">
                                     <div class="man-param">
-                                        <div class="man-param-name">@comics_check_interval</div>
+                                        <div class="man-param-name">comics_check_interval</div>
                                         <div class="man-param-desc">Intervallo in secondi tra un ciclo fumetti e l'altro. Default: <code>604800</code> (1 settimana). I fumetti escono generalmente settimanalmente, quindi un intervallo di 7 giorni è adeguato. Abbassare a <code>86400</code> (1 giorno) se si vuole un controllo più frequente, ma attenzione al carico verso getcomics.org.</div>
                                     </div>
                                 </div>
@@ -1389,29 +1394,29 @@
 
                                 <div class="man-callout man-callout-info">
                                     <i class="fa-solid fa-circle-info"></i>
-                                    <div><strong>Solo filesystem locale.</strong> Il modulo opera esclusivamente su path locali. Percorsi remoti (HTTP, SMB, NFS, FTP) vengono ignorati con un warning nel log. In base all'impostazione di <code>@cleanup_action</code>, i file obsoleti vengono <em>spostati</em> in <code>@trash_path</code> oppure <em>eliminati fisicamente</em>.</div>
+                                    <div><strong>Solo filesystem locale.</strong> Il modulo opera esclusivamente su path locali. Percorsi remoti (HTTP, SMB, NFS, FTP) vengono ignorati con un warning nel log. In base all'impostazione di <code>cleanup_action</code>, i file obsoleti vengono <em>spostati</em> in <code>trash_path</code> oppure <em>eliminati fisicamente</em>.</div>
                                 </div>
 
-                                <div class="man-subsection">Parametri in extto.conf</div>
+                                <div class="man-subsection">Parametri di configurazione</div>
                                 <div class="man-params">
                                     <div class="man-param">
-                                        <div class="man-param-name">@cleanup_upgrades</div>
-                                        <div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>no</code>). Abilita la pulizia automatica dei duplicati dopo ogni upgrade qualità. Richiede che <code>@trash_path</code> sia configurato.</div>
+                                        <div class="man-param-name">cleanup_upgrades</div>
+                                        <div class="man-param-desc"><code>yes</code> / <code>no</code> (default: <code>no</code>). Abilita la pulizia automatica dei duplicati dopo ogni upgrade qualità. Richiede che <code>trash_path</code> sia configurato.</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">@trash_path</div>
+                                        <div class="man-param-name">trash_path</div>
                                         <div class="man-param-desc">Percorso assoluto della cartella trash. Esempio: <code>/mnt/nas/trash</code>. La cartella viene creata automaticamente se non esiste. Configurabile liberamente — può essere su NAS, disco esterno o qualsiasi path locale.</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">@cleanup_min_score_diff</div>
+                                        <div class="man-param-name">cleanup_min_score_diff</div>
                                         <div class="man-param-desc">Differenza minima di score tra il nuovo file e quello esistente per attivare la pulizia. Default: <code>0</code> (qualsiasi upgrade). Impostare <code>500</code> per ignorare variazioni minori (es. stesso 1080p con codec diverso) e intervenire solo su salti significativi (es. 720p → 4K).</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">@cleanup_action</div>
-                                        <div class="man-param-desc">Definisce l'azione da intraprendere sui file duplicati rilevati. Valori accettati: <code>move</code> (sposta nel cestino configurato in <code>@trash_path</code>), <code>delete</code> (elimina fisicamente il file dal disco). Default: <code>move</code>.</div>
+                                        <div class="man-param-name">cleanup_action</div>
+                                        <div class="man-param-desc">Definisce l'azione da intraprendere sui file duplicati rilevati. Valori accettati: <code>move</code> (sposta nel cestino configurato in <code>trash_path</code>), <code>delete</code> (elimina fisicamente il file dal disco). Default: <code>move</code>.</div>
                                     </div>
                                     <div class="man-param">
-                                        <div class="man-param-name">@trash_retention_days</div>
+                                        <div class="man-param-name">trash_retention_days</div>
                                         <div class="man-param-desc">Numero di giorni dopo cui i file nel cestino vengono eliminati automaticamente. Il motore controlla ad ogni ciclo e rimuove i file con data di modifica più vecchia di N giorni. Lascia il campo <strong>vuoto</strong> per non cancellare mai automaticamente. Il pulsante <strong>Pulisci Cestino Ora</strong> in Manutenzione esegue la stessa operazione manualmente.</div>
                                     </div>
                                 </div>
@@ -1422,21 +1427,21 @@
                                         <div class="man-flow-num">A</div>
                                         <div class="man-flow-content">
                                             <strong>Downgrade indesiderato</strong> — arriva 720p, sul NAS c'è già il 4K
-                                            <p>Il nuovo file (720p) viene rilevato come inferiore all'esistente. Viene spostato in <code>@trash_path</code> automaticamente. Il 4K rimane intatto.</p>
+                                            <p>Il nuovo file (720p) viene rilevato come inferiore all'esistente. Viene spostato in <code>trash_path</code> automaticamente. Il 4K rimane intatto.</p>
                                         </div>
                                     </div>
                                     <div class="man-flow-step">
                                         <div class="man-flow-num">B</div>
                                         <div class="man-flow-content">
                                             <strong>Upgrade qualità</strong> — arriva 4K, sul NAS ci sono 720p e 1080p
-                                            <p>Il 4K viene scaricato e rinominato. Le versioni precedenti (720p, 1080p) vengono spostate in <code>@trash_path</code>. Solo il 4K rimane in archivio.</p>
+                                            <p>Il 4K viene scaricato e rinominato. Le versioni precedenti (720p, 1080p) vengono spostate in <code>trash_path</code>. Solo il 4K rimane in archivio.</p>
                                         </div>
                                     </div>
                                     <div class="man-flow-step man-flow-step-last">
                                         <div class="man-flow-num">C</div>
                                         <div class="man-flow-content">
                                             <strong>Score identico</strong> — arriva 1080p, c'è già un 1080p
-                                            <p>Nessuna azione. La differenza di score non supera <code>@cleanup_min_score_diff</code>: entrambi i file rimangono.</p>
+                                            <p>Nessuna azione. La differenza di score non supera <code>cleanup_min_score_diff</code>: entrambi i file rimangono.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1545,7 +1550,7 @@
                                 <h3>Come impostarlo</h3>
                                 <ul style="margin:0.5rem 0 1rem 1.5rem; line-height:1.8;">
                                     <li><strong>UI:</strong> <em>Configurazione → Avanzate → Log di Sistema</em> → seleziona il livello dal menu. La modifica è immediata.</li>
-                                    <li><strong>extto.conf:</strong> aggiungi <code>@log_level = info</code> (o debug/warning/error). Letto all'avvio.</li>
+                                    <li><strong>Web UI:</strong> imposta il livello in <em>Configurazione → Avanzate → Log di Sistema</em>; il valore viene salvato in <code>extto_config.db</code>.</li>
                                     <li><strong>API diretta:</strong> <code>POST /api/log_level</code> con body <code>{"level": "debug"}</code>.</li>
                                 </ul>
 
@@ -1838,7 +1843,7 @@
                                 <p>EXTTO può mantenere pulito il tuo client torrent (libtorrent/qBit) rimuovendo i file che non servono più.</p>
                                 <div class="man-subsection">Opzioni di Pulizia</div>
                                 <ul>
-                                    <li><strong>Azione Pulizia:</strong> Scegli tra <code>move</code> (sposta nel cestino <code>@trash_path</code>) o <code>delete</code> (eliminazione fisica irreversibile dal disco).</li>
+                                    <li><strong>Azione Pulizia:</strong> Scegli tra <code>move</code> (sposta nel cestino <code>trash_path</code>) o <code>delete</code> (eliminazione fisica irreversibile dal disco).</li>
                                     <li><strong>Rimuovi Completati:</strong> Se attivata, i torrent che raggiungono il 100% (o stato FINITO) vengono rimossi automaticamente dal client alla fine di ogni ciclo (i file rimangono sul disco).</li>
                                 </ul>
                             </div>
