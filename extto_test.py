@@ -1163,7 +1163,7 @@ class TestNotifier(unittest.TestCase):
             self.assertIn("S01E02", sent_msg)
             self.assertIn("Episodio Mancante", sent_msg) # Verifica che "best-in-cycle-new" sia stato tradotto
 
-from extto_web import app as flask_app
+from extto_web import app as flask_app, _archive_link_is_allowed
 from core.database import ArchiveDB
 
 class TestWebUI(unittest.TestCase):
@@ -1192,6 +1192,12 @@ class TestWebUI(unittest.TestCase):
             'url': 'file:///etc/passwd'
         })
         self.assertEqual(response.status_code, 400)
+
+    def test_archive_link_privato_non_mostrabile(self):
+        self.assertFalse(_archive_link_is_allowed('http://127.0.0.1:9117/dl/test.torrent'))
+        self.assertTrue(_archive_link_is_allowed(
+            'magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678'
+        ))
 
 import tempfile
 from unittest.mock import patch

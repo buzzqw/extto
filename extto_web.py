@@ -359,7 +359,11 @@ class ExtToDB:
                 return []
     
     def search_archive(self, query: str = "", offset: int = 0, limit: int = 50) -> Tuple[List[dict], int]:
-        """Ricerca nell'archivio con supporto filtri avanzati (+/-)"""
+        """Ricerca nell'archivio con supporto filtri avanzati (+/-).
+
+        Esclude i record il cui link non puo' essere scaricato dal server,
+        evitando di mostrare nell'interfaccia URL con host locale/privato.
+        """
         if not self.conn_archive:
             return [], 0
         
@@ -403,23 +407,20 @@ class ExtToDB:
         where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         
         try:
-            # 1. Conta totale
-            count_sql = f"SELECT COUNT(*) FROM archive {where_clause}"
-            c.execute(count_sql, tuple(params))
-            total = c.fetchone()[0]
-            
-            # 2. Prendi risultati paginati
+            # Il filtro di sicurezza richiede una risoluzione DNS per gli URL
+            # HTTP: filtriamo prima e applichiamo poi offset/limit, altrimenti
+            # la paginazione conterebbe anche i record inutilizzabili.
             data_sql = f"""
                 SELECT id, title, magnet, added_at 
                 FROM archive 
                 {where_clause}
                 ORDER BY added_at DESC 
-                LIMIT ? OFFSET ?
             """
-            query_params = tuple(params) + (limit, offset)
-            
-            c.execute(data_sql, query_params)
-            items = [dict(row) for row in c.fetchall()]
+            c.execute(data_sql, tuple(params))
+            items = [dict(row) for row in c.fetchall()
+                     if _archive_link_is_allowed(row['magnet'])]
+            total = len(items)
+            items = items[offset:offset + limit]
             
             return items, total
             
@@ -3653,6 +3654,45 @@ def _validate_fetch_target(raw_url: str) -> str:
                 ip.is_reserved or ip.is_multicast or ip.is_unspecified):
             raise ValueError('Host non consentito')
     return parsed.geturl()
+
+
+_ARCHIVE_HOST_STATUS = {}
+_ARCHIVE_HOST_STATUS_LOCK = threading.Lock()
+
+
+def _archive_link_is_allowed(raw_link: str) -> bool:
+    """Indica se un link dell'archivio e' gestibile dal pulsante download."""
+    link = str(raw_link or '').strip()
+    if link.lower().startswith('magnet:'):
+        return True
+
+    parsed = urlparse(link)
+    if parsed.scheme.lower() not in ('http', 'https') or parsed.username or parsed.password or not parsed.hostname:
+        return False
+    try:
+        port = parsed.port or (443 if parsed.scheme.lower() == 'https' else 80)
+    except ValueError:
+        return False
+
+    # La decisione dipende dall'host, non dal percorso. Una piccola cache evita
+    # di ripetere la stessa risoluzione DNS per tutti i record dello stesso
+    # indexer durante le ricerche nell'archivio.
+    cache_key = (parsed.scheme.lower(), parsed.hostname, port)
+    with _ARCHIVE_HOST_STATUS_LOCK:
+        cached = _ARCHIVE_HOST_STATUS.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        _validate_fetch_target(link)
+        allowed = True
+    except ValueError as exc:
+        allowed = False
+        logger.debug("Archivio: link escluso (%s): %s", link[:120], exc)
+
+    with _ARCHIVE_HOST_STATUS_LOCK:
+        _ARCHIVE_HOST_STATUS[cache_key] = allowed
+    return allowed
 
 
 @app.route('/api/fetch-url', methods=['POST'])
