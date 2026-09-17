@@ -1980,8 +1980,24 @@ def remove_completed_torrents():
         from urllib.parse import unquote_plus
         from core.models import normalize_series_name, _series_name_matches
 
+        def _engine_request(method, url, **kwargs):
+            """Attende brevemente se l'engine sta terminando un'operazione."""
+            for attempt in range(2):
+                try:
+                    response = requests.request(method, url, **kwargs)
+                    if response.status_code not in (502, 503, 504) or attempt:
+                        return response
+                except requests.exceptions.RequestException:
+                    if attempt:
+                        raise
+                time.sleep(2.5)
+
+        manually_removed = []
+
         # 1. Recupera la lista reale dal motore
-        resp = requests.get(f'http://127.0.0.1:{get_engine_port()}/api/torrents', timeout=10)
+        resp = _engine_request(
+            'get', f'http://127.0.0.1:{get_engine_port()}/api/torrents', timeout=10
+        )
         if resp.status_code == 200:
             data = resp.json()
             torrents = data.get('torrents', []) if isinstance(data, dict) else data
@@ -2061,12 +2077,39 @@ def remove_completed_torrents():
             # 3. Elimina fisicamente i torrent dalla lista (senza cancellare i file su disco!)
             for h in set(hashes_to_remove):
                 try:
-                    requests.post(f'http://127.0.0.1:{get_engine_port()}/api/torrents/remove', json={'hash': h, 'delete_files': False}, timeout=5)
+                    remove_resp = _engine_request(
+                        'post',
+                        f'http://127.0.0.1:{get_engine_port()}/api/torrents/remove',
+                        json={'hash': h, 'delete_files': False},
+                        timeout=5
+                    )
+                    remove_data = remove_resp.json() if remove_resp.ok else {}
+                    if remove_resp.ok and remove_data.get('ok', False):
+                        manually_removed.append(h)
                 except: pass
 
         # 4. Esegue la pulizia standard come fallback
-        resp_clean = requests.post(f'http://127.0.0.1:{get_engine_port()}/api/torrents/remove_completed', timeout=10)
-        return jsonify(resp_clean.json())
+        resp_clean = _engine_request(
+            'post',
+            f'http://127.0.0.1:{get_engine_port()}/api/torrents/remove_completed',
+            timeout=10
+        )
+        clean_data = resp_clean.json()
+        if not resp_clean.ok:
+            return jsonify(clean_data), resp_clean.status_code
+
+        # Il primo passaggio rimuove alcuni torrent prima della pulizia standard;
+        # restituisci il totale di entrambe le operazioni alla UI.
+        clean_removed = clean_data.get('removed', [])
+        clean_count = clean_data.get('count')
+        if not isinstance(clean_count, int):
+            clean_count = len(clean_removed) if isinstance(clean_removed, list) else 0
+        clean_data['count'] = len(manually_removed) + clean_count
+        clean_data['removed'] = (
+            [str(h) for h in manually_removed]
+            + (clean_removed if isinstance(clean_removed, list) else [])
+        )
+        return jsonify(clean_data)
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -7247,21 +7290,20 @@ def proxy_torrents(subpath):
             # fase di ripristino, connessione rifiutata per un istante): timeout più
             # largo + un retry con una breve pausa, invece di gridare "Engine busy"
             # subito quando basterebbe aspettare che l'engine finisca da solo.
-            try:
-                resp = requests.post(
-                    target_url,
-                    json=post_json,
-                    headers={'Content-Type': 'application/json'},
-                    timeout=15
-                )
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                time.sleep(2)
-                resp = requests.post(
-                    target_url,
-                    json=post_json,
-                    headers={'Content-Type': 'application/json'},
-                    timeout=15
-                )
+            for attempt in range(2):
+                try:
+                    resp = requests.post(
+                        target_url,
+                        json=post_json,
+                        headers={'Content-Type': 'application/json'},
+                        timeout=15
+                    )
+                    if resp.status_code not in (502, 503, 504) or attempt:
+                        break
+                except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                    if attempt:
+                        raise
+                time.sleep(2.5)
         else:
             return {'error': 'Method not allowed'}, 405
 

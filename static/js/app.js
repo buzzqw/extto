@@ -8217,7 +8217,10 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                 const res = await fetch(`${API_BASE}/api/torrents/remove_completed`, { method: 'POST' });
                 if (res.ok) {
                     const d = await res.json();
-                    torrentCount = d.removed ?? 0;
+                    // L'engine restituisce `removed` come lista e `count` come numero.
+                    torrentCount = Number(d.count ?? (Array.isArray(d.removed) ? d.removed.length : d.removed ?? 0));
+                } else {
+                    throw new Error(`Pulizia torrent: HTTP ${res.status}`);
                 }
             } catch(e) { /* libtorrent non disponibile */ }
 
