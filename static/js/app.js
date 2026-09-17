@@ -202,8 +202,11 @@ const app = {
     // INITIALIZATION
     // ========================================================================
     async init() {
+        this.initTheme();
         // 0. Applica le traduzioni UI prima di mostrare qualsiasi cosa
         await this.applyTranslations();
+        // Aggiorna anche il testo del toggle tema dopo aver caricato il dizionario.
+        this._updateThemeButton(document.documentElement.dataset.theme || 'dark');
 
         // 1. Recupera la porta dinamica del motore e la lingua default contenuti
         try {
@@ -258,6 +261,40 @@ const app = {
         // sono già pronti invece di aspettare la fetch dal vivo.
         setTimeout(() => this.loadHealth(true), 5000);
         this._healthInterval = setInterval(() => this.loadHealth(true), 3600000);
+    },
+
+    // ========================================================================
+    // VISUAL THEME
+    // ========================================================================
+    initTheme() {
+        let stored = '';
+        try { stored = localStorage.getItem('extto-theme') || ''; } catch (_) {}
+        const theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+        document.documentElement.dataset.theme = theme;
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.content = theme === 'light' ? '#f4f7fb' : '#0b1020';
+        this._updateThemeButton(theme);
+    },
+
+    _updateThemeButton(theme) {
+        const button = document.getElementById('theme-toggle');
+        if (!button) return;
+        const isDark = theme !== 'light';
+        const icon = button.querySelector('i');
+        if (icon) icon.className = `fa-solid ${isDark ? 'fa-sun' : 'fa-moon'}`;
+        const label = button.querySelector('.theme-toggle-label');
+        if (label) label.textContent = t('Tema');
+        button.title = isDark ? t('Passa al tema chiaro') : t('Passa al tema scuro');
+        button.setAttribute('aria-label', button.title);
+    },
+
+    toggleTheme() {
+        const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('extto-theme', next); } catch (_) {}
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.content = next === 'light' ? '#f4f7fb' : '#0b1020';
+        this._updateThemeButton(next);
     },
     
     // ========================================================================
@@ -3036,7 +3073,7 @@ const app = {
                         : '';
                     html += `<div class="table-row" style="${isDownloaded ? 'opacity:.75;' : ''}">
                         <div style="display:flex; flex-direction:column; gap:.25rem; min-width:0;">
-                            <div><strong>${this.escapeHtml(m.name)}</strong>${downloadedBadge}</div>
+                            <div><strong class="movie-title-link" role="button" tabindex="0" onclick="app.showMovieDetails('${this.escapeJs(m.name)}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); app.showMovieDetails('${this.escapeJs(m.name)}'); }">${this.escapeHtml(m.name)}</strong>${downloadedBadge}</div>
                             ${techBadges ? `<div style="display:flex; flex-wrap:wrap; gap:.2rem;">${techBadges}</div>` : ''}
                         </div>
                         <div class="col-center">${this.escapeHtml(m.year||'*')}</div>
@@ -3079,7 +3116,7 @@ const app = {
                     const techBadges = this._movieTechBadges(m.title || '');
                     html += `<div class="table-row">
                         <div style="display:flex; flex-direction:column; gap:.25rem; min-width:0;">
-                            <div><strong>${this.escapeHtml(m.name)}</strong></div>
+                            <div><strong class="movie-title-link" role="button" tabindex="0" onclick="app.showMovieDetails('${this.escapeJs(m.name)}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); app.showMovieDetails('${this.escapeJs(m.name)}'); }">${this.escapeHtml(m.name)}</strong></div>
                             <small style="color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;" title="${this.escapeHtml(m.title||'')}">${this.escapeHtml(m.title||'')}</small>
                             ${techBadges ? `<div style="display:flex; flex-wrap:wrap; gap:.2rem;">${techBadges}</div>` : ''}
                         </div>
@@ -7144,8 +7181,8 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                         </div>
                     </div>
                     
-                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success); white-space:nowrap; min-width:72px;">${this._fmtRate(torr.dl_rate)}</div>
-                    <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning); white-space:nowrap; min-width:72px;">${this._fmtRate(torr.ul_rate)}</div>
+                    <div class="torrent-dl-rate" style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--success); white-space:nowrap; min-width:72px;">${this._fmtRate(torr.dl_rate)}</div>
+                    <div class="torrent-ul-rate" style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--warning); white-space:nowrap; min-width:72px;">${this._fmtRate(torr.ul_rate)}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; ${etaStyle}">${etaStr}</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${torr.num_seeds || 0}S/${torr.num_peers || 0}P</div>
                     <div style="text-align:center; font-variant-numeric:tabular-nums; font-family:var(--font-mono); font-size:0.85rem; font-weight:600; color:var(--text-primary);">${ratioHtml}</div>

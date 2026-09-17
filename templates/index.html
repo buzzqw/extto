@@ -5,9 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#0b1020">
     <title>EXTTO Web Interface | Control Panel</title>
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('extto-theme');
+                if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+            } catch (_) {}
+        })();
+    </script>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/modern.css?v11">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="/static/js/chart.umd.min.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><circle cx='256' cy='256' r='256' fill='%232563eb'/><polygon points='190,145 370,256 190,367' fill='white'/></svg>">
@@ -124,6 +133,10 @@
                     <div id="lang-dropdown-slot" style="flex-shrink:0; min-width:90px;">
                         <select id="ui-lang-select" style="display:none;"><!-- Sostituito da _buildLangDropdown() in JS --></select>
                     </div>
+                    <button id="theme-toggle" class="theme-toggle" type="button" onclick="app.toggleTheme()" aria-label="Cambia tema" title="Passa al tema chiaro">
+                        <i class="fa-solid fa-sun" aria-hidden="true"></i>
+                        <span class="theme-toggle-label">Tema</span>
+                    </button>
                     <a href="https://www.paypal.com/donate/?business=azanzani%40gmail.com&currency_code=EUR"
                        target="_blank" rel="noopener noreferrer"
                        class="btn-donate"
@@ -3752,7 +3765,7 @@ sudo mount /mnt/ramdisk</div>
     </main>
 
     <div id="toast-container" class="toast-container"></div>
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/static/js/app.js?v9"></script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/static/js/app.js?v12"></script>
     <script src="/static/js/games.js"></script>
 
     <script>

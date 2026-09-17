@@ -1,0 +1,1196 @@
+/*
+ * EXTTO modern visual layer
+ *
+ * This file deliberately sits on top of style.css. The existing HTML and
+ * JavaScript remain the source of truth for behaviour; this layer changes the
+ * visual language without moving IDs or event handlers.
+ */
+
+:root {
+    --bg-main: #0b1020;
+    --bg-card: #121a2d;
+    --bg-hover: #1a2740;
+    --bg-input: #0a1121;
+    --bg-raised: #1a2540;
+    --bg-tertiary: #172139;
+    --bg-secondary: #121a2d;
+    --border: rgba(148, 163, 184, 0.15);
+    --border-light: rgba(148, 163, 184, 0.26);
+    --text-primary: #f4f7fb;
+    --text-secondary: #b4c0d4;
+    --text-muted: #7e8da8;
+    --primary: #6d7cff;
+    --primary-light: #aab1ff;
+    --primary-hover: #8490ff;
+    --primary-dark: #5362eb;
+    --primary-glow: rgba(109, 124, 255, 0.16);
+    --accent: #c084fc;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #fb7185;
+    --info: #38bdf8;
+    --font-main: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --radius-sm: 9px;
+    --radius-md: 15px;
+    --radius-lg: 22px;
+    --shadow-sm: 0 8px 24px rgba(2, 6, 23, 0.18);
+    --shadow: 0 18px 50px rgba(2, 6, 23, 0.24);
+    --shadow-lg: 0 28px 80px rgba(2, 6, 23, 0.34);
+    --transition: all .2s ease;
+    --header-height: 68px;
+    color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+    --bg-main: #e7ebf2;
+    --bg-card: #f1f4f8;
+    --bg-hover: #dde5f2;
+    --bg-input: #e3e8f0;
+    --bg-raised: #edf1f6;
+    --bg-tertiary: #dfe5ee;
+    --bg-secondary: #e9edf3;
+    --border: rgba(51, 65, 85, 0.16);
+    --border-light: rgba(51, 65, 85, 0.25);
+    --text-primary: #1f2937;
+    --text-secondary: #526174;
+    --text-muted: #718096;
+    --primary: #4f5fcf;
+    --primary-light: #4655c8;
+    --primary-hover: #4656c9;
+    --primary-dark: #3947ad;
+    --primary-glow: rgba(79, 95, 207, 0.1);
+    --accent: #7c3aed;
+    --shadow-sm: 0 6px 18px rgba(30, 41, 59, 0.06);
+    --shadow: 0 14px 38px rgba(30, 41, 59, 0.1);
+    --shadow-lg: 0 24px 64px rgba(30, 41, 59, 0.14);
+    color-scheme: light;
+}
+
+html, body { background: var(--bg-main); }
+
+body {
+    font-family: var(--font-main);
+    letter-spacing: 0.01em;
+    background:
+        radial-gradient(circle at 78% -12%, rgba(109, 124, 255, 0.14), transparent 30rem),
+        radial-gradient(circle at 8% 110%, rgba(192, 132, 252, 0.08), transparent 24rem),
+        var(--bg-main);
+    transition: background-color .25s ease, color .25s ease;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: .2;
+    background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: linear-gradient(to bottom, black, transparent 80%);
+}
+
+:root[data-theme="light"] body::before {
+    opacity: .18;
+    background-image: linear-gradient(rgba(71,85,105,.035) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(71,85,105,.035) 1px, transparent 1px);
+}
+
+:root[data-theme="light"] body {
+    background:
+        radial-gradient(circle at 78% -12%, rgba(79, 95, 207, 0.07), transparent 30rem),
+        radial-gradient(circle at 8% 110%, rgba(124, 58, 237, 0.045), transparent 24rem),
+        var(--bg-main);
+}
+
+/* Native dropdowns need an explicit light palette on some browsers. */
+:root[data-theme="light"] select,
+:root[data-theme="light"] select.form-input,
+:root[data-theme="light"] select option,
+:root[data-theme="light"] select option span {
+    color: var(--text-primary) !important;
+    background-color: var(--bg-input) !important;
+}
+
+:root[data-theme="light"] select option:checked {
+    background-color: #cfd8ea !important;
+    color: #1f2937 !important;
+}
+
+/* Header language picker is a custom menu, not a native select. */
+#lang-dropdown-btn,
+#lang-dropdown-menu {
+    background: var(--bg-raised) !important;
+    color: var(--text-primary) !important;
+}
+
+#lang-dropdown-menu {
+    border-color: var(--border-light) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+#lang-dropdown-menu > div {
+    color: var(--text-primary) !important;
+}
+
+#lang-dropdown-menu > div:hover {
+    background: var(--bg-hover) !important;
+}
+
+select option { background: var(--bg-card); color: var(--text-primary); }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 42%, transparent); }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* Shell */
+.sidebar {
+    width: 232px;
+    min-width: 232px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 94%, var(--primary) 6%), var(--bg-card));
+    border-right: 1px solid var(--border);
+    box-shadow: 12px 0 40px rgba(2, 6, 23, .12);
+}
+
+.logo {
+    padding: 1.4rem 1.35rem 1.25rem;
+    border-bottom-color: var(--border);
+}
+
+.logo h1 {
+    font-size: 1.55rem;
+    letter-spacing: -.06em;
+}
+
+.logo h1 i {
+    color: var(--primary);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--primary) 60%, transparent));
+}
+
+.version { color: var(--text-muted); letter-spacing: .16em; }
+
+.nav { padding: 1rem .7rem; gap: .3rem; }
+
+.nav-item {
+    border: 1px solid transparent;
+    border-radius: 11px;
+    margin: 0;
+    padding: .72rem .82rem;
+    gap: .8rem;
+    font-size: .88rem;
+    color: var(--text-secondary);
+}
+
+.nav-item:hover,
+.nav-item.active {
+    margin: 0;
+    border-color: color-mix(in srgb, var(--primary) 28%, transparent);
+    border-left-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    color: var(--text-primary);
+    background: linear-gradient(100deg, color-mix(in srgb, var(--primary) 20%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.nav-item.active { font-weight: 700; color: var(--primary-light); }
+.nav-item.active .icon { color: var(--primary-light); }
+.nav-item .icon { color: var(--text-muted); transition: color .2s ease; }
+.nav-item:hover .icon { color: var(--primary-light); }
+
+.main-content { background: transparent; }
+
+.header {
+    height: var(--header-height);
+    padding: 0 1.9rem;
+    background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+    border-bottom-color: var(--border);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 8px 30px rgba(2, 6, 23, .08);
+}
+
+.header-title h2 { font-size: 1.15rem; letter-spacing: -.03em; }
+.header-title h2::after { content: ''; display: inline-block; width: 5px; height: 5px; margin: 0 0 2px 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px var(--primary); }
+.header-actions { gap: .55rem; }
+
+.content { padding: 1.8rem 2rem 3rem; }
+.view.active { animation-duration: .22s; }
+
+.status-indicator {
+    padding: .42rem .72rem;
+    background: var(--primary-glow);
+    border-color: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 .7rem;
+    color: var(--text-secondary);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: .2s ease;
+}
+
+.theme-toggle:hover { color: var(--primary-light); border-color: var(--primary); transform: translateY(-1px); }
+.theme-toggle i { font-size: .9rem; }
+.theme-toggle-label { font-size: .76rem; font-weight: 700; }
+
+/* Shared surfaces */
+.card, .dashboard-card, .stat-card, .data-table, .torrent-toolbar, .torrent-unavailable {
+    border-color: var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.card, .dashboard-card, .stat-card, .data-table { background: color-mix(in srgb, var(--bg-card) 96%, var(--primary) 4%); }
+.card:hover, .dashboard-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, var(--border)); }
+
+.card-header {
+    padding: 1rem 1.25rem;
+    background: linear-gradient(100deg, color-mix(in srgb, var(--primary) 8%, transparent), transparent 60%);
+    border-bottom-color: var(--border);
+    letter-spacing: -.01em;
+}
+
+.card-header i, .dashboard-card h3 i { color: var(--primary-light); }
+.card-body { padding: 1.35rem; }
+
+.view-header { margin-bottom: 1.3rem; gap: .75rem; }
+.view-header h3 { letter-spacing: -.035em; }
+.view-header h3 i { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--primary) 52%, transparent)); }
+
+.search-input, .form-group input, .form-group select, .form-group textarea, .form-control, .input-number {
+    background: var(--bg-input);
+    border-color: var(--border);
+    border-radius: 11px;
+    color: var(--text-primary);
+}
+
+.search-input { padding-top: .75rem; padding-bottom: .75rem; }
+.search-input:focus, .form-group input:focus, .form-group select:focus, .form-group textarea:focus, .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 14%, transparent), 0 8px 20px rgba(2, 6, 23, .08);
+}
+
+.btn { border-radius: 10px; font-weight: 700; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); border-color: transparent; box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 24%, transparent); }
+.btn-primary:hover { background: linear-gradient(135deg, var(--primary-hover), var(--accent)); box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 34%, transparent); }
+.btn-secondary { background: var(--bg-raised); border-color: var(--border); }
+.btn-secondary:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); background: var(--primary-glow); }
+
+.badge { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+
+/* Tabs: calmer than the old full-width underline */
+.config-tabs {
+    gap: .35rem;
+    padding: .35rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--bg-card) 82%, var(--bg-main) 18%);
+}
+
+#view-config > .config-tabs,
+#view-archive > .view-header,
+#view-torrent > .torrent-toolbar {
+    position: sticky;
+    top: -1.8rem;
+    z-index: 20;
+    backdrop-filter: blur(16px);
+}
+
+#view-config > .config-tabs { margin-top: -.15rem; }
+#view-archive > .view-header { padding-top: .7rem; padding-bottom: .7rem; }
+
+.tab-btn {
+    margin: 0;
+    padding: .62rem .9rem;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.tab-btn:hover { background: var(--bg-hover); }
+.tab-btn.active { color: var(--text-primary); border-color: color-mix(in srgb, var(--primary) 30%, transparent); background: var(--primary-glow); box-shadow: 0 5px 14px rgba(2, 6, 23, .08); }
+
+/* Dashboard */
+.stats-grid { gap: 1rem; margin-bottom: 1.25rem; }
+.stat-card { min-height: 112px; padding: 1.1rem 1.2rem; position: relative; overflow: hidden; }
+.stat-card::after { content: ''; position: absolute; width: 110px; height: 110px; right: -42px; bottom: -52px; border-radius: 50%; background: color-mix(in srgb, var(--primary) 12%, transparent); pointer-events: none; }
+.stat-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary) 48%, var(--border)); }
+.stat-icon { background: var(--primary-glow); color: var(--primary-light); border-radius: 13px; }
+.stat-value { color: var(--text-primary); }
+.dashboard-card { padding: 1.25rem; }
+.dashboard-card h3 { color: var(--text-secondary); border-bottom: 0; padding-bottom: .4rem; margin-bottom: .8rem; }
+.dash-net-legend { border-bottom-color: var(--border); }
+.dashboard-run-actions .btn { box-shadow: none; }
+
+/* Archive and lists */
+.archive-table, .series-table, .movies-table { overflow: hidden; }
+.table-row { border-bottom-color: var(--border); padding: 13px 18px; }
+.table-header { background: color-mix(in srgb, var(--primary) 5%, transparent); color: var(--text-muted); }
+.table-row:hover { background: var(--bg-hover); }
+.archive-table .table-row, .archive-table .table-header { gap: 16px; }
+#archive-batch-bar { background: var(--primary-glow) !important; border-color: color-mix(in srgb, var(--primary) 35%, transparent) !important; padding: .7rem .9rem !important; }
+
+/* Torrent manager */
+.torrent-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    padding: .8rem;
+    margin-bottom: .85rem;
+    background: linear-gradient(120deg, color-mix(in srgb, var(--bg-card) 92%, var(--primary) 8%), var(--bg-card));
+}
+.torrent-toolbar-row { gap: .55rem; }
+.torrent-band-stats { padding: .25rem .4rem; }
+.band-item { padding: .38rem .6rem; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-input); }
+.torrent-table { overflow: hidden; }
+.torrent-header { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+.torrent-table .table-row { padding-top: 12px; padding-bottom: 12px; }
+.torrent-table .table-row:hover { background: linear-gradient(90deg, var(--bg-hover), transparent); }
+.torrent-name-text { font-weight: 700; letter-spacing: -.01em; }
+.torrent-size { color: var(--text-muted); }
+.torrent-progress-fill { box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 42%, transparent); }
+.torrent-actions .btn { opacity: .72; border: 1px solid var(--border); }
+.torrent-table .table-row:hover .torrent-actions .btn { opacity: 1; }
+#torrent-details-modal .modal-content { border-color: color-mix(in srgb, var(--primary) 28%, var(--border)); }
+
+/* Configuration: hierarchy and breathing room without touching the forms */
+#view-config > .view-header { padding: 1.1rem 1.25rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: linear-gradient(120deg, var(--bg-card), color-mix(in srgb, var(--primary) 7%, var(--bg-card))); }
+#view-config .config-panel > .card, #view-config .config-panel > .form-grid > .card { margin-bottom: 1rem !important; }
+#view-config .lt-section-title { color: var(--primary-light); border-bottom-color: color-mix(in srgb, var(--primary) 20%, var(--border)); }
+#view-config .client-selector { padding: .35rem 0; }
+#view-config .client-btn { background: var(--bg-input); border-color: var(--border); border-radius: 13px; }
+#view-config .client-btn.active, #view-config .client-btn:hover { background: var(--primary-glow); border-color: color-mix(in srgb, var(--primary) 55%, transparent); }
+#config-unsaved-banner { box-shadow: 0 6px 18px rgba(251,191,36,.08); }
+
+/* Modal and feedback */
+.modal { background: rgba(2, 6, 23, .66); }
+.modal-content { background: var(--bg-card); border-color: var(--border-light); box-shadow: var(--shadow); }
+.modal-header { background: linear-gradient(100deg, var(--primary-glow), transparent 65%); }
+.toast { background: var(--bg-raised); border-color: var(--border-light); box-shadow: var(--shadow); }
+
+/* The existing inline whites are kept readable in the light theme. */
+:root[data-theme="light"] .modal,
+:root[data-theme="light"] .fmp-overlay { background: rgba(15, 23, 42, .42); }
+:root[data-theme="light"] .table-header { background: #f1f5ff; }
+:root[data-theme="light"] .stat-value { color: var(--text-primary); }
+:root[data-theme="light"] .header { box-shadow: 0 8px 30px rgba(30,41,59,.06); }
+:root[data-theme="light"] .log-line { border-bottom-color: rgba(71,85,105,.08); }
+:root[data-theme="light"] .torrent-progress-fill { box-shadow: none; }
+
+@media (max-width: 1100px) {
+    .sidebar { width: 216px; min-width: 216px; }
+    #view-license { left: 216px; }
+    .content { padding-left: 1.25rem; padding-right: 1.25rem; }
+}
+
+@media (max-width: 992px) {
+    .sidebar { width: 100%; min-width: 0; }
+    #view-license { left: 0; }
+    .header { height: 56px; }
+    .content { padding: .9rem .75rem 1.25rem; }
+    .theme-toggle-label { display: none; }
+    .theme-toggle { width: 38px; padding: 0; }
+    .config-tabs { border-radius: 11px; }
+    .card, .dashboard-card, .data-table, .torrent-toolbar { border-radius: 13px; }
+    #view-config > .config-tabs,
+    #view-archive > .view-header,
+    #view-torrent > .torrent-toolbar { top: -.9rem; }
+}
+
+@media (max-width: 600px) {
+    body { background: var(--bg-main); }
+    .header { padding: 0 .65rem; }
+    .header-actions { gap: .3rem; }
+    .stats-grid { margin-left: -.1rem; margin-right: -.1rem; }
+    .stat-card { min-height: 100px; }
+    .dashboard-card { padding: .9rem; }
+    .torrent-toolbar { padding: .6rem; }
+    .torrent-toolbar-row { width: 100%; }
+    .torrent-toolbar-speed input { flex: 1; min-width: 0; }
+}
+
+/* Configuration workspace */
+#view-config { min-width: 0; }
+
+#view-config > .view-header {
+    position: relative;
+    overflow: hidden;
+}
+
+#view-config > .view-header::after {
+    content: '';
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    right: -70px;
+    top: -90px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    pointer-events: none;
+}
+
+#view-config > .view-header > * { position: relative; z-index: 1; }
+#view-config > .view-header h3 { font-size: 1.05rem; }
+
+#view-config > .view-header .btn-primary {
+    min-height: 42px;
+    white-space: nowrap;
+}
+
+#view-config > .config-tabs {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+#view-config > .config-tabs .tab-btn {
+    flex: 1 0 auto;
+    min-width: 92px;
+    text-align: center;
+}
+
+#view-config > .config-tabs .tab-btn.dirty {
+    color: var(--warning);
+}
+
+#view-config > .config-tabs .tab-btn.dirty::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 0 2px 7px;
+    border-radius: 50%;
+    background: var(--warning);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--warning) 65%, transparent);
+}
+
+#view-config .config-panel {
+    min-width: 0;
+    animation: configPanelIn .2s ease-out;
+}
+
+@keyframes configPanelIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#view-config .config-panel > .card,
+#view-config .config-panel > .urls-section {
+    border-color: var(--border);
+}
+
+#view-config .config-panel > .card > .card-header,
+#view-config #notifications-form .card-header {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+}
+
+#view-config .config-panel > .card > .card-header i,
+#view-config #notifications-form .card-header i {
+    color: var(--primary-light);
+}
+
+#view-config .form-group label {
+    line-height: 1.35;
+}
+
+/* Client selection */
+#view-config .client-selector {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: .7rem;
+}
+
+#view-config .client-btn {
+    min-width: 0;
+    min-height: 94px;
+    justify-content: center;
+    padding: .85rem .7rem;
+    text-align: center;
+}
+
+#view-config .client-btn.active {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent), 0 10px 24px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+#view-config .client-active-badge {
+    top: .45rem;
+    right: .45rem;
+    font-size: .55rem;
+}
+
+/* Libtorrent and generated advanced settings */
+#view-config .lt-section-title {
+    margin-top: 1.35rem;
+    padding: .45rem .6rem;
+    border: 0;
+    border-left: 3px solid var(--primary);
+    border-radius: 0 7px 7px 0;
+    background: linear-gradient(90deg, var(--primary-glow), transparent 72%);
+    color: var(--primary-light);
+    letter-spacing: .08em;
+}
+
+#view-config .lt-section-title:first-child { margin-top: 0; }
+#view-config .lt-grid { row-gap: .8rem; }
+#view-config .lt-compact { row-gap: .8rem; }
+
+#view-config #advanced-form {
+    gap: 1rem;
+    margin-bottom: 0;
+}
+
+#view-config #advanced-form > .card {
+    margin-bottom: 0 !important;
+    overflow: hidden;
+}
+
+#view-config #advanced-form > .card .card-header {
+    background: linear-gradient(100deg, color-mix(in srgb, var(--primary) 10%, transparent), transparent 72%);
+    color: var(--text-primary);
+}
+
+#view-config #advanced-form > .card .card-body { padding: 1rem 1.15rem; }
+
+/* Notifications */
+#view-config #notifications-form {
+    gap: 1rem;
+}
+
+#view-config #notifications-form .card {
+    margin-bottom: 0 !important;
+    overflow: hidden;
+}
+
+#view-config #notifications-form .card-body {
+    min-width: 0;
+}
+
+/* Scores */
+#config-scores .score-grid-container { gap: 1rem !important; }
+
+#config-scores .score-grid-container > .card {
+    overflow: hidden;
+    background: var(--bg-raised) !important;
+}
+
+#config-scores .score-grid-container > .card .card-header {
+    min-height: 44px;
+}
+
+#config-scores .score-map-row {
+    padding: .35rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+#config-scores .score-map-row:last-child { border-bottom: 0; }
+#config-scores .score-map-input { background: var(--bg-input) !important; }
+
+#config-scores > .card > .card-body > p {
+    max-width: 760px;
+    line-height: 1.6;
+}
+
+/* Sources and filters */
+#config-urls .urls-section {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-card) 96%, var(--primary) 4%);
+    box-shadow: var(--shadow-sm);
+}
+
+#config-urls .urls-section h4 {
+    margin: 0 0 .75rem;
+    color: var(--text-primary);
+    font-size: .88rem;
+    letter-spacing: .01em;
+}
+
+#config-urls .urls-section textarea {
+    min-height: 190px;
+    background: var(--bg-input);
+    border-color: var(--border);
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: .78rem;
+    line-height: 1.55;
+}
+
+#config-urls .urls-section button { margin-bottom: .25rem; }
+
+/* Integrations: make each service feel like a distinct section */
+#config-integrazioni > h3 {
+    margin-top: 1.5rem !important;
+    padding: .55rem .75rem;
+    border-left: 3px solid var(--primary);
+    border-radius: 0 8px 8px 0;
+    background: linear-gradient(90deg, var(--primary-glow), transparent 68%);
+    color: var(--text-primary) !important;
+}
+
+#config-integrazioni > h3:first-child { margin-top: 0 !important; }
+#config-integrazioni > hr { border-top-color: var(--border-light) !important; }
+#config-integrazioni .card { overflow: hidden; }
+#config-integrazioni .card-body > p { line-height: 1.65; }
+
+#config-integrazioni #config-indexer-inner > .card,
+#config-integrazioni #config-mediaserver-inner > .card,
+#config-integrazioni #config-simkl-inner > .card,
+#config-integrazioni #config-trakt-inner > .card {
+    margin-bottom: 1rem !important;
+}
+
+@media (max-width: 900px) {
+    #view-config .client-selector { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+}
+
+@media (max-width: 680px) {
+    #view-config > .view-header {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    #view-config > .view-header h3 { flex: 1 1 100%; }
+    #view-config > .view-header #config-unsaved-banner { margin-right: 0; }
+    #view-config > .view-header .btn-primary { width: 100%; justify-content: center; }
+    #view-config .client-selector { grid-template-columns: 1fr; }
+    #view-config .client-btn { min-height: 58px; flex-direction: row; justify-content: flex-start; gap: .75rem; text-align: left; }
+
+    #view-config #notifications-form .card-body {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: .85rem !important;
+    }
+
+    #config-scores .score-grid-container { grid-template-columns: 1fr !important; }
+    #config-scores [style*="grid-template-columns: 1fr 1fr 1fr 1fr 1fr"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    #config-integrazioni .form-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Global UX polish */
+:where(a, button, input, select, textarea):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 42%, transparent);
+    outline-offset: 2px;
+}
+
+button:disabled,
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+    transform: none !important;
+}
+
+.view-header:not(#view-config > .view-header) {
+    padding: .85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: linear-gradient(115deg, color-mix(in srgb, var(--bg-card) 96%, var(--primary) 4%), var(--bg-card));
+    box-shadow: var(--shadow-sm);
+}
+
+.view-header .search-wrapper {
+    flex: 1 1 300px;
+    min-width: 180px;
+}
+
+.view-header .search-input { width: 100%; }
+
+.view-header > .btn-primary,
+.view-header > .btn-secondary {
+    min-height: 40px;
+    white-space: nowrap;
+}
+
+.view-header h3,
+.view-header h3 i { color: var(--text-primary); }
+
+.view-header h3 i { color: var(--primary-light); }
+
+/* Keep secondary navigation discoverable without competing with primary actions. */
+.nav-secondary .icon { color: color-mix(in srgb, var(--primary-light) 58%, var(--text-muted)); }
+.nav-item:focus-visible { outline-offset: -3px; }
+
+.data-table {
+    overflow: hidden;
+}
+
+.data-table .table-header {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.data-table .table-row {
+    min-height: 58px;
+    transition: background .18s ease, border-color .18s ease;
+}
+
+.data-table .table-row:last-child { border-bottom: 0; }
+
+.series-table .table-actions .btn,
+.movies-table .table-actions .btn,
+.archive-table .table-actions .btn {
+    opacity: 1;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+}
+
+.series-table .table-actions .btn:hover,
+.movies-table .table-actions .btn:hover,
+.archive-table .table-actions .btn:hover {
+    border-color: var(--primary);
+    color: var(--primary-light);
+    background: var(--primary-glow);
+}
+
+/* Discovery and comics use dynamic cards but share the same visual language. */
+#discovery-grid > .card,
+#comics-search-grid > .card {
+    border-color: var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-sm);
+}
+
+#discovery-grid > .card:hover,
+#comics-search-grid > .card:hover {
+    border-color: color-mix(in srgb, var(--primary) 48%, var(--border)) !important;
+    box-shadow: var(--shadow);
+}
+
+.disc-overview-overlay {
+    background: color-mix(in srgb, var(--bg-card) 94%, var(--primary) 6%) !important;
+}
+
+/* Dashboard hierarchy */
+#view-dashboard .dashboard-run-actions {
+    padding: .55rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+}
+
+#view-dashboard .dashboard-run-actions .btn { min-height: 36px; }
+#view-dashboard .stat-card { cursor: pointer; }
+#view-dashboard .stat-card:focus-within { border-color: var(--primary); }
+
+/* Shared mobile rhythm */
+@media (max-width: 680px) {
+    .content { padding-top: 1rem; }
+    .view-header:not(#view-config > .view-header) { padding: .7rem; }
+    .view-header .search-wrapper { flex-basis: 100%; min-width: 0; }
+    .view-header > .btn-primary,
+    .view-header > .btn-secondary { flex: 1 1 auto; }
+    .data-table .table-header { min-height: 38px; }
+    .data-table .table-row { min-height: 52px; }
+    #view-dashboard .dashboard-run-actions { justify-content: stretch !important; }
+    #view-dashboard .dashboard-run-actions .btn { flex: 1 1 42%; justify-content: center; }
+}
+
+/* Torrent Manager: visual pass only, behaviour stays in the existing handlers. */
+#view-torrent .torrent-toolbar {
+    align-items: stretch;
+    padding: .7rem;
+    gap: .65rem;
+}
+
+#view-torrent .torrent-toolbar-row {
+    min-height: 40px;
+    align-items: center;
+}
+
+#view-torrent .torrent-toolbar-stats {
+    flex: 1 1 auto;
+}
+
+#view-torrent .torrent-band-stats {
+    gap: .4rem;
+    padding: .25rem;
+    background: transparent;
+    border: 0;
+}
+
+#view-torrent .band-item {
+    min-height: 34px;
+    padding: .35rem .6rem;
+    background: var(--bg-input);
+    border-color: var(--border);
+    font-size: .76rem;
+}
+
+#view-torrent .torrent-tag-select {
+    min-width: 145px;
+    background: var(--bg-input) !important;
+}
+
+#view-torrent .torrent-toolbar-speed {
+    padding: .25rem .55rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-card) 76%, var(--bg-main) 24%);
+}
+
+#view-torrent .torrent-speed-input {
+    width: 82px;
+    background: var(--bg-input) !important;
+}
+
+#view-torrent .torrent-toolbar-actions .btn {
+    min-width: 40px;
+}
+
+#view-torrent .torrent-table {
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-card) 97%, var(--primary) 3%);
+}
+
+#view-torrent .torrent-header {
+    min-height: 42px;
+    padding-top: .55rem;
+    padding-bottom: .55rem;
+    background: color-mix(in srgb, var(--primary) 9%, var(--bg-card));
+    border-bottom: 1px solid var(--border-light);
+}
+
+#view-torrent .torrent-header .torrent-th {
+    color: var(--text-muted);
+    transition: color .15s ease;
+}
+
+#view-torrent .torrent-header .torrent-th:hover { color: var(--primary-light); }
+
+#view-torrent .torrent-table .table-row:not(.torrent-header) {
+    min-height: 70px;
+    background: transparent;
+}
+
+#view-torrent .torrent-table .table-row:not(.torrent-header):hover {
+    background: linear-gradient(90deg, var(--primary-glow), transparent 72%);
+}
+
+#view-torrent .torrent-name-text {
+    line-height: 1.3;
+}
+
+#view-torrent .torrent-state-cell .badge {
+    padding: .35rem .55rem;
+    border-radius: 8px;
+    font-size: .67rem;
+    letter-spacing: .02em;
+}
+
+#view-torrent .torrent-progress-bar {
+    height: 24px;
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    background: var(--bg-input);
+    border-radius: 8px;
+}
+
+#view-torrent .torrent-progress-fill { border-radius: 7px; }
+
+#view-torrent .torrent-actions {
+    gap: .3rem;
+}
+
+#view-torrent .torrent-actions .btn {
+    min-width: 34px;
+    min-height: 34px;
+    opacity: .86;
+    border-radius: 9px;
+}
+
+#view-torrent .torrent-actions .btn:hover {
+    opacity: 1;
+    border-color: var(--primary);
+    background: var(--primary-glow);
+}
+
+#view-torrent #torrent-bulk-bar {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: color-mix(in srgb, var(--primary) 12%, var(--bg-card)) !important;
+    border-bottom-color: color-mix(in srgb, var(--primary) 30%, var(--border)) !important;
+    box-shadow: 0 8px 20px rgba(2, 6, 23, .12);
+}
+
+#view-torrent .torrent-empty {
+    margin-top: .85rem;
+    padding: 3rem 1rem;
+    border: 1px dashed var(--border-light);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+    text-align: center;
+}
+
+@media (max-width: 680px) {
+    #view-torrent .torrent-toolbar { padding: .55rem; }
+    #view-torrent .torrent-toolbar-stats,
+    #view-torrent .torrent-toolbar-speed,
+    #view-torrent .torrent-toolbar-actions { flex-basis: 100%; }
+    #view-torrent .torrent-band-stats { width: 100%; flex-wrap: wrap; }
+    #view-torrent .band-item { flex: 1 1 auto; justify-content: center; }
+    #view-torrent .torrent-toolbar-speed { flex-wrap: wrap; }
+    #view-torrent .torrent-speed-input { flex: 1 1 80px; width: auto; }
+    #view-torrent .torrent-toolbar-actions .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* Torrent details and confirmations: presentation only. */
+#torrent-details-modal .modal-content {
+    max-width: 960px !important;
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+#torrent-details-modal .modal-header {
+    padding: 1rem 1.25rem !important;
+    background: linear-gradient(110deg, var(--primary-glow), transparent 65%);
+}
+
+#torrent-details-modal #td-title {
+    color: var(--text-primary) !important;
+    font-size: 1rem !important;
+}
+
+#torrent-details-modal > .modal-content > .config-tabs {
+    padding: .35rem .65rem !important;
+    margin: 0;
+    background: var(--bg-raised);
+    border-bottom-color: var(--border);
+}
+
+#torrent-details-modal .td-tab-btn {
+    min-height: 38px;
+}
+
+#torrent-details-modal .modal-body {
+    padding: 1rem 1.25rem !important;
+    background: color-mix(in srgb, var(--bg-main) 52%, var(--bg-card) 48%);
+}
+
+#torrent-details-modal .td-panel > [style*="background:var(--bg-input)"] {
+    padding: .9rem 1rem !important;
+    border-color: var(--border) !important;
+    border-radius: 12px !important;
+    background: var(--bg-input) !important;
+}
+
+#torrent-details-modal .td-panel [id^="td-g-"] {
+    color: var(--text-primary);
+}
+
+#torrent-details-modal .td-panel [id="td-g-path"],
+#torrent-details-modal .td-panel [id="td-g-hash"],
+#torrent-details-modal .td-panel [id="td-g-pieces"] {
+    color: var(--text-secondary) !important;
+}
+
+#torrent-details-modal .td-panel .form-input {
+    min-height: 38px;
+    background: var(--bg-card) !important;
+}
+
+#torrent-details-modal .data-table {
+    border-radius: 12px;
+    background: var(--bg-card);
+}
+
+#torrent-details-modal .data-table .table-row {
+    min-height: 46px;
+}
+
+#remove-torrent-modal .modal-content,
+#set-tag-modal .modal-content {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+#remove-torrent-modal .modal-header,
+#set-tag-modal .modal-header {
+    padding: 1rem 1.25rem;
+}
+
+#remove-torrent-modal .modal-body,
+#set-tag-modal .modal-body {
+    padding: 1.15rem 1.25rem;
+}
+
+#remove-torrent-modal #remove-torrent-name {
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+#remove-torrent-modal .modal-body > label {
+    padding: .75rem .85rem;
+    border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
+#set-tag-modal #existing-tags-container > * {
+    border-radius: 8px;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+/* Series and movie detail views: replace the legacy dark inline surfaces. */
+#view-extto,
+#view-radarr {
+    background: var(--bg-main);
+    color: var(--text-primary);
+}
+
+#extto-header,
+#radarr-header {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+#extto-header > div[style*="linear-gradient"],
+#radarr-header > div[style*="linear-gradient"] {
+    background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--bg-card) 98%, transparent) 0%,
+        color-mix(in srgb, var(--bg-card) 68%, transparent) 50%,
+        color-mix(in srgb, var(--bg-card) 98%, transparent) 100%
+    ) !important;
+}
+
+#extto-poster,
+#radarr-poster {
+    background: var(--bg-input) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+#extto-seasons > div,
+#radarr-details > div,
+#movie-feed-section {
+    background: var(--bg-card) !important;
+    border-color: var(--border) !important;
+}
+
+#extto-seasons .season-accordion-header,
+#radarr-details > div > div:first-child,
+#movie-feed-section > div:first-child {
+    background: color-mix(in srgb, var(--bg-raised) 88%, var(--primary) 12%) !important;
+    color: var(--text-primary);
+}
+
+#extto-seasons .episode-row,
+#extto-last-found .feed-match-row,
+#radarr-details [style*="rgba(255,255,255,0.05)"],
+#movie-feed-section [style*="rgba(255,255,255,.05)"] {
+    border-bottom-color: var(--border) !important;
+}
+
+#extto-last-found > div {
+    background: var(--bg-card) !important;
+}
+
+#movies-config-list .table-actions .btn,
+#movies-downloaded-list .table-actions .btn {
+    opacity: 1;
+}
+
+#movies-config-list .table-actions .btn-primary,
+#movies-downloaded-list .table-actions .btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--accent)) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    box-shadow: 0 6px 14px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+#movies-config-list .table-actions .btn-primary:hover,
+#movies-downloaded-list .table-actions .btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-hover), var(--accent)) !important;
+}
+
+.movie-title-link {
+    cursor: pointer;
+    transition: color .15s ease;
+}
+
+.movie-title-link:hover,
+.movie-title-link:focus-visible {
+    color: var(--primary-light);
+    text-decoration: underline;
+    outline: none;
+}
+
+/* Make live transfer rates readable in both themes. */
+#view-torrent #torrent-band-stats .fa-arrow-down,
+#view-torrent #tstat-dl,
+#view-torrent .torrent-dl-rate {
+    color: #6ee7b7 !important;
+}
+
+#view-torrent #torrent-band-stats .fa-arrow-up,
+#view-torrent #tstat-ul,
+#view-torrent .torrent-ul-rate {
+    color: #fcd34d !important;
+}
+
+#view-torrent #tstat-dl,
+#view-torrent #tstat-ul,
+#view-torrent .torrent-dl-rate,
+#view-torrent .torrent-ul-rate {
+    font-weight: 800;
+    text-shadow: 0 0 10px color-mix(in srgb, currentColor 20%, transparent);
+}
+
+#view-torrent .torrent-dl-rate,
+#view-torrent .torrent-ul-rate {
+    padding: .22rem .38rem;
+    border-radius: 7px;
+}
+
+#view-torrent .torrent-dl-rate { background: rgba(16, 185, 129, .14); }
+#view-torrent .torrent-ul-rate { background: rgba(245, 158, 11, .16); }
+
+:root[data-theme="light"] #view-torrent #torrent-band-stats .fa-arrow-down,
+:root[data-theme="light"] #view-torrent #tstat-dl,
+:root[data-theme="light"] #view-torrent .torrent-dl-rate {
+    color: #047857 !important;
+}
+
+:root[data-theme="light"] #view-torrent #torrent-band-stats .fa-arrow-up,
+:root[data-theme="light"] #view-torrent #tstat-ul,
+:root[data-theme="light"] #view-torrent .torrent-ul-rate {
+    color: #b45309 !important;
+}
+
+@media (max-width: 680px) {
+    #torrent-details-modal .modal-content {
+        max-height: 94vh;
+    }
+
+    #torrent-details-modal .modal-body { padding: .75rem !important; }
+
+    #torrent-details-modal #td-general > div:first-child,
+    #torrent-details-modal #td-general [style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    #torrent-details-modal #td-g-path,
+    #torrent-details-modal #td-g-hash {
+        font-size: .72rem !important;
+    }
+}
