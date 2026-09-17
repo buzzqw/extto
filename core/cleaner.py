@@ -32,6 +32,7 @@ from typing import Optional, List, Tuple
 from .constants import logger
 
 _VIDEO_EXTS = {'.mkv', '.mp4', '.avi', '.m4v', '.ts', '.mov', '.wmv', '.webm'}
+_HARD_UPGRADE_REASONS = {'repack', 'resolution', 'source', 'hdr'}
 
 
 def _is_local_path(path: str) -> bool:
@@ -123,8 +124,9 @@ def cleanup_old_episode(
         logger.debug(f"   cleaner: archive_path does not exist or is not a directory: '{archive_path}'")
         return 0
 
-    from .models import Parser, normalize_series_name, _series_name_matches
+    from .models import Parser, Quality, normalize_series_name, _series_name_matches
     norm_series = normalize_series_name(series_name)
+    new_quality = Parser.parse_quality(new_title or new_fname)
 
     video_files = _collect_video_files(archive_path)
     if not video_files:
@@ -163,9 +165,11 @@ def cleanup_old_episode(
         # Calcola score del file trovato
         q      = ep_parsed.get('quality') or Parser.parse_quality(fname)
         f_score = q.score() if hasattr(q, 'score') else 0
+        upgrade_reason = Quality.upgrade_reason(new_quality, q, f_score, min_score_diff)
 
         # Ripristinata la logica originale (con >=) per passare i test
-        if f_score >= new_score - min_score_diff:
+        if (f_score >= new_score - min_score_diff
+                and upgrade_reason not in _HARD_UPGRADE_REASONS):
             logger.debug(
                 f"   cleaner: skip '{fname}' score={f_score} >= new={new_score} "
                 f"(diff={new_score - f_score} < min={min_score_diff})"
@@ -276,6 +280,7 @@ def discard_if_inferior(
     trash_path: str,
     min_score_diff: int = 0,
     action: str = 'move',
+    new_title: str = '',
 ) -> bool:
     """
     Controlla se nell'archive_path (= save_path dopo move_storage) esiste già
@@ -289,8 +294,9 @@ def discard_if_inferior(
     if not os.path.isdir(save_path):
         return False
 
-    from .models import Parser, normalize_series_name, _series_name_matches
+    from .models import Parser, Quality, normalize_series_name, _series_name_matches
     norm_series = normalize_series_name(series_name)
+    new_quality = Parser.parse_quality(new_title or new_fname)
 
     video_files = _collect_video_files(save_path)
     new_full    = os.path.join(save_path, new_fname)
@@ -301,7 +307,7 @@ def discard_if_inferior(
                 new_full = os.path.join(dirpath, new_fname)
                 break
 
-    best_existing = None  # (score, fname) del file migliore già presente
+    best_existing = None  # (score, fname, path, quality) del file migliore già presente
 
     for dirpath, fname in video_files:
         full = os.path.join(dirpath, fname)
@@ -322,15 +328,17 @@ def discard_if_inferior(
         f_score = q.score() if hasattr(q, 'score') else 0
 
         if best_existing is None or f_score > best_existing[0]:
-            best_existing = (f_score, fname, full)
+            best_existing = (f_score, fname, full, q)
 
     if best_existing is None:
         # Nessun altro file dello stesso episodio — il nuovo rimane
         return False
 
-    best_score, best_fname, _ = best_existing
+    best_score, best_fname, _, best_quality = best_existing
 
-    if best_score > new_score + min_score_diff:
+    upgrade_reason = Quality.upgrade_reason(new_quality, best_quality, best_score, min_score_diff)
+    if (best_score > new_score + min_score_diff
+            and upgrade_reason not in _HARD_UPGRADE_REASONS):
         # C'è già qualcosa di migliore — il nuovo va in trash
         logger.info(
             f"🔍 cleaner: new file INFERIOR for S{season:02d}E{episode:02d}: "

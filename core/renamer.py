@@ -343,6 +343,7 @@ def rename_completed_torrent(torrent_name: str, save_path: str, cfg: dict, db=No
                 trash_path     = _trash,
                 min_score_diff = _min_diff,
                 action         = _action,
+                new_title      = torrent_name,
             )
 
             if not _discarded:

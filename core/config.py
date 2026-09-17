@@ -98,6 +98,7 @@ class Config:
         self.trash_path              = ''
         self.archive_root            = '' # Radice per individuazione automatica serie
         self.cleanup_min_score_diff  = 0
+        self.upgrade_min_score_diff  = 200
         self.cleanup_action          = 'move'  # move o delete
 
         # Move episodes / misc
@@ -283,6 +284,12 @@ class Config:
             self.cleanup_min_score_diff = int(str(raw.get('cleanup_min_score_diff', 0)).split('#')[0].strip())
         except Exception:
             self.cleanup_min_score_diff = 0
+        try:
+            self.upgrade_min_score_diff = int(str(raw.get('upgrade_min_score_diff', 200)).split('#')[0].strip())
+            if self.upgrade_min_score_diff < 0:
+                self.upgrade_min_score_diff = 0
+        except Exception:
+            self.upgrade_min_score_diff = 200
         self.cleanup_action = str(raw.get('cleanup_action', 'move')).split('#')[0].strip().lower()
         if self.cleanup_action not in ('move', 'delete'):
             self.cleanup_action = 'move'

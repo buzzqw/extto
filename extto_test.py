@@ -558,6 +558,35 @@ class TestQualityScoring(unittest.TestCase):
         self.assertTrue(q_proper.score() > q_repack.score())
         self.assertTrue(q_repack.score() > q_base.score())
 
+    def test_upgrade_policy(self):
+        old = Quality(resolution='1080p', source='webdl', codec='h264')
+
+        h265 = Quality(resolution='1080p', source='webdl', codec='h265')
+        self.assertIsNone(Quality.upgrade_reason(h265, old))
+
+        webdl = Quality(resolution='1080p', source='webdl', codec='h264')
+        hdtv = Quality(resolution='1080p', source='hdtv', codec='h264')
+        self.assertEqual(Quality.upgrade_reason(webdl, hdtv), 'source')
+
+        higher_resolution = Quality(resolution='1080p', source='webdl', codec='h264')
+        lower_resolution = Quality(resolution='720p', source='webdl', codec='h265')
+        self.assertEqual(Quality.upgrade_reason(higher_resolution, lower_resolution), 'resolution')
+
+        better_audio = Quality(resolution='1080p', source='webdl', codec='h265', audio='truehd')
+        self.assertEqual(Quality.upgrade_reason(better_audio, old), 'score')
+
+        repack = Quality(resolution='1080p', source='webdl', codec='h264', is_repack=True)
+        self.assertEqual(Quality.upgrade_reason(repack, old), 'repack')
+        other_repack = Quality(resolution='1080p', source='webdl', codec='h265', is_repack=True)
+        self.assertIsNone(Quality.upgrade_reason(other_repack, repack))
+
+        hdr = Quality(resolution='1080p', source='webdl', codec='h264', hdr='HDR10')
+        self.assertEqual(Quality.upgrade_reason(hdr, old), 'hdr')
+        bluray_sdr = Quality(resolution='1080p', source='bluray', codec='h264')
+        webdl_hdr = Quality(resolution='1080p', source='webdl', codec='h264', hdr='HDR10')
+        self.assertEqual(Quality.upgrade_reason(webdl_hdr, bluray_sdr), 'hdr')
+        self.assertEqual(Parser.parse_quality('Show.S01E01.1080p.WEB-DL.HDR10Plus.x264').hdr, 'HDR10Plus')
+
     def test_lingua_non_influenza_score(self):
         """Nella versione multilang la lingua NON dà punti — lo score è identico
         indipendentemente da is_ita. La lingua è un filtro pass/fail esterno."""
@@ -874,6 +903,26 @@ class TestCleanerActions(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.trash, "La.Serie.S01E01.720p.mkv")))
         # Il 4K deve essere ancora sano e salvo al suo posto
         self.assertTrue(os.path.exists(os.path.join(self.archive, "La.Serie.S01E01.2160p.mkv")))
+
+    def test_hdtv_to_webdl_cleanup_even_when_score_is_equal(self):
+        old_name = "La.Serie.S01E01.1080p.HDTV.x265.mkv"
+        new_name = "La.Serie.S01E01.1080p.WEB-DL.x264.mkv"
+        open(os.path.join(self.archive, old_name), 'w').close()
+        open(os.path.join(self.archive, new_name), 'w').close()
+
+        self.assertFalse(discard_if_inferior(
+            series_name="La Serie", season=1, episode=1,
+            new_score=1250, new_fname=new_name,
+            save_path=self.archive, trash_path=self.trash,
+            new_title=new_name,
+        ))
+        self.assertEqual(cleanup_old_episode(
+            series_name="La Serie", season=1, episode=1,
+            new_score=1250, new_title=new_name,
+            archive_path=self.archive, trash_path=self.trash,
+            new_fname=new_name,
+        ), 1)
+        self.assertTrue(os.path.exists(os.path.join(self.trash, old_name)))
 
 
 class TestTMDB(unittest.TestCase):

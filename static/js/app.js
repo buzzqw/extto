@@ -4551,6 +4551,8 @@ const app = {
                     [
                         {k:'trash_path',             l:'Cartella Trash',           t:'path',   flex:2,
                          d:"Percorso assoluto della cartella dove spostare i file obsoleti. Viene creata automaticamente se non esiste. Esempio: /mnt/nas/trash"},
+                        {k:'upgrade_min_score_diff', l:'Soglia Upgrade',          t:'number', flex:1,
+                         d:"Differenza minima per gli upgrade basati solo sulla somma dei punti. Default: 200. Repack, HDTV -> WEB-DL, aumento risoluzione e HDR restano upgrade dedicati."},
                         {k:'trash_retention_days',   l:'Giorni Retention Cestino', t:'number', flex:1,
                          d:"Elimina automaticamente i file nel cestino più vecchi di N giorni ad ogni ciclo. Lascia vuoto per non cancellare mai."},
                     ],
@@ -4947,7 +4949,9 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
     },
 
     renderField(f, settings) {
-        const val = (settings[f.key] !== undefined && settings[f.key] !== null) ? settings[f.key] : '';
+        const val = (settings[f.key] !== undefined && settings[f.key] !== null)
+            ? settings[f.key]
+            : (f.key === 'upgrade_min_score_diff' ? 200 : '');
         const infoIcon = f.desc ? ` <span class="tip" data-tip="${this._esc(t(f.desc))}"></span>` : '';
 
         if (f.type === 'select') {

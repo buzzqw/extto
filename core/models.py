@@ -207,6 +207,7 @@ class Quality:
     is_proper:   bool = False
     is_real:     bool = False
     is_dv:       bool = False
+    hdr:         str = ""
     group:       str = 'unknown'
 
     # Questi sono i valori di base (se il file extto.conf è vuoto)
@@ -215,6 +216,8 @@ class Quality:
     SOURCE_PREF = {'bluray': 300, 'webdl': 200, 'webrip': 150, 'hdtv': 50, 'dvdrip': 20, 'unknown': 0}
     AUDIO_PREF  = {'truehd': 150, 'dts-hd': 120, 'dts': 100, 'ddp': 80, 'ac3': 50, '5.1': 50, 'aac': 30, 'mp3': 10, 'unknown': 0}
     GROUP_PREF  = {'mircrew': 50, 'nahom': 30, 'TheBlackKing': 30, 'BlackBit': 30, 'unknown': 0}
+    SOURCE_RANK = {'unknown': 0, 'hdtv': 1, 'dvdrip': 2, 'webrip': 3, 'webdl': 4, 'bluray': 5}
+    UPGRADE_MIN_SCORE_DIFF = 200
 
     BONUS_DV     = 300
     BONUS_REAL   = 100
@@ -275,10 +278,52 @@ class Quality:
         if self.is_repack: s += self.BONUS_REPACK
         return s
 
+    @property
+    def has_hdr(self) -> bool:
+        """True for Dolby Vision and all recognised HDR variants."""
+        return bool(self.is_dv or self.hdr)
+
+    @classmethod
+    def upgrade_reason(cls, new: 'Quality', old: 'Quality', old_score: Optional[int] = None,
+                       min_score_diff: Optional[int] = None) -> Optional[str]:
+        """Return why ``new`` may replace ``old``, or None if it should not."""
+        if not isinstance(new, Quality) or not isinstance(old, Quality):
+            return None
+
+        new_score = new.score()
+        previous_score = old.score() if old_score is None else int(old_score or 0)
+        threshold = cls.UPGRADE_MIN_SCORE_DIFF if min_score_diff is None else int(min_score_diff)
+        new_res = Parser.get_res_rank(new.resolution)
+        old_res = Parser.get_res_rank(old.resolution)
+        new_source = cls.SOURCE_RANK.get(new.source, 0)
+        old_source = cls.SOURCE_RANK.get(old.source, 0)
+
+        if new_res > old_res:
+            return 'resolution'
+
+        # HDTV -> WEB-DL is meaningful even when the additive score delta is
+        # below the ordinary upgrade threshold.
+        if old.source == 'hdtv' and new.source == 'webdl' and new_res >= old_res:
+            return 'source'
+
+        if new.has_hdr and not old.has_hdr and new_res >= old_res:
+            return 'hdr'
+
+        # A repack is a one-time upgrade. It must not introduce an obvious
+        # resolution/source downgrade, and another repack never wins by group.
+        if new.is_repack and not old.is_repack:
+            if new_res >= old_res and new_source >= old_source:
+                return 'repack'
+
+        if new_score > previous_score and new_score - previous_score >= threshold:
+            return 'score'
+        return None
+
     def __str__(self):
         parts = [self.resolution, self.source, self.codec]
         if self.is_ita:             parts.append("ITA")
         if self.is_dv:  parts.append("DV")
+        elif self.hdr:  parts.append(self.hdr)
         if self.audio != "unknown": parts.append(self.audio.upper())
         if self.group != "unknown": parts.append(self.group.upper())
         if self.is_repack:
@@ -377,6 +422,14 @@ class Parser:
         if (' dv ' in f' {t_norm_lang} ' or 'dovi' in t_norm_lang
                 or 'dolby vision' in t_norm_lang):
             q.is_dv = True
+            q.hdr = 'DV'
+        elif ('hdr10+' in t_norm_lang or 'hdr10plus' in t_norm_lang
+              or 'hdr10 plus' in t_norm_lang):
+            q.hdr = 'HDR10Plus'
+        elif 'hdr10' in t_norm_lang:
+            q.hdr = 'HDR10'
+        elif re.search(r'\bhdr\b|\bhlg\b', t_norm_lang):
+            q.hdr = 'HDR'
 
         # Codec — h265 può apparire come x265/hevc nei torrent o [h265] nei rinominati
         if   'x265' in t or 'hevc' in t or 'h.265' in t or ' h265 ' in f' {t_norm_lang} ':

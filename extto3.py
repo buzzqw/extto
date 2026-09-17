@@ -1903,7 +1903,12 @@ def main():
                                 continue  # scarta il candidato corrente
 
                         prev = best_by_ep.get(key)
-                        if (prev is None) or (score > prev['score']):
+                        _hdr_upgrade = bool(
+                            prev and ep['quality'].has_hdr and not prev['quality'].has_hdr
+                            and Parser.get_res_rank(ep['quality'].resolution) >=
+                                Parser.get_res_rank(prev['quality'].resolution)
+                        )
+                        if (prev is None) or (score > prev['score']) or _hdr_upgrade:
                             best_by_ep[key] = {
                                 'series_name':   ep['name'],
                                 'season':        ep['season'],

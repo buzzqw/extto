@@ -758,7 +758,7 @@ def _save_extto_conf(config: dict) -> bool:
               "stop_on_", "debug_", "archive_", "rename_episodes", "rename_format", "move_episodes",
               "jackett_save_to_archive", "prowlarr_save_to_archive", "tmdb_language",
               "backup_dir", "backup_retention", "backup_schedule", "refresh_interval",
-              "comics_", "web_port", "engine_port", "cleanup_upgrades", "trash_path", "cleanup_min_score_diff", "trash_retention_days"]),
+              "comics_", "web_port", "engine_port", "cleanup_upgrades", "trash_path", "cleanup_min_score_diff", "upgrade_min_score_diff", "trash_retention_days"]),
               ("PUNTEGGI E QUALITÀ (SCORES)", ["score_", "auto_remove_completed"]), # <--- AGGIUNGI QUESTA RIGA
         ]
 

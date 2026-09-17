@@ -1353,7 +1353,7 @@ class Database:
     # ------------------------------------------------------------------
 
     def check_series(self, ep: dict, magnet: str, quality_req: str):
-        from .models import normalize_series_name, _series_name_matches
+        from .models import normalize_series_name, _series_name_matches, Parser, Quality
 
         h = re.search(r'btih:([a-fA-F0-9]{40})', magnet, re.I)
         if not h:
@@ -1425,7 +1425,13 @@ class Database:
         except Exception as e:
             logger.warning(f"protezione download attivi: {e}")
 
-        new_score    = ep['quality'].score()
+        new_quality  = ep['quality']
+        new_score    = new_quality.score()
+        try:
+            from .config import Config
+            upgrade_min_score_diff = int(getattr(Config(), 'upgrade_min_score_diff', 200))
+        except Exception:
+            upgrade_min_score_diff = 200
         archive_path = ep.get('archive_path', '') if isinstance(ep, dict) else ''
         _check_episode = ep['episode']
         _pack_has_benefit = False
@@ -1480,16 +1486,23 @@ class Database:
                     _missing = []
                     _already_better = []
                     for _pack_ep in sorted(_pack_range):
-                        _pack_score = self._best_quality_in_path(
-                            ep['name'], ep['season'], _pack_ep, archive_path
+                        _pack_details = self._best_quality_in_path(
+                            ep['name'], ep['season'], _pack_ep, archive_path, _details=True
                         )
-                        if _pack_score is None:
+                        if _pack_details is None:
                             _missing.append(_pack_ep)
                             _useful.append(_pack_ep)
-                        elif _pack_score < new_score:
-                            _useful.append(_pack_ep)
                         else:
-                            _already_better.append(_pack_ep)
+                            _pack_reason = Quality.upgrade_reason(
+                                new_quality, _pack_details['quality'], _pack_details['score'],
+                                upgrade_min_score_diff
+                            )
+                            if _pack_reason and (
+                                _pack_reason != 'repack' or not _pack_details.get('has_repack')
+                            ):
+                                _useful.append(_pack_ep)
+                            else:
+                                _already_better.append(_pack_ep)
 
                     if not _useful:
                         stats.duplicates.append(
@@ -1521,17 +1534,28 @@ class Database:
                 # controllo standard sottostante resta comunque attivo.
                 logger.warning(f"[SEASON-PACK] benefit check failed: {_pack_check_error}")
 
+        existing_path_details = None
         try:
-            existing_path_score = self._best_quality_in_path(
-                ep['name'], ep['season'], _check_episode, archive_path
+            existing_path_details = self._best_quality_in_path(
+                ep['name'], ep['season'], _check_episode, archive_path, _details=True
             ) if archive_path else None
+            existing_path_score = (existing_path_details['score']
+                                   if existing_path_details else None)
         except Exception as e:
             logger.debug(f"_best_quality_in_path: {e}")
             existing_path_score = None
 
         if existing_path_score is not None:
             logger.debug(f"[ARCHIVE-CHECK] best_in_path={existing_path_score} vs new_score={new_score}")
-        if existing_path_score is not None and existing_path_score >= new_score:
+        path_upgrade_reason = None
+        if existing_path_details:
+            path_upgrade_reason = Quality.upgrade_reason(
+                new_quality, existing_path_details['quality'], existing_path_score,
+                upgrade_min_score_diff
+            )
+            if path_upgrade_reason == 'repack' and existing_path_details.get('has_repack'):
+                path_upgrade_reason = None
+        if existing_path_score is not None and not path_upgrade_reason:
             stats.duplicates.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d}")
             self.record_episode_discard(series_id, ep['season'], _check_episode,
                                         "in archivio con qualita' uguale o superiore")
@@ -1589,10 +1613,37 @@ class Database:
             # Se NON è completa, permettiamo il download del pack per riempire i buchi,
             # a meno che la qualità del pack non sia davvero pessima (ma è già filtrata a monte).
             if is_complete and db_max and db_max >= new_score and not _pack_has_benefit:
-                stats.duplicates.append(f"{ep['name']} S{ep['season']:02d} Pack (inferiore a episodi esistenti)")
-                self.record_episode_discard(series_id, ep['season'], 0, 'existing_season_better')
-                logger.info(f"[SEASON-PACK] SKIP: season is complete and pack {new_score} is not an upgrade (DB max: {db_max})")
-                return False, "Existing season better"
+                # Anche senza scansione fisica, un pack può essere un upgrade
+                # qualitativo (es. HDTV -> WEB-DL o repack su episodio normale).
+                _db_pack_useful_episode = None
+                for _db_pack_row in c.execute(
+                    "SELECT episode, title, quality_score, is_repack FROM episodes "
+                    "WHERE series_id=? AND season=? AND episode>0 ORDER BY episode",
+                    (series_id, ep['season'])
+                ).fetchall():
+                    _db_old_quality = Parser.parse_quality(_db_pack_row['title'] or '')
+                    _db_old_quality.is_repack = bool(
+                        _db_old_quality.is_repack or _db_pack_row['is_repack']
+                    )
+                    if Quality.upgrade_reason(
+                        new_quality, _db_old_quality, _db_pack_row['quality_score'],
+                        upgrade_min_score_diff
+                    ):
+                        _db_pack_useful_episode = _db_pack_row['episode']
+                        break
+
+                if _db_pack_useful_episode is None:
+                    stats.duplicates.append(f"{ep['name']} S{ep['season']:02d} Pack (inferiore a episodi esistenti)")
+                    self.record_episode_discard(series_id, ep['season'], 0, 'existing_season_better')
+                    logger.info(f"[SEASON-PACK] SKIP: season is complete and pack {new_score} is not an upgrade (DB max: {db_max})")
+                    return False, "Existing season better"
+
+                _pack_has_benefit = True
+                _pack_is_upgrade_only = True
+                _check_episode = _db_pack_useful_episode
+                logger.info(
+                    f"[SEASON-PACK] qualitative upgrade found on E{_check_episode:02d}"
+                )
             
             if not is_complete:
                 safe_exp = expected if (expected is not None and expected > 0) else '?'
@@ -1605,7 +1656,12 @@ class Database:
         row = c.fetchone()
 
         if row:
-            if new_score > row['quality_score']:
+            old_quality = Parser.parse_quality(row['title'] or '')
+            old_quality.is_repack = bool(old_quality.is_repack or row['is_repack'])
+            upgrade_reason = Quality.upgrade_reason(
+                new_quality, old_quality, row['quality_score'], upgrade_min_score_diff
+            )
+            if upgrade_reason:
                 # Backup della riga precedente PRIMA di sovrascriverla: se il
                 # nuovo magnet (upgrade/season pack) fallisce, _handle_download_failure
                 # potrà ripristinare la versione già scaricata invece di cancellarla
@@ -1619,7 +1675,9 @@ class Database:
                            datetime.now(timezone.utc).isoformat(), archive_path, series_id,
                            ep['season'], _check_episode))
                 self.conn.commit()
-                stats.series_matched.append(f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d} (upgrade)")
+                stats.series_matched.append(
+                    f"{ep['name']} S{ep['season']:02d}E{_check_episode:02d} (upgrade: {upgrade_reason})"
+                )
                 # ── CLEANUP UPGRADE ────────────────────────────────────────────
                 # Se cleanup_upgrades è abilitato, cerca e sposta in trash i file
                 # obsoleti (stessa puntata, score inferiore) nell'archive_path.
@@ -1737,7 +1795,7 @@ class Database:
             return True, "Upgrade" if _pack_is_upgrade_only else "New"
 
     def _best_quality_in_path(self, series_name: str, season: int, episode: int,
-                               archive_path: str) -> Optional[int]:
+                               archive_path: str, _details: bool = False):
         if not archive_path:
             return None
         ap = archive_path.strip()
@@ -1814,6 +1872,7 @@ class Database:
                 return None
 
             best    = None
+            has_repack = False
             matched = 0
             for fname in files:
                 ep_parsed = Parser.parse_series_episode(fname)
@@ -1831,14 +1890,17 @@ class Database:
                     continue
                 matched += 1
                 q     = ep_parsed.get('quality') or Parser.parse_quality(fname)
+                has_repack = has_repack or bool(q.is_repack)
                 score = q.score() if hasattr(q, 'score') else 0
-                if best is None or score > best:
-                    best = score
+                if best is None or score > best['score']:
+                    best = {'score': score, 'quality': q, 'filename': fname}
             if matched > 0:
-                logger.debug(f"[ARCHIVE-CHECK] ✅ Found {matched} files for '{series_name}' S{int(season):02d}E{int(episode):02d} on disk (Score: {best})")
+                logger.debug(f"[ARCHIVE-CHECK] ✅ Found {matched} files for '{series_name}' S{int(season):02d}E{int(episode):02d} on disk (Score: {best['score']})")
             else:
                 logger.debug(f"[ARCHIVE-CHECK] No match in archive for '{series_name}' (best_score=None)")
-            return best
+            if _details and best:
+                best['has_repack'] = has_repack
+            return best if _details else (best['score'] if best else None)
         except Exception:
             return None
 
