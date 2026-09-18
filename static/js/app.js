@@ -6708,7 +6708,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             position:fixed;z-index:9999;
             top:${rect.bottom + 4}px;right:${window.innerWidth - rect.right}px;
             background:var(--bg-secondary,#1e2130);
-            border:1px solid var(--border-color,rgba(255,255,255,.15));
+            border:1px solid var(--border-light,var(--border,rgba(255,255,255,.15)));
             border-radius:8px;min-width:195px;overflow:hidden;
             box-shadow:0 8px 28px rgba(0,0,0,0.6);`;
 
@@ -6728,16 +6728,16 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             const btn = document.createElement('button');
             btn.style.cssText = `display:flex;align-items:center;gap:10px;width:100%;
                 padding:10px 14px;background:none;border:none;
-                ${i < items.length-1 ? 'border-bottom:1px solid rgba(255,255,255,.07);' : ''}
-                color:#e2e8f0;cursor:pointer;text-align:left;`;
+                ${i < items.length-1 ? 'border-bottom:1px solid var(--border);' : ''}
+                color:var(--text-primary);cursor:pointer;text-align:left;`;
             btn.innerHTML = `
                 <i class="${item.icon}" style="color:${item.color};width:16px;text-align:center;flex-shrink:0"></i>
                 <div>
                   <div style="font-size:.84rem;font-weight:600">${item.label}</div>
-                  <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:1px">${item.desc}</div>
+                  <div style="font-size:.72rem;color:var(--text-secondary);margin-top:1px">${item.desc}</div>
                 </div>`;
-            btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,.06)';
-            btn.onmouseleave = () => btn.style.background = 'none';
+            btn.onmouseenter = () => btn.style.background = 'var(--bg-hover)';
+            btn.onmouseleave = () => btn.style.background = 'transparent';
             btn.onclick = (e) => { e.stopPropagation(); drop.remove(); item.fn(); };
             drop.appendChild(btn);
         });
@@ -7348,7 +7348,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             position:fixed;z-index:9999;
             top:${rect.bottom + 4}px;right:${window.innerWidth - rect.right}px;
             background:var(--bg-secondary,#1e2130);
-            border:1px solid var(--border-color,rgba(255,255,255,.15));
+            border:1px solid var(--border-light,var(--border,rgba(255,255,255,.15)));
             border-radius:8px;min-width:195px;overflow:hidden;
             box-shadow:0 8px 28px rgba(0,0,0,0.6);`;
 
@@ -7364,16 +7364,16 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
             const btn = document.createElement('button');
             btn.style.cssText = `display:flex;align-items:center;gap:10px;width:100%;
                 padding:10px 14px;background:none;border:none;
-                ${i < items.length-1 ? 'border-bottom:1px solid rgba(255,255,255,.07);' : ''}
-                color:#e2e8f0;cursor:pointer;text-align:left;`;
+                ${i < items.length-1 ? 'border-bottom:1px solid var(--border);' : ''}
+                color:var(--text-primary);cursor:pointer;text-align:left;`;
             btn.innerHTML = `
                 <i class="${item.icon}" style="color:${item.color};width:16px;text-align:center;flex-shrink:0"></i>
                 <div>
                   <div style="font-size:.84rem;font-weight:600">${item.label}</div>
-                  <div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-top:1px">${item.desc}</div>
+                  <div style="font-size:.72rem;color:var(--text-secondary);margin-top:1px">${item.desc}</div>
                 </div>`;
-            btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,.06)';
-            btn.onmouseleave = () => btn.style.background = 'none';
+            btn.onmouseenter = () => btn.style.background = 'var(--bg-hover)';
+            btn.onmouseleave = () => btn.style.background = 'transparent';
             btn.onclick = (e) => { e.stopPropagation(); drop.remove(); item.fn(); };
             drop.appendChild(btn);
         });
