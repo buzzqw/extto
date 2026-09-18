@@ -2626,8 +2626,18 @@ def main():
                     continue
                 
                 c = db.conn.cursor()
-                c.execute("SELECT id FROM movies WHERE name=? AND downloaded_at IS NOT NULL AND removed_at IS NULL", (mov_cfg['name'],))
-                if c.fetchone():
+                _configured_year = str(mov_cfg.get('year', '') or '').strip()
+                try:
+                    _configured_year = int(_configured_year) if _configured_year else None
+                except (TypeError, ValueError):
+                    _configured_year = None
+                if _configured_year is not None:
+                    c.execute(
+                        "SELECT id FROM movies WHERE lower(name)=lower(?) AND year=? "
+                        "AND downloaded_at IS NOT NULL AND removed_at IS NULL",
+                        (mov_cfg['name'], _configured_year),
+                    )
+                if _configured_year is not None and c.fetchone():
                     continue  # già scaricato con successo
                 
                 _year = str(mov_cfg.get('year', '') or '').strip()
