@@ -894,8 +894,10 @@ def parse_movies_config() -> List[dict]:
             'year':     m['year'],
             'quality':  m['quality'],
             'language': m['language'],
+            'language_requirements': m.get('language_requirements', []),
             'enabled':  bool(m['enabled']),
             'subtitle': m['subtitle'],
+            'subtitle_requirements': m.get('subtitle_requirements', []),
             'exclude':  m.get('exclude', ''),
         }
         for m in raw
@@ -1019,6 +1021,7 @@ def manual_search():
             for res in results:
                 try: # <--- SCUDO: Se un singolo titolo fallisce, non blocca gli altri 254!
                     reasons = []
+                    preference_bonus = 0
                     t_lower = res.get('title', '').lower()
                     
                     # 1. Controllo Blacklist
@@ -1057,9 +1060,11 @@ def manual_search():
                                 
                                 if this_rank < min_rank: reasons.append(f"Qualità bassa (Richiesta: {qual_req})")
                                 
-                                lang_req = match.get('lang', match.get('language', 'ita'))
-                                if not cfg._lang_ok(res['title'], lang_req): 
-                                    reasons.append(f"Manca Lingua ({lang_req})")
+                                if not cfg._movie_language_ok(res['title'], match):
+                                    reasons.append("Manca Lingua obbligatoria")
+                                if not cfg._movie_subtitle_ok(res['title'], match):
+                                    reasons.append("Manca Sottotitolo obbligatorio")
+                                preference_bonus = cfg._movie_preference_score(res['title'], match)
                             else:
                                 _dl = _default_lang()
                                 if not cfg._lang_ok(res['title'], _dl): reasons.append(f"Manca Lingua ({_dl})")
@@ -1069,7 +1074,7 @@ def manual_search():
 
                     # Applica i punti bonus/malus
                     bonus = cfg.get_custom_score(res['title']) if hasattr(cfg, 'get_custom_score') else 0
-                    res['score'] = res.get('score', 0) + bonus
+                    res['score'] = res.get('score', 0) + bonus + preference_bonus
                     
                     res['rejections'] = reasons
                     

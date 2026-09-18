@@ -498,6 +498,10 @@ class Config:
                     'year':    m['year'],
                     'qual':    m['quality'],
                     'lang':    m['language'],
+                    'language': m['language'],
+                    'language_requirements': m.get('language_requirements', []),
+                    'subtitle': m.get('subtitle', ''),
+                    'subtitle_requirements': m.get('subtitle_requirements', []),
                     'exclude': m.get('exclude', ''),
                 }
                 for m in movies_raw
@@ -670,7 +674,7 @@ class Config:
         ISO 639-1 (2 lettere, es. 'it', 'de') — entrambi accettati.
         Gestisce anche codici compositi tipo 'ita,eng' (accetta se almeno uno matcha).
         """
-        if not req_lang:
+        if not req_lang or str(req_lang).strip().lower() in ('any', '*', 'all', 'tutti'):
             return True
 
         # Gestione compositi: 'ita,eng' → True se almeno una lingua matcha
@@ -735,6 +739,58 @@ class Config:
 
         # Fallback generico per lingue non in mappa: cerca la sigla come parola intera
         return any(re.search(rf'\b{re.escape(p)}\b', t) for p in [req3, req])
+
+    @staticmethod
+    def _requirements_ok(title: str, requirements: list, matcher) -> bool:
+        """Apply all mandatory requirements; optional ones never reject."""
+        for item in requirements or []:
+            if not isinstance(item, dict):
+                continue
+            value = str(item.get('language', item.get('value', '')) or '').strip()
+            if value and item.get('required', False) and not matcher(title, value):
+                return False
+        return True
+
+    @staticmethod
+    def _requirements_score(title: str, requirements: list, matcher, bonus: int) -> int:
+        """Reward each optional requirement found in a release title."""
+        score = 0
+        for item in requirements or []:
+            if not isinstance(item, dict):
+                continue
+            value = str(item.get('language', item.get('value', '')) or '').strip()
+            if value.lower() not in ('any', '*', 'all', 'tutti') and not item.get('required', False) and matcher(title, value):
+                score += bonus
+        return score
+
+    @classmethod
+    def _movie_language_ok(cls, title: str, movie: dict) -> bool:
+        requirements = movie.get('language_requirements')
+        if not requirements:
+            legacy = movie.get('language', movie.get('lang', ''))
+            requirements = [{'language': legacy, 'required': True}] if legacy else []
+        return cls._requirements_ok(title, requirements, cls._lang_ok)
+
+    @classmethod
+    def _movie_subtitle_ok(cls, title: str, movie: dict) -> bool:
+        requirements = movie.get('subtitle_requirements')
+        if not requirements:
+            legacy = movie.get('subtitle', '')
+            requirements = [
+                {'language': value.strip(), 'required': False}
+                for value in str(legacy).split(',') if value.strip()
+            ]
+        return cls._requirements_ok(title, requirements, lambda t, value: cls._sub_score(t, value) > 0)
+
+    @classmethod
+    def _movie_preference_score(cls, title: str, movie: dict) -> int:
+        lang_requirements = movie.get('language_requirements') or []
+        sub_requirements = movie.get('subtitle_requirements') or []
+        return (
+            cls._requirements_score(title, lang_requirements, cls._lang_ok, 500) +
+            cls._requirements_score(title, sub_requirements,
+                                    lambda t, value: cls._sub_score(t, value) > 0, 200)
+        )
 
     @staticmethod
     def _sub_score(title: str, sub_req: str) -> int:

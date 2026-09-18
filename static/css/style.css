@@ -765,6 +765,23 @@ select option {
     cursor: pointer; margin: 0; flex: 1; user-select: none;
 }
 
+.movie-requirement-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.movie-requirement-row > input[type="text"] {
+    grid-column: 1 / -1;
+}
+
+.movie-requirement-row > .checkbox-row {
+    margin: 0;
+    white-space: nowrap;
+}
+
 
 /* ------------------------------------------------------------------
    10. MODALI

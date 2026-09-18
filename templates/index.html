@@ -3199,24 +3199,18 @@ sudo mount /mnt/ramdisk</div>
                                         <option value="2160p">4K (2160p)</option>
                                     </select>
                                 </div>
-                                <div class="form-group">
-                                    <label><span data-i18n="Lingua">Lingua</span> * <span class="unit" style="cursor:help;" data-i18n-title="Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \" title="Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \"Migliori Trovati\" per riferimento.">?</span></label>
-                                    <select id="radarr-edit-language" required class="form-control" onchange="app.handleLanguageChange('radarr-edit')">
-                                        <option value="ita">Italiano</option>
-                                        <option value="custom">Personalizzato…</option>
-                                    </select>
-                                    <input type="text" id="radarr-edit-language-custom" class="form-control hidden" style="margin-top:4px;" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
-                                </div>
-                                <div class="form-group">
-                                    <label><span data-i18n="Sottotitoli">Sottotitoli</span> <span style="color:var(--text-muted); font-size:0.8rem; font-weight:normal;" data-i18n="(opzionale)">(opzionale)</span> <span class="unit" style="cursor:help;" data-i18n-title="Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film." title="Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film.">?</span></label>
-                                    <select id="radarr-edit-subtitle-preset" class="form-control" onchange="app.handleSubtitleChange('radarr-edit')">
-                                        <option value="" data-i18n="— nessuna preferenza —">— nessuna preferenza —</option>
-                                        <option value="ita">Italiano</option>
-                                        <option value="ita,eng">Italiano + English</option>
-                                        <option value="custom">Personalizzato…</option>
-                                    </select>
-                                    <input type="text" id="radarr-edit-subtitle-custom" class="form-control hidden" style="margin-top:4px;" placeholder="Sigla ISO 639-2 (es: fra, deu, jpn, por)" data-i18n-placeholder="Sigla ISO 639-2 (es: fra, deu, jpn, por)">
-                                </div>
+                                 <div class="form-group radarr-edit-full">
+                                     <label><span data-i18n="Lingue audio">Lingue audio</span> <span class="unit" style="cursor:help;" data-i18n-title="Le lingue obbligatorie devono essere tutte presenti. Le lingue facoltative aumentano la priorità senza scartare il torrent.">?</span></label>
+                                     <div class="movie-requirement-row"><select id="radarr-edit-language-1" class="form-control" onchange="app.handleRequirementLanguageChange('radarr-edit','language',1)"></select><label class="checkbox-row"><input type="checkbox" id="radarr-edit-language-required-1"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="radarr-edit-language-1-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                                     <div class="movie-requirement-row"><select id="radarr-edit-language-2" class="form-control" onchange="app.handleRequirementLanguageChange('radarr-edit','language',2)"></select><label class="checkbox-row"><input type="checkbox" id="radarr-edit-language-required-2"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="radarr-edit-language-2-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                                     <div class="movie-requirement-row"><select id="radarr-edit-language-3" class="form-control" onchange="app.handleRequirementLanguageChange('radarr-edit','language',3)"></select><label class="checkbox-row"><input type="checkbox" id="radarr-edit-language-required-3"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="radarr-edit-language-3-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                                 </div>
+                                 <div class="form-group radarr-edit-full">
+                                     <label><span data-i18n="Sottotitoli">Sottotitoli</span> <span class="unit" style="cursor:help;" data-i18n-title="I sottotitoli obbligatori devono essere tutti presenti. Quelli facoltativi aumentano la priorità senza scartare il torrent.">?</span></label>
+                                     <div class="movie-requirement-row"><select id="radarr-edit-subtitle-1" class="form-control" onchange="app.handleRequirementLanguageChange('radarr-edit','subtitle',1)"></select><label class="checkbox-row"><input type="checkbox" id="radarr-edit-subtitle-required-1"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="radarr-edit-subtitle-1-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                                     <div class="movie-requirement-row"><select id="radarr-edit-subtitle-2" class="form-control" onchange="app.handleRequirementLanguageChange('radarr-edit','subtitle',2)"></select><label class="checkbox-row"><input type="checkbox" id="radarr-edit-subtitle-required-2"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="radarr-edit-subtitle-2-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                                     <div class="movie-requirement-row"><select id="radarr-edit-subtitle-3" class="form-control" onchange="app.handleRequirementLanguageChange('radarr-edit','subtitle',3)"></select><label class="checkbox-row"><input type="checkbox" id="radarr-edit-subtitle-required-3"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="radarr-edit-subtitle-3-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                                 </div>
                                         <div class="form-group radarr-edit-full">
                                     <label><span data-i18n="Escludi se contiene">Escludi se contiene</span> <span style="color:var(--text-muted); font-size:0.8rem; font-weight:normal;" data-i18n="(opz. separati da virgola)">(opz. separati da virgola)</span> <span class="unit" style="cursor:help;" title="Release scartate se il titolo contiene UNA QUALSIASI di queste parole/frasi. Es: &quot;special presentation, television&quot; per evitare speciali TV omonimi." data-i18n-title="Release scartate se il titolo contiene UNA QUALSIASI di queste parole/frasi.">?</span></label>
                                     <input type="text" id="radarr-edit-exclude" class="form-control" placeholder="Es: special presentation, television" data-i18n-placeholder="Es: special presentation, television">
@@ -3376,24 +3370,18 @@ sudo mount /mnt/ramdisk</div>
                             <input type="text" id="edit-movie-year" class="form-control" placeholder="es: 2024 (opzionale)" data-i18n-placeholder="es: 2024 (opzionale)" data-i18n-placeholder="es: 2024 (opzionale)" data-i18n-placeholder="es: 2024 (opzionale)">
                         </div>
                         
-                        <div class="form-group">
-                            <label><span data-i18n="Lingua">Lingua</span> * <span class="unit" style="cursor:help;" data-i18n-title="Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \" title="Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \"Migliori Trovati\" per riferimento.">?</span></label>
-                            <select id="edit-movie-language" required class="form-control" onchange="app.handleLanguageChange('edit-movie')">
-                                        <option value="ita">Italiano</option>
-                                        <option value="custom">Personalizzato…</option>
-                                    </select>
-                            <input type="text" id="edit-movie-language-custom" class="form-control hidden" style="margin-top:5px;" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
-                            <div class="form-group">
-                                <label><span data-i18n="Sottotitoli">Sottotitoli</span> <span style="color:var(--text-muted); font-size:0.8rem; font-weight:normal;" data-i18n="(opzionale)">(opzionale)</span> <span class="unit" style="cursor:help;" data-i18n-title="Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film." title="Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film.">?</span></label>
-                                <select id="edit-movie-subtitle-preset" class="form-control" onchange="app.handleSubtitleChange('edit-movie')">
-                                        <option value="" data-i18n="— nessuna preferenza —">— nessuna preferenza —</option>
-                                        <option value="ita">Italiano</option>
-                                        <option value="ita,eng">Italiano + English</option>
-                                        <option value="custom">Personalizzato…</option>
-                                    </select>
-                                <input type="text" id="edit-movie-subtitle-custom" class="form-control hidden" style="margin-top:4px;" placeholder="Sigla ISO 639-2 (es: fra, deu, jpn, por)" data-i18n-placeholder="Sigla ISO 639-2 (es: fra, deu, jpn, por)">
-                            </div>
-                        </div>
+                         <div class="form-group">
+                             <label><span data-i18n="Lingue audio">Lingue audio</span> <span class="unit" style="cursor:help;" data-i18n-title="Le lingue obbligatorie devono essere tutte presenti. Le lingue facoltative aumentano la priorità senza scartare il torrent.">?</span></label>
+                             <div class="movie-requirement-row"><select id="edit-movie-language-1" class="form-control" onchange="app.handleRequirementLanguageChange('edit-movie','language',1)"></select><label class="checkbox-row"><input type="checkbox" id="edit-movie-language-required-1"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="edit-movie-language-1-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                             <div class="movie-requirement-row"><select id="edit-movie-language-2" class="form-control" onchange="app.handleRequirementLanguageChange('edit-movie','language',2)"></select><label class="checkbox-row"><input type="checkbox" id="edit-movie-language-required-2"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="edit-movie-language-2-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                             <div class="movie-requirement-row"><select id="edit-movie-language-3" class="form-control" onchange="app.handleRequirementLanguageChange('edit-movie','language',3)"></select><label class="checkbox-row"><input type="checkbox" id="edit-movie-language-required-3"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="edit-movie-language-3-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                         </div>
+                         <div class="form-group">
+                             <label><span data-i18n="Sottotitoli">Sottotitoli</span> <span class="unit" style="cursor:help;" data-i18n-title="I sottotitoli obbligatori devono essere tutti presenti. Quelli facoltativi aumentano la priorità senza scartare il torrent.">?</span></label>
+                             <div class="movie-requirement-row"><select id="edit-movie-subtitle-1" class="form-control" onchange="app.handleRequirementLanguageChange('edit-movie','subtitle',1)"></select><label class="checkbox-row"><input type="checkbox" id="edit-movie-subtitle-required-1"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="edit-movie-subtitle-1-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                             <div class="movie-requirement-row"><select id="edit-movie-subtitle-2" class="form-control" onchange="app.handleRequirementLanguageChange('edit-movie','subtitle',2)"></select><label class="checkbox-row"><input type="checkbox" id="edit-movie-subtitle-required-2"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="edit-movie-subtitle-2-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                             <div class="movie-requirement-row"><select id="edit-movie-subtitle-3" class="form-control" onchange="app.handleRequirementLanguageChange('edit-movie','subtitle',3)"></select><label class="checkbox-row"><input type="checkbox" id="edit-movie-subtitle-required-3"><span data-i18n="Obbligatorio">Obbligatorio</span></label><input id="edit-movie-subtitle-3-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng"></div>
+                         </div>
                     </div>
                     <div class="form-group"><label><span data-i18n="Qualità Minima *">Qualità Minima *</span></label><select id="edit-movie-quality" required class="form-control" data-i18n-title="Filtra per risoluzione. Usa &lt;720p per accettare anche 480p. Usa 'any' per nessun filtro." title="Filtra per risoluzione. Usa &lt;720p per accettare anche 480p. Usa 'any' per nessun filtro."><option value="any" data-i18n="Qualsiasi (any)">Qualsiasi (any)</option><option value="<480p">&lt;480p (fino a 480p)</option><option value="<720p">&lt;720p (fino a 720p)</option><option value="720p">720p</option><option value="720p+">720p+</option><option value="720p-1080p">720p-1080p</option><option value="1080p+">1080p+</option><option value="2160p">4K (2160p)</option></select></div>
                     <div class="form-group"><label><span data-i18n="Escludi se contiene">Escludi se contiene</span> <span style="color:var(--text-muted); font-size:0.8rem; font-weight:normal;" data-i18n="(opz. separati da virgola)">(opz. separati da virgola)</span> <span class="unit" style="cursor:help;" title="Release scartate se il titolo contiene UNA QUALSIASI di queste parole/frasi. Es: &quot;special presentation, television&quot; per evitare speciali TV omonimi." data-i18n-title="Release scartate se il titolo contiene UNA QUALSIASI di queste parole/frasi.">?</span></label><input type="text" id="edit-movie-exclude" class="form-control" placeholder="Es: special presentation, television" data-i18n-placeholder="Es: special presentation, television"></div>
@@ -3481,26 +3469,44 @@ sudo mount /mnt/ramdisk</div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:10px;">
                         <div class="form-group"><label data-i18n="Qualità">Qualità</label><select id="movie-quality"><option value="any" data-i18n="Qualsiasi (any)">Qualsiasi (any)</option><option value="<480p">&lt;480p (fino a 480p)</option><option value="<720p">&lt;720p (fino a 720p)</option><option value="720p">720p</option><option value="720p+">720p+</option><option value="720p-1080p" selected>720p-1080p</option><option value="1080p+">1080p+</option><option value="2160p">4K (2160p)</option></select></div>
                         
-                        <div class="form-group">
-                            <label><span data-i18n="Lingua">Lingua</span> <span class="unit" style="cursor:help;" data-i18n-title="Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \" title="Requisito OBBLIGATORIO: EXTTO scarica solo release che contengono questa lingua audio nel titolo. Release senza questa lingua vengono scartate. Per le serie TV il controllo è stringente; per i film, una release senza lingua richiesta finisce comunque nel feed \"Migliori Trovati\" per riferimento.">?</span></label>
-                            <select id="movie-language-preset" onchange="app.handleLanguageChange('movie')">
-                                        <option value="ita">Italiano</option>
-                                        <option value="custom">Personalizzato…</option>
-                                    </select>
-                        </div>
+                         <div class="form-group">
+                             <label><span data-i18n="Lingue audio">Lingue audio</span> <span class="unit" style="cursor:help;" data-i18n-title="Le lingue obbligatorie devono essere tutte presenti. Le lingue facoltative aumentano la priorità senza scartare il torrent.">?</span></label>
+                             <div class="movie-requirement-row">
+                                 <select id="movie-language-1" class="form-control" onchange="app.handleRequirementLanguageChange('movie','language',1)"></select>
+                                 <label class="checkbox-row"><input type="checkbox" id="movie-language-required-1" checked><span data-i18n="Obbligatorio">Obbligatorio</span></label>
+                                 <input id="movie-language-1-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
+                             </div>
+                             <div class="movie-requirement-row">
+                                 <select id="movie-language-2" class="form-control" onchange="app.handleRequirementLanguageChange('movie','language',2)"></select>
+                                 <label class="checkbox-row"><input type="checkbox" id="movie-language-required-2"><span data-i18n="Obbligatorio">Obbligatorio</span></label>
+                                 <input id="movie-language-2-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
+                             </div>
+                             <div class="movie-requirement-row">
+                                 <select id="movie-language-3" class="form-control" onchange="app.handleRequirementLanguageChange('movie','language',3)"></select>
+                                 <label class="checkbox-row"><input type="checkbox" id="movie-language-required-3"><span data-i18n="Obbligatorio">Obbligatorio</span></label>
+                                 <input id="movie-language-3-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
+                             </div>
+                         </div>
                     </div>
-                    <input type="text" id="movie-language-custom" class="form-control hidden" style="margin-bottom:15px;" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
                     <div class="form-group"><label><span data-i18n="Escludi se contiene">Escludi se contiene</span> <span style="color:var(--text-muted); font-size:0.8rem; font-weight:normal;" data-i18n="(opz. separati da virgola)">(opz. separati da virgola)</span> <span class="unit" style="cursor:help;" title="Release scartate se il titolo contiene UNA QUALSIASI di queste parole/frasi. Es: &quot;special presentation, television&quot; per evitare speciali TV omonimi." data-i18n-title="Release scartate se il titolo contiene UNA QUALSIASI di queste parole/frasi.">?</span></label><input type="text" id="movie-exclude" class="form-control" placeholder="Es: special presentation, television" data-i18n-placeholder="Es: special presentation, television"></div>
-                    <div class="form-group">
-                        <label><span data-i18n="Sottotitoli">Sottotitoli</span> <span style="color:var(--text-muted); font-size:0.8rem; font-weight:normal;" data-i18n="(opzionale)">(opzionale)</span> <span class="unit" style="cursor:help;" data-i18n-title="Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film." title="Requisito PREFERENZIALE (non obbligatorio): non filtra né scarta. Ogni lingua sub trovata nel titolo aggiunge +200 punti allo score, alzando la priorità di quel torrent nel confronto tra candidati. Con più lingue (es. Italiano + Inglese): +200 se trovato solo uno, +400 se trovati entrambi. Il torrent con più lingue sub vince a parità di qualità. Valido sia per serie TV che per film.">?</span></label>
-                        <select id="movie-subtitle-preset" class="form-control" onchange="app.handleSubtitleChange('movie')">
-                                        <option value="" data-i18n="— nessuna preferenza —">— nessuna preferenza —</option>
-                                        <option value="ita">Italiano</option>
-                                        <option value="ita,eng">Italiano + English</option>
-                                        <option value="custom">Personalizzato…</option>
-                                    </select>
-                        <input type="text" id="movie-subtitle-custom" class="form-control hidden" style="margin-top:4px;" placeholder="Sigla ISO 639-2 (es: fra, deu, jpn, por)" data-i18n-placeholder="Sigla ISO 639-2 (es: fra, deu, jpn, por)">
-                    </div>
+                     <div class="form-group">
+                         <label><span data-i18n="Sottotitoli">Sottotitoli</span> <span class="unit" style="cursor:help;" data-i18n-title="I sottotitoli obbligatori devono essere tutti presenti. Quelli facoltativi aumentano la priorità senza scartare il torrent.">?</span></label>
+                         <div class="movie-requirement-row">
+                             <select id="movie-subtitle-1" class="form-control" onchange="app.handleRequirementLanguageChange('movie','subtitle',1)"></select>
+                             <label class="checkbox-row"><input type="checkbox" id="movie-subtitle-required-1"><span data-i18n="Obbligatorio">Obbligatorio</span></label>
+                             <input id="movie-subtitle-1-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
+                         </div>
+                         <div class="movie-requirement-row">
+                             <select id="movie-subtitle-2" class="form-control" onchange="app.handleRequirementLanguageChange('movie','subtitle',2)"></select>
+                             <label class="checkbox-row"><input type="checkbox" id="movie-subtitle-required-2"><span data-i18n="Obbligatorio">Obbligatorio</span></label>
+                             <input id="movie-subtitle-2-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
+                         </div>
+                         <div class="movie-requirement-row">
+                             <select id="movie-subtitle-3" class="form-control" onchange="app.handleRequirementLanguageChange('movie','subtitle',3)"></select>
+                             <label class="checkbox-row"><input type="checkbox" id="movie-subtitle-required-3"><span data-i18n="Obbligatorio">Obbligatorio</span></label>
+                             <input id="movie-subtitle-3-custom" class="form-control hidden" placeholder="Es: ita,eng" data-i18n-placeholder="Es: ita,eng">
+                         </div>
+                     </div>
 
                     <div class="checkbox-row"><input type="checkbox" id="movie-enabled" checked><label for="movie-enabled"><span data-i18n="Abilitato">Abilitato</span></label></div>
                     <button type="submit" class="btn btn-primary" style="width:100%; margin-top:15px;" data-i18n="Salva">Salva</button>

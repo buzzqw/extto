@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS movies_config (
     quality  TEXT NOT NULL DEFAULT 'any',
     language TEXT NOT NULL DEFAULT 'ita',
     enabled  INTEGER NOT NULL DEFAULT 1,
-    subtitle TEXT NOT NULL DEFAULT ''
+    subtitle TEXT NOT NULL DEFAULT '',
+    language_requirements TEXT NOT NULL DEFAULT '',
+    subtitle_requirements TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS translations (
@@ -136,6 +138,8 @@ def _get_conn() -> sqlite3.Connection:
             conn.execute(stmt)
     for col_sql in [
         "ALTER TABLE movies_config ADD COLUMN exclude TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE movies_config ADD COLUMN language_requirements TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE movies_config ADD COLUMN subtitle_requirements TEXT NOT NULL DEFAULT ''",
     ]:
         try:
             conn.execute(col_sql)
@@ -241,16 +245,54 @@ def delete_setting(key: str) -> None:
 # MOVIES CONFIG
 # ---------------------------------------------------------------------------
 
+def _movie_requirements(raw: Any, legacy: str, split_legacy: bool,
+                        default_required: bool) -> List[Dict[str, Any]]:
+    """Decode the new requirement list and migrate the old scalar field."""
+    requirements = []
+    if raw:
+        try:
+            decoded = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(decoded, list):
+                for item in decoded:
+                    if isinstance(item, dict):
+                        value = str(item.get('language', item.get('value', '')) or '').strip().lower()
+                        if value:
+                            requirements.append({
+                                'language': value,
+                                'required': bool(item.get('required', default_required)),
+                            })
+        except (TypeError, ValueError, json.JSONDecodeError):
+            requirements = []
+
+    if not requirements and legacy:
+        values = [v.strip().lower() for v in str(legacy).split(',') if v.strip()] if split_legacy else [str(legacy).strip().lower()]
+        requirements = [
+            {'language': value, 'required': default_required}
+            for value in values if value
+        ]
+    return requirements
+
 def get_movies_config() -> List[Dict]:
     """Restituisce la lista film configurati."""
     with _lock:
         conn = _get_conn()
         try:
             rows = conn.execute(
-                "SELECT id, name, year, quality, language, enabled, subtitle, exclude "
+                "SELECT id, name, year, quality, language, enabled, subtitle, exclude, "
+                "language_requirements, subtitle_requirements "
                 "FROM movies_config ORDER BY name"
             ).fetchall()
-            return [dict(r) for r in rows]
+            result = []
+            for row in rows:
+                movie = dict(row)
+                movie['language_requirements'] = _movie_requirements(
+                    movie.get('language_requirements'), movie.get('language', ''), False, True
+                )
+                movie['subtitle_requirements'] = _movie_requirements(
+                    movie.get('subtitle_requirements'), movie.get('subtitle', ''), True, False
+                )
+                result.append(movie)
+            return result
         finally:
             conn.close()
 
@@ -262,17 +304,33 @@ def save_movies_config(movies: List[Dict]) -> None:
         try:
             conn.execute("DELETE FROM movies_config")
             for m in movies:
+                language_requirements = m.get('language_requirements') or []
+                subtitle_requirements = m.get('subtitle_requirements') or []
+                legacy_language = m.get('language', m.get('lang', 'ita'))
+                legacy_subtitle = m.get('subtitle', '')
+                if language_requirements:
+                    legacy_language = ','.join(
+                        str(r.get('language', '')).strip() for r in language_requirements
+                        if isinstance(r, dict) and r.get('language') and r.get('language') not in ('any', '*')
+                    ) or 'any'
+                if subtitle_requirements:
+                    legacy_subtitle = ','.join(
+                        str(r.get('language', '')).strip() for r in subtitle_requirements
+                        if isinstance(r, dict) and r.get('language') and r.get('language') not in ('any', '*')
+                    )
                 conn.execute(
-                    "INSERT INTO movies_config(name,year,quality,language,enabled,subtitle,exclude) "
-                    "VALUES(?,?,?,?,?,?,?)",
+                    "INSERT INTO movies_config(name,year,quality,language,enabled,subtitle,exclude,"
+                    "language_requirements,subtitle_requirements) VALUES(?,?,?,?,?,?,?,?,?)",
                     (
                         m.get('name', ''),
                         str(m.get('year', '') or ''),
                         m.get('quality', m.get('qual', 'any')),
-                        m.get('language', m.get('lang', 'ita')),
+                        legacy_language,
                         1 if m.get('enabled', True) else 0,
-                        m.get('subtitle', ''),
+                        legacy_subtitle,
                         m.get('exclude', ''),
+                        json.dumps(language_requirements, ensure_ascii=True),
+                        json.dumps(subtitle_requirements, ensure_ascii=True),
                     )
                 )
             conn.commit()

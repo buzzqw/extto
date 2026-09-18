@@ -879,7 +879,11 @@ SORGENTE (TRACKER): SOURCE (TRACKER)
 Sospeso: Suspended
 'Sotto questa velocità di download, il torrent è considerato ''lento'' e non occupa uno slot attivo.': 'Below this download speed, the torrent is considered ''slow'' and does not occupy an active slot.'
 'Sotto questa velocità di upload, il torrent è considerato ''lento''.': 'Below this upload speed, the torrent is considered ''slow''.'
-Sottotitoli: Subtitles
+'Sottotitoli': 'Subtitles'
+'Lingue audio': 'Audio languages'
+'Obbligatorio': 'Required'
+'Le lingue obbligatorie devono essere tutte presenti. Le lingue facoltative aumentano la priorità senza scartare il torrent.': 'All required languages must be present. Optional languages increase priority without rejecting the torrent.'
+'I sottotitoli obbligatori devono essere tutti presenti. Quelli facoltativi aumentano la priorità senza scartare il torrent.': 'All required subtitles must be present. Optional subtitles increase priority without rejecting the torrent.'
 Spazio Disco: Disk Space
 Spazio libero: Free space
 'Spazio libero:': 'Free space:'

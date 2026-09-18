@@ -1953,12 +1953,10 @@ def main():
                         stats.quality_rejected.append(f"{item['title'][:60]}... [blocklisted]")
                         continue
 
-                    lang_req = match.get('lang', match.get('language', 'ita'))
-                    lang_ok  = not lang_req or cfg._lang_ok(item['title'], lang_req)
-                    lang_bonus = 0
-
-                    sub_req = match.get('subtitle', '')
-                    sub_bonus = cfg._sub_score(item['title'], sub_req) if sub_req else 0
+                    lang_ok = cfg._movie_language_ok(item['title'], match)
+                    sub_ok = cfg._movie_subtitle_ok(item['title'], match)
+                    lang_bonus = cfg._movie_preference_score(item['title'], match)
+                    sub_bonus = 0
 
                     mov['config_name'] = match['name']
                     mov['archive_path'] = match.get('archive_path', '')
@@ -1969,15 +1967,18 @@ def main():
 
                     # Registra nel feed (tutti i candidati, con e senza lingua)
                     try:
-                        _fail = None if lang_ok else 'lang_mismatch'
+                        _fail = None if lang_ok and sub_ok else (
+                            'lang_mismatch' if not lang_ok else 'subtitle_mismatch'
+                        )
                         db.record_movie_feed_match(match['name'], item['title'],
                                                    base_score, lang_bonus + sub_bonus, _fail, safe_magnet)
                     except Exception as e:
                         logger.debug(f"record_movie_feed_match: {e}")
                         pass
 
-                    if not lang_ok:
-                        stats.quality_rejected.append(f"{item['title'][:60]}... [lang film]")
+                    if not lang_ok or not sub_ok:
+                        reason = 'lang film' if not lang_ok else 'subtitle film'
+                        stats.quality_rejected.append(f"{item['title'][:60]}... [{reason}]")
                         continue
 
                     # Salva solo se è il migliore con lingua ok
@@ -2637,11 +2638,36 @@ def main():
                 if not results and run_movies_triggered:
                     _ws_engs = getattr(cfg, 'websearch_engines', []) or []
                     if _ws_engs:
-                        _lang_tag = mov_cfg.get('language', mov_cfg.get('lang', 'ita')) or 'ita'
-                        ws_search_str = f"{search_str} {_lang_tag}"
+                        _lang_tags = [
+                            str(r.get('language', '')).strip()
+                            for r in mov_cfg.get('language_requirements', [])
+                            if isinstance(r, dict) and r.get('required', False)
+                            and r.get('language') not in ('any', '*')
+                        ]
+                        ws_search_str = f"{search_str} {' '.join(_lang_tags)}".strip()
                         logger.info(f"      🌐 Web search film: '{ws_search_str}'")
                         try:
-                            _ws_mov = eng._web_search_all(ws_search_str)
+                            from core.engine import _subtitle_query_terms as _sqt
+                            _ws_queries = {ws_search_str}
+                            for req in mov_cfg.get('subtitle_requirements', []):
+                                if not isinstance(req, dict):
+                                    continue
+                                if not req.get('required', False):
+                                    continue
+                                _sub_lang = str(req.get('language', '')).strip().lower()
+                                if _sub_lang and _sub_lang not in ('any', '*'):
+                                    _ws_queries.update(
+                                        f"{ws_search_str} {term}"
+                                        for term in _sqt(_sub_lang)
+                                    )
+                            _ws_mov = []
+                            _seen_ws = set()
+                            for _ws_query in _ws_queries:
+                                for _ws_item in eng._web_search_all(_ws_query):
+                                    _ws_key = _ws_item.get('magnet') or _ws_item.get('title')
+                                    if _ws_key not in _seen_ws:
+                                        _seen_ws.add(_ws_key)
+                                        _ws_mov.append(_ws_item)
                             if _ws_mov:
                                 results = _ws_mov
                                 logger.info(f"      🌐 Web search: {len(_ws_mov)} candidati")
@@ -2653,9 +2679,11 @@ def main():
                 _reject_reasons = []
 
                 for item in results:
-                    lang_req = mov_cfg.get('language', mov_cfg.get('lang', 'ita'))
-                    if not cfg._lang_ok(item['title'], lang_req):
+                    if not cfg._movie_language_ok(item['title'], mov_cfg):
                         _reject_reasons.append('lingua')
+                        continue
+                    if not cfg._movie_subtitle_ok(item['title'], mov_cfg):
+                        _reject_reasons.append('sottotitoli')
                         continue
 
                     mov_p = Parser.parse_movie(item['title'])
@@ -2672,6 +2700,7 @@ def main():
                         dl_ok, msg = db.check_movie(mov_p, safe_magnet, match.get('qual', match.get('quality', '')))
                         if dl_ok:
                             score = mov_p['quality'].score() if hasattr(mov_p['quality'], 'score') else 0
+                            score += cfg._movie_preference_score(item['title'], mov_cfg)
                             if score > best_movie_score:
                                 best_movie_score = score
                                 source = item.get('uploader') or "Archivio"
@@ -3447,6 +3476,7 @@ def main():
                             # Valutazione diretta delle release RSS (molto più veloce e risolve il bug dei timeframe=0)
                             fast_s_up = 0
                             fast_m_up = 0
+                            fast_movie_candidates = {}
                             
                             for item in rss_items:
                                 # 1. SERIE TV
@@ -3503,23 +3533,47 @@ def main():
                                 mov = Parser.parse_movie(item['title'])
                                 if mov:
                                     match = cfg_live.find_movie_match(mov['name'], mov['year'])
-                                    if match and cfg_live._lang_ok(item['title'], match.get('language', match.get('lang', 'ita'))):
+                                    if match and cfg_live._movie_language_ok(item['title'], match) and cfg_live._movie_subtitle_ok(item['title'], match):
                                         mov['config_name'] = match['name']
                                         mov['archive_path'] = match.get('archive_path', '')
                                         safe_mag = sanitize_magnet(item['magnet'], item['title']) or item['magnet']
-                                        dl, msg = db.check_movie(mov, safe_mag, match.get('quality', match.get('qual', '')))
-                                        if dl:
-                                            ok_send, used_cl = _send_with_fallback(safe_mag)
-                                            if not ok_send:
-                                                db.undo_movie_send(match['name'], mov['year'], safe_mag)
-                                                logger.warning(f"⚠️  Send failed (fast-rss movie): {match['name']} — record DB ripristinato")
-                                            if ok_send:
-                                                fast_m_up += 1
-                                                score = mov['quality'].score() + cfg_live.get_custom_score(item['title'])
-                                                logger.info(f"   🚀 MOVIE FAST-RSS [{used_cl}]: {match['name']} (Score: {score})")
-                                                notifier.notify_movie(match['name'], mov['year'], item['title'], score)
-                                                tagger.tag_torrent(safe_mag, TAG_FILM)
-                                                _ui_tag(safe_mag, TAG_FILM, item.get('source', ''))
+                                        score = (
+                                            mov['quality'].score() +
+                                            cfg_live.get_custom_score(item['title']) +
+                                            cfg_live._movie_preference_score(item['title'], match)
+                                        )
+                                        current = fast_movie_candidates.get(match['name'])
+                                        if current is None or score > current['score']:
+                                            fast_movie_candidates[match['name']] = {
+                                                'mov': mov,
+                                                'match': match,
+                                                'magnet': safe_mag,
+                                                'item': item,
+                                                'score': score,
+                                            }
+
+                            # Il feed RSS non garantisce l'ordine migliore: scegli il
+                            # candidato migliore dopo aver visto tutti i risultati.
+                            for candidate in fast_movie_candidates.values():
+                                mov = candidate['mov']
+                                match = candidate['match']
+                                safe_mag = candidate['magnet']
+                                item = candidate['item']
+                                dl, msg = db.check_movie(
+                                    mov, safe_mag, match.get('quality', match.get('qual', ''))
+                                )
+                                if dl:
+                                    ok_send, used_cl = _send_with_fallback(safe_mag)
+                                    if not ok_send:
+                                        db.undo_movie_send(match['name'], mov['year'], safe_mag)
+                                        logger.warning(f"⚠️  Send failed (fast-rss movie): {match['name']} — DB record ripristinato")
+                                    if ok_send:
+                                        fast_m_up += 1
+                                        score = candidate['score']
+                                        logger.info(f"   🚀 MOVIE FAST-RSS [{used_cl}]: {match['name']} (Score: {score})")
+                                        notifier.notify_movie(match['name'], mov['year'], item['title'], score)
+                                        tagger.tag_torrent(safe_mag, TAG_FILM)
+                                        _ui_tag(safe_mag, TAG_FILM, item.get('source', ''))
 
                             if fast_s_up > 0 or fast_m_up > 0:
                                 logger.info(f"   🎉 New downloads sent from RSS! Series: {fast_s_up}, Movies: {fast_m_up}")

@@ -427,21 +427,44 @@ class Engine:
                 for m in (movies_list if domain != 'series' else []):
                     enabled = m.get('enabled', False) if isinstance(m, dict) else getattr(m, 'enabled', False)
                     name    = m.get('name', '')       if isinstance(m, dict) else getattr(m, 'name', '')
-                    lang    = (m.get('language') or m.get('lang') or '') if isinstance(m, dict) else getattr(m, 'language', getattr(m, 'lang', ''))
-                    sub     = (m.get('subtitle') or '') if isinstance(m, dict) else getattr(m, 'subtitle', '')
                     if not (enabled and name):
                         continue
                     query    = str(name).strip()
-                    lang_str = str(lang).strip().lower()
-                    if lang_str and lang_str not in ('custom', 'none', 'any', '*'):
-                        query = f"{query} {lang_str}"
-                    sub_str = str(sub).strip().lower()
-                    queries_to_run = []
-                    if sub_str and sub_str not in ('none', 'any', '*'):
-                        for term in _subtitle_query_terms(sub_str):
-                            queries_to_run.append(f"{query} {term}")
+                    if isinstance(m, dict):
+                        lang_reqs = m.get('language_requirements') or []
+                        sub_reqs = m.get('subtitle_requirements') or []
+                        if not lang_reqs and m.get('language'):
+                            lang_reqs = [{'language': m.get('language')}]
+                        if not sub_reqs and m.get('subtitle'):
+                            sub_reqs = [
+                                {'language': value.strip()}
+                                for value in str(m.get('subtitle')).split(',') if value.strip()
+                            ]
                     else:
-                        queries_to_run.append(query)
+                        lang_reqs = []
+                        sub_reqs = []
+
+                    # Query the unqualified title plus mandatory hints. Optional
+                    # preferences are scored after parsing and do not need a
+                    # separate indexer request.
+                    queries_to_run = {query}
+                    for req in lang_reqs:
+                        if isinstance(req, dict) and not req.get('required', False):
+                            continue
+                        value = str(req.get('language', '')).strip().lower() if isinstance(req, dict) else ''
+                        if not value or value in ('custom', 'none', 'any', '*'):
+                            continue
+                        terms = [part.strip() for part in value.split(',') if part.strip()]
+                        queries_to_run.update(f"{query} {term}" for term in terms)
+                    for req in sub_reqs:
+                        if isinstance(req, dict) and not req.get('required', False):
+                            continue
+                        value = str(req.get('language', '')).strip().lower() if isinstance(req, dict) else ''
+                        if not value or value in ('custom', 'none', 'any', '*'):
+                            continue
+                        queries_to_run.update(
+                            f"{query} {term}" for term in _subtitle_query_terms(value)
+                        )
                     ix_items = []
                     for q in queries_to_run:
                         ix_items.extend(self._jackett_search(q, {}))
@@ -1998,14 +2021,23 @@ def rescore_archive(cfg, eng: Engine, db: Database) -> dict:
                 updated['series'] += 1
     for m in cfg.movies:
         results = eng.archive.search(m['name'])
-        lang_req = m.get('language', m.get('lang', 'ita'))
+        best_movie = None
+        best_score = -1
         for item in results:
-            if not cfg._lang_ok(item['title'], lang_req):
+            if not cfg._movie_language_ok(item['title'], m):
+                continue
+            if not cfg._movie_subtitle_ok(item['title'], m):
                 continue
             mov = Parser.parse_movie(item['title'])
             if not mov:
                 continue
             mov['config_name'] = m['name']
+            score = mov['quality'].score() + cfg._movie_preference_score(item['title'], m)
+            if score > best_score:
+                best_score = score
+                best_movie = (mov, item)
+        if best_movie:
+            mov, item = best_movie
             safe_magnet = sanitize_magnet(item['magnet'], item['title']) or item['magnet']
             dl, msg = db.check_movie(mov, safe_magnet, m.get('qual', ''))
             if dl:

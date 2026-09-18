@@ -60,14 +60,14 @@ const EXTTO_LANGUAGES = [
  * withCombo  → aggiunge "<Lingua> + English" per la lingua primaria (primaryCode)
  * withCustom → aggiunge "Personalizzato…" come ultima voce
  */
-function _fillLangSelect(selectId, { withAny=false, withCombo=false, withCustom=false, primaryCode=null } = {}) {
+function _fillLangSelect(selectId, { withAny=false, withCombo=false, withCustom=false, primaryCode=null, anyValue='' } = {}) {
     const sel = document.getElementById(selectId);
     if (!sel) return;
     const prev = sel.value;
     sel.innerHTML = '';
     if (withAny) {
         const o = document.createElement('option');
-        o.value = ''; o.textContent = t('— nessuna preferenza —');
+        o.value = anyValue; o.textContent = anyValue === 'any' ? t('Qualsiasi (any)') : t('— nessuna preferenza —');
         sel.appendChild(o);
     }
     EXTTO_LANGUAGES.forEach(l => {
@@ -194,6 +194,52 @@ function _populateSubtitleWidget(presetId, customId, value) {
     } else {
         preset.value = 'custom';
         if (custom) { custom.value = value; showEl(custom); }
+    }
+}
+
+function _readMovieRequirements(prefix, type) {
+    const requirements = [];
+    for (let i = 1; i <= 3; i++) {
+        const select = document.getElementById(`${prefix}-${type}-${i}`);
+        if (!select) continue;
+        let value = select.value || '';
+        if (value === 'custom') {
+            value = document.getElementById(`${prefix}-${type}-${i}-custom`)?.value.trim() || '';
+        }
+        const required = document.getElementById(`${prefix}-${type}-required-${i}`)?.checked || false;
+        value = value.toLowerCase();
+        if (!value || value === 'any' || value === '*') continue;
+        requirements.push({ language: value, required });
+    }
+    return requirements.slice(0, 3);
+}
+
+function _requirementsLegacyValue(requirements, fallback='') {
+    const values = (requirements || [])
+        .map(r => String(r.language || '').trim())
+        .filter(v => v && v !== 'any' && v !== '*');
+    return values.length ? values.join(',') : fallback;
+}
+
+function _setMovieRequirements(prefix, type, requirements, defaultValue='') {
+    const rows = Array.isArray(requirements) ? requirements : [];
+    for (let i = 1; i <= 3; i++) {
+        const select = document.getElementById(`${prefix}-${type}-${i}`);
+        const custom = document.getElementById(`${prefix}-${type}-${i}-custom`);
+        const checkbox = document.getElementById(`${prefix}-${type}-required-${i}`);
+        if (!select) continue;
+        const row = rows[i - 1] || {};
+        let value = String(row.language || (i === 1 ? defaultValue : '') || '').toLowerCase();
+        const known = [...select.options].some(o => o.value === value);
+        if (!value) value = type === 'language' ? 'any' : '';
+        if (known || [...select.options].some(o => o.value === value)) {
+            select.value = value;
+            if (custom) { custom.value = ''; hideEl(custom); }
+        } else {
+            select.value = 'custom';
+            if (custom) { custom.value = value; showEl(custom); }
+        }
+        if (checkbox) checkbox.checked = !!row.required;
     }
 }
 
@@ -2238,45 +2284,26 @@ const app = {
             const radarrExcludeEl = document.getElementById('radarr-edit-exclude');
             if (radarrExcludeEl) radarrExcludeEl.value = movie.exclude || '';
 
-            const lang    = (movie.language || app._primaryLang || '').toLowerCase();
-            const langSel = document.getElementById('radarr-edit-language');
-            if (langSel) {
-                const knownLangs = EXTTO_LANGUAGES.map(l => l.code);
-                if (knownLangs.includes(lang)) {
-                    langSel.value = lang;
-                    hideEl('radarr-edit-language-custom');
-                } else {
-                    langSel.value = 'custom';
-                    const customEl = document.getElementById('radarr-edit-language-custom');
-                    if (customEl) { showEl(customEl); customEl.value = lang; }
-                }
-            }
-
-            // Sottotitoli
-            _populateSubtitleWidget(
-                'radarr-edit-subtitle-preset',
-                'radarr-edit-subtitle-custom',
-                movie.subtitle || ''
-            );
+            _setMovieRequirements('radarr-edit', 'language', movie.language_requirements, movie.language || app._primaryLang || 'ita');
+            _setMovieRequirements('radarr-edit', 'subtitle', movie.subtitle_requirements, '');
         } catch(err) { console.error(err); }
     },
 
     async saveMovieInline(event) {
         event.preventDefault();
         const originalName = document.getElementById('radarr-edit-original-name').value;
-        const langVal      = document.getElementById('radarr-edit-language').value;
-        const langCustom   = document.getElementById('radarr-edit-language-custom').value;
+        const languageRequirements = _readMovieRequirements('radarr-edit', 'language');
+        const subtitleRequirements = _readMovieRequirements('radarr-edit', 'subtitle');
         const updatedMovie = {
             name:     document.getElementById('radarr-edit-name').value.trim(),
             year:     document.getElementById('radarr-edit-year').value.trim(),
             quality:  document.getElementById('radarr-edit-quality').value,
-            language: langVal === 'custom' ? langCustom.trim() : langVal,
+            language: _requirementsLegacyValue(languageRequirements, 'any'),
+            language_requirements: languageRequirements,
             enabled:  document.getElementById('radarr-edit-enabled').checked,
             exclude:  document.getElementById('radarr-edit-exclude')?.value.trim() || '',
-            subtitle: (() => {
-                const p = document.getElementById('radarr-edit-subtitle-preset')?.value || '';
-                return p === 'custom' ? (document.getElementById('radarr-edit-subtitle-custom')?.value.trim() || '') : p;
-            })(),
+            subtitle: _requirementsLegacyValue(subtitleRequirements, ''),
+            subtitle_requirements: subtitleRequirements,
         };
         if (!updatedMovie.name) { this.showToast(t('Name is required'), 'error'); return; }
         try {
@@ -3147,12 +3174,12 @@ const app = {
             document.getElementById('edit-movie-original-name').value = movieName;
             document.getElementById('edit-movie-name').value = movie.name || '';
             document.getElementById('edit-movie-year').value = movie.year || '';
-            document.getElementById('edit-movie-language').value = (movie.language || app._primaryLang || 'ita').toLowerCase();
             document.getElementById('edit-movie-quality').value = movie.quality || '720p-1080p';
             document.getElementById('edit-movie-enabled').checked = movie.enabled === true || movie.enabled === 'yes';
             const editMovieExcludeEl = document.getElementById('edit-movie-exclude');
             if (editMovieExcludeEl) editMovieExcludeEl.value = movie.exclude || '';
-            _populateSubtitleWidget('edit-movie-subtitle-preset', 'edit-movie-subtitle-custom', movie.subtitle || '');
+            _setMovieRequirements('edit-movie', 'language', movie.language_requirements, movie.language || app._primaryLang || 'ita');
+            _setMovieRequirements('edit-movie', 'subtitle', movie.subtitle_requirements, '');
             
             document.getElementById('edit-movie-modal').classList.add('active');
         } catch (err) { console.error(err); }
@@ -3162,17 +3189,18 @@ const app = {
         event.preventDefault();
         
         const originalName = document.getElementById('edit-movie-original-name').value;
+        const languageRequirements = _readMovieRequirements('edit-movie', 'language');
+        const subtitleRequirements = _readMovieRequirements('edit-movie', 'subtitle');
         const updatedMovie = {
             name: document.getElementById('edit-movie-name').value.trim(),
             year: document.getElementById('edit-movie-year').value.trim(),
-            language: (() => { const s = document.getElementById('edit-movie-language'); return s.value === 'custom' ? (document.getElementById('edit-movie-language-custom')?.value.trim() || '') : s.value; })(),
+            language: _requirementsLegacyValue(languageRequirements, 'any'),
+            language_requirements: languageRequirements,
             quality: document.getElementById('edit-movie-quality').value,
             enabled: document.getElementById('edit-movie-enabled').checked,
             exclude: document.getElementById('edit-movie-exclude')?.value.trim() || '',
-            subtitle: (() => {
-                const p = document.getElementById('edit-movie-subtitle-preset')?.value || '';
-                return p === 'custom' ? (document.getElementById('edit-movie-subtitle-custom')?.value.trim() || '') : p;
-            })(),
+            subtitle: _requirementsLegacyValue(subtitleRequirements, ''),
+            subtitle_requirements: subtitleRequirements,
         };
         
         if (!updatedMovie.name) {
@@ -5779,26 +5807,9 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         document.getElementById('series-editor-modal').classList.add('active');
     },
     showMoviesEditor() {
-        // Reset lingua al valore default prima di aprire (come showSeriesEditor)
-        const langSel = document.getElementById('movie-language-preset');
-        if (langSel) {
-            const defLang = app._primaryLang || '';
-            if (defLang && [...langSel.options].some(o => o.value === defLang)) {
-                langSel.value = defLang;
-            } else if (langSel.options.length > 0) {
-                langSel.value = langSel.options[0].value;
-            }
-            // Nascondi campo custom
-            const customEl = document.getElementById('movie-language-custom');
-            if (customEl) hideEl(customEl);
-        }
-        // Reset sottotitoli
-        const subSel = document.getElementById('movie-subtitle-preset');
-        if (subSel) {
-            subSel.value = '';
-            const subCustom = document.getElementById('movie-subtitle-custom');
-            if (subCustom) hideEl(subCustom);
-        }
+        _setMovieRequirements('movie', 'language', [], app._primaryLang || 'ita');
+        _setMovieRequirements('movie', 'subtitle', [], '');
+        document.getElementById('movie-language-required-1').checked = true;
         document.getElementById('movie-editor-modal').classList.add('active');
     },
 
@@ -5884,11 +5895,8 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         // Mappa prefix → id select e id input custom
         const map = {
             'series':      ['series-language-preset',  'series-language-custom'],
-            'movie':       ['movie-language-preset',   'movie-language-custom'],
             'edit-series': ['edit-series-language',    'edit-series-language-custom'],
-            'edit-movie':  ['edit-movie-language',     'edit-movie-language-custom'],
             'extto-edit': ['extto-edit-language',    'extto-edit-language-custom'],
-            'radarr-edit': ['radarr-edit-language',    'radarr-edit-language-custom'],
         };
         const ids = map[prefix];
         if (!ids) return;
@@ -5897,6 +5905,12 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
         if (customEl) showIf(customEl, v === 'custom');
     },
     handleMovieLanguageChange() { this.handleLanguageChange('movie'); },
+
+    handleRequirementLanguageChange(prefix, type, index) {
+        const select = document.getElementById(`${prefix}-${type}-${index}`);
+        const custom = document.getElementById(`${prefix}-${type}-${index}-custom`);
+        if (custom) showIf(custom, select?.value === 'custom');
+    },
 
     handleSubtitleChange(prefix) {
         const selectId = `${prefix}-subtitle-preset`;
@@ -6084,14 +6098,16 @@ systemctl --user enable --now ${d.filename.replace('.service','')}</code>
     },
     async saveMovie(e) {
         e.preventDefault();
-        const lang = document.getElementById('movie-language-preset').value;
-        const subPreset = document.getElementById('movie-subtitle-preset').value;
+        const languageRequirements = _readMovieRequirements('movie', 'language');
+        const subtitleRequirements = _readMovieRequirements('movie', 'subtitle');
         const m = {
             name: document.getElementById('movie-name').value, year: document.getElementById('movie-year').value,
             enabled: document.getElementById('movie-enabled').checked,
             quality: document.getElementById('movie-quality').value,
-            language: lang === 'custom' ? document.getElementById('movie-language-custom').value : lang,
-            subtitle: subPreset === 'custom' ? (document.getElementById('movie-subtitle-custom')?.value.trim() || '') : (subPreset || ''),
+            language: _requirementsLegacyValue(languageRequirements, 'any'),
+            subtitle: _requirementsLegacyValue(subtitleRequirements, ''),
+            language_requirements: languageRequirements,
+            subtitle_requirements: subtitleRequirements,
             exclude: document.getElementById('movie-exclude')?.value.trim() || '',
         };
         try {
@@ -10174,15 +10190,23 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
 
     initLangSelects() {
         const primary = this._primaryLang || '';
-        // Select audio (lingua obbligatoria serie/film)
-        ['edit-series-language','edit-movie-language','extto-edit-language',
-         'radarr-edit-language','series-language-preset','movie-language-preset',
+        // Select audio (serie singole + tre requisiti per i film)
+        ['edit-series-language','extto-edit-language','series-language-preset',
          'bulk-series-language'].forEach(id => _fillLangSelect(id, { withCustom: true }));
+        ['movie','edit-movie','radarr-edit'].forEach(prefix => {
+            [1, 2, 3].forEach(i => _fillLangSelect(`${prefix}-language-${i}`, {
+                withAny: true, withCustom: true, anyValue: 'any'
+            }));
+        });
         // Select sottotitoli (opzionali)
-        ['edit-series-subtitle-preset','edit-movie-subtitle-preset',
-         'extto-edit-subtitle-preset','radarr-edit-subtitle-preset',
-         'series-subtitle-preset','movie-subtitle-preset']
+        ['edit-series-subtitle-preset',
+         'extto-edit-subtitle-preset', 'series-subtitle-preset']
             .forEach(id => _fillLangSelect(id, { withAny: true, withCombo: true, withCustom: true, primaryCode: primary }));
+        ['movie','edit-movie','radarr-edit'].forEach(prefix => {
+            [1, 2, 3].forEach(i => _fillLangSelect(`${prefix}-subtitle-${i}`, {
+                withAny: true, withCustom: true
+            }));
+        });
         // Costruisce il dropdown custom lingua UI nell'header
         this._buildLangDropdown();
     },
