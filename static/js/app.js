@@ -7006,8 +7006,7 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
         const empty = document.getElementById('torrent-empty');
         
         const prevSelected = new Set([...document.querySelectorAll('.torrent-checkbox:checked')].map(c => c.dataset.hash));
-
-        list.querySelectorAll('.torrent-row').forEach(r => r.remove());
+        const newRows = document.createDocumentFragment();
         
         list.querySelectorAll('[data-sort-col]').forEach(th => {
             const col = th.dataset.sortCol;
@@ -7221,11 +7220,15 @@ showToast(m, t='info') { const d=document.createElement('div'); d.className=`toa
                     row.querySelector('.torrent-checkbox').checked = true;
                 }
                 
-                list.appendChild(row);
+                newRows.appendChild(row);
             } catch(e) {
                 console.error("Errore renderizzazione riga torrent:", e, torr);
             }
         });
+
+        // Costruisce tutto fuori dal DOM visibile, evitando il lampo della lista vuota.
+        list.querySelectorAll('.torrent-row').forEach(r => r.remove());
+        list.appendChild(newRows);
         
         showIf(document.getElementById('torrent-bulk-bar'), torrents.length > 0);
         this._onTorrentCheckChange();
