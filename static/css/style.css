@@ -1199,7 +1199,8 @@ select option {
     .modal-body { padding: 1rem 1.25rem; }
     .modal-footer { padding-top: 0.875rem; gap: 0.6rem; }
     .modal-footer .btn { flex: 1; }
-    .modal-body [style*="grid-template-columns: 1fr 1fr"], .form-row-2col {
+    .modal-body [style*="grid-template-columns: 1fr 1fr"],
+    .modal-body [style*="grid-template-columns:1fr 1fr"], .form-row-2col {
         display: flex !important; flex-direction: column; gap: 0;
     }
 
